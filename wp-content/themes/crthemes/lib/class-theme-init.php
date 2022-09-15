@@ -65,26 +65,26 @@ class DWEB_Theme extends BB_Theme {
 //                'exclude_from_search' => true,
 //                'has_archive' => false,
 //            ),
-            array(
-                'name' => 'recruitment',
-                'plural' => 'Tuyển dụng',
-                'singular' => 'Tuyển dụng',
-                'rewrite' => false,
-                'icon' => 'dashicons-businessman',
-                'menu_position' => 23,
-                'exclude_from_search' => true,
-                'has_archive' => false,
-            ),
-            array(
-                'name' => 'contact',
-                'plural' => 'Liên hệ',
-                'singular' => 'Liên hệ',
-                'rewrite' => false,
-                'icon' => 'dashicons-email',
-                'menu_position' => 24,
-                'exclude_from_search' => true,
-                'has_archive' => false,
-            )
+//            array(
+//                'name' => 'recruitment',
+//                'plural' => 'Tuyển dụng',
+//                'singular' => 'Tuyển dụng',
+//                'rewrite' => false,
+//                'icon' => 'dashicons-businessman',
+//                'menu_position' => 23,
+//                'exclude_from_search' => true,
+//                'has_archive' => false,
+//            ),
+//            array(
+//                'name' => 'contact',
+//                'plural' => 'Liên hệ',
+//                'singular' => 'Liên hệ',
+//                'rewrite' => false,
+//                'icon' => 'dashicons-email',
+//                'menu_position' => 24,
+//                'exclude_from_search' => true,
+//                'has_archive' => false,
+//            )
         );
         foreach( $types as $type ) {
             $this->add_post_type($type);
@@ -149,19 +149,19 @@ class DWEB_Theme extends BB_Theme {
 	 */
 	public function remove_default_post_type() {
 //		remove_menu_page('edit.php');
-		remove_menu_page('upload.php');
-		remove_menu_page('index.php');
-		remove_menu_page('plugins.php');
-		remove_menu_page('tools.php');
-		remove_menu_page('edit-comments.php');
-        remove_menu_page('edit.php?post_type=acf-field-group');
+//		remove_menu_page('upload.php');
+//		remove_menu_page('index.php');
+//		remove_menu_page('plugins.php');
+//		remove_menu_page('tools.php');
+//		remove_menu_page('edit-comments.php');
+//        remove_menu_page('edit.php?post_type=acf-field-group');
 	}
 
 	public function remove_admin_submenus() {
-        remove_submenu_page ( 'index.php', 'update-core.php' );
-        remove_submenu_page('themes.php','theme-editor.php');
-        remove_submenu_page('themes.php','themes.php');
-        remove_submenu_page('options-general.php','options-discussion.php');
+//        remove_submenu_page ( 'index.php', 'update-core.php' );
+//        remove_submenu_page('themes.php','theme-editor.php');
+//        remove_submenu_page('themes.php','themes.php');
+//        remove_submenu_page('options-general.php','options-discussion.php');
 //        remove_submenu_page('options-general.php','options-permalink.php');
 //        remove_submenu_page('options-general.php','options-media.php');
 //        remove_submenu_page('options-general.php','options-writing.php');

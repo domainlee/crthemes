@@ -1,5 +1,5 @@
 <?php
-  /* Template Name: Trang Chủ */
+  /* Template Name: Home Page */
     get_header();
 ?>
 
