@@ -342,16 +342,6 @@ class DWEB_Theme extends BB_Theme {
 	 * These sizes already account for 2x retina displays.
 	 */
 	public function register_image_sizes() {
-
-		// large image size is used for full-width cover images
-		add_image_size( 'base-large', 1920 );
-
-		// medium image size is used for featured post thumbnails in list context
-		add_image_size( 'base-medium', 1366 );
-
-		// small image size is used for smaller items such as logos
-		add_image_size( 'base-small', 768 );
-
 	}
 
 	/**

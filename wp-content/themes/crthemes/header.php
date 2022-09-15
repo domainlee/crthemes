@@ -50,12 +50,11 @@ if (!empty($script_in_body)):
     echo $script_in_body;
 endif; ?>
 
-<header class="head position-relative d-flex align-items-center">
-    <div class="square position-absolute head__square--left"><div></div></div>
+<header class="head">
     <div class="container">
         <div class="row">
             <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="head__inner d-flex justify-content-between align-items-center">
                     <div class="head__logo">
                         <a href="<?= site_url(); ?>">
                             <img src="<?= $logoHeader; ?>" alt="<?php bloginfo('name'); ?>">
@@ -72,7 +71,7 @@ endif; ?>
                             );
                         } ?>
                     </div>
-                    <div class="head__search d-none d-md-block">
+                    <div class="head__search d-none">
                         <?= get_search_form(); ?>
                     </div>
                     <div class="nav-mobile d-block d-md-none">
@@ -98,7 +97,6 @@ endif; ?>
             </div>
         </div>
     </div>
-    <div class="square position-absolute head__square--right"><div></div></div>
 </header>
 
 <div id="preloader">
