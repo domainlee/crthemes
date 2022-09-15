@@ -124,68 +124,14 @@ a:hover {
     100% {filter: blur(4px);}
 }
 
-.square {
-    width: 30px;
-    height: 30px;
-    position: relative;
-    background: linear-gradient(to right, #C4A170, #EEC587);
-    &:before {
-        content: '';
-        position: absolute;
-        background-color: #FFF;
-        left: 1px;
-        right: 1px;
-        top: 1px;
-        bottom: 1px;
-    }
-    > div {
-        width: 60%;
-        height: 60%;
-        position: absolute;
-        background: linear-gradient(to right, #C4A170, #EEC587);
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        margin: auto;
-        &:before {
-            content: '';
-            position: absolute;
-            background-color: #FFF;
-            left: 1px;
-            right: 1px;
-            top: 1px;
-            bottom: 1px;
-        }
-    }
-}
-
 .head {
     &.head__fix {
-        position: fixed !important;
-        width: 100%;
-        z-index: 10;
-        background-color: #FFF;
     }
     .head__square--left {
         left: 2%;
     }
     .head__square--right {
         right: 2%;
-    }
-    &:before {
-        content: '';
-        height: 1px;
-        width: auto;
-        flex: 1;
-        background: #EEC587;
-    }
-    &:after {
-        content: '';
-        height: 1px;
-        width: auto;
-        flex: 1;
-        background: #EEC587;
     }
     .head__logo {
         margin: 15px 0;
@@ -197,22 +143,6 @@ a:hover {
         display: flex;
         flex: 1;
         align-items: center;
-        &:before {
-            content: "";
-            height: 1px;
-            width: auto;
-            flex: 1;
-            background: #eec587;
-            margin: 0 10px;
-        }
-        &:after {
-            content: "";
-            height: 1px;
-            width: auto;
-            flex: 1;
-            background: #eec587;
-            margin: 0 10px;
-        }
         .header__navigation {
             margin: 0;
             padding: 0;
@@ -1158,103 +1088,6 @@ a:hover {
         &:before {
             padding-top: 25%;
         }
-    }
-}
-
-.footer {
-    background: #BCBCBC;
-    color: #FFF;
-    overflow: hidden;
-    .footer__inner {
-        display: flex;
-        .footer__col {
-            padding: 50px;
-            border-right: 1px solid #FFF;
-        }
-        .footer__col:nth-child(1) {
-            padding: 0;
-            width: 20%;
-            .footer__logo {
-                padding: 50px 30px;
-                border-left: 1px solid #FFF;
-                position: relative;
-                img {
-                    filter: brightness(0) invert(1);
-                }
-                &:after {
-                    content: '';
-                    width: 10000px;
-                    height: 1px;
-                    display: block;
-                    background-color: #FFF;
-                    position: absolute;
-                    bottom: 0;
-                    right: 0;
-                }
-            }
-        }
-        .footer__col:nth-child(2) {
-            width: 45%;
-            padding: 0;
-            > div {
-                padding: 50px;
-                border-bottom: 1px solid #FFF;
-                p {
-                    &:last-child {
-                        margin: 0;
-                    }
-                }
-            }
-        }
-        .footer__col:nth-child(3) {
-            width: 35%;
-            .footer__headline {
-                margin: 0 0 15px;
-                text-transform: uppercase;
-                font-size: 16px;
-                font-weight: 600;
-            }
-
-            .footer__form {
-                .form-contact {
-                    .form-contact__row {
-                        margin: 0 0 10px;
-                        input {
-                            padding: 7px 10px;
-                            width: 100%;
-                            border: 1px solid #FFF;
-                            background-color: transparent;
-                            color: #FFF;
-                            font-size: 14px;
-                            border-radius: 5px;
-                            &::placeholder {
-                                color: #FFF;
-                            }
-                            &.parsley-error {
-                                border-color: #d38c8c;
-                                background-color: #cfbaba;
-                            }
-                        }
-                        .parsley-errors-list {
-                            display: none;
-                        }
-                    }
-                    .contact__btn-submit {
-                        border: none;
-                        padding: 6px 20px;
-                        font-size: 14px;
-                        border-radius: 5px;
-                        text-transform: uppercase;
-                    }
-                }
-            }
-        }
-    }
-    .footer__copywriter {
-        padding: 10px 0;
-        border-top: 1px solid #FFF;
-        text-align: center;
-        font-size: 14px;
     }
 }
 
