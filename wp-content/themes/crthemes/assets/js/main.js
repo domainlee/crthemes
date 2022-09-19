@@ -44,6 +44,20 @@
             }
 
         });
+
+        $(window).scroll(function() {
+            var scrollTop = $('html').scrollTop();
+            if(scrollTop >= 10) {
+                $('body').addClass('head__fix');
+            } else {
+                $('body').removeClass('head__fix');
+            }
+            if(scrollTop >= 600) {
+                $('body').addClass('head__show');
+            } else {
+                $('body').removeClass('head__show');
+            }
+        });
     }
 
     var lazy = function () {

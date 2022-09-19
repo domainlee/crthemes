@@ -32,8 +32,17 @@ a {
 a:hover {
     color: #EEC587;
 }
-.bg-size-cover {
+.bg-cover {
     background-size: cover;
+}
+.bg-contain {
+    background-size: contain;
+}
+.bg-center {
+    background-position: center;
+}
+.bg-no-repeat {
+    background-repeat: no-repeat;
 }
 .ratio-2x3 {
     --bs-aspect-ratio: 130%;
@@ -65,6 +74,14 @@ a:hover {
             border: 1px solid;
         }
     }
+}
+.py-6 {
+    padding-top: 6rem !important;
+    padding-bottom: 6rem !important;
+}
+.py-8 {
+    padding-top: 8rem !important;
+    padding-bottom: 8rem !important;
 }
 
 /**  **/
@@ -128,9 +145,20 @@ a:hover {
     position: fixed;
     left: 0;
     right: 0;
+    top: 0;
+    transition: all 0.3s ease;
+    .head__fix & {
+        top: -85px;
+    }
+    .head__show & {
+        top: 0;
+        background-color: #FFF;
+        z-index: 100;
+    }
     .head__inner {
         border-bottom: 1px solid #DDD;
-        &.head__fix {
+        .head__show & {
+            border-bottom: none;
         }
         .head__logo {
             margin: 15px 0;
@@ -264,9 +292,19 @@ a:hover {
 }
 
 .hero {
+    padding-top: 85px;
     background-image: url('../img/bg_hero.png');
     background-size: cover;
     background-position: center;
+    .hero__heading {
+        font-weight: 700;
+        font-size: 48px;
+    }
+    .hero__intro {
+        margin: 0 0 30px;
+        color: #666;
+        font-size: 16px;
+    }
     .hero__image {
         background-repeat: no-repeat;
         background-size: cover;
@@ -287,7 +325,29 @@ a:hover {
             }
         }
     }
+    .hero__button {
+        a {
+            padding: 20px 50px;
+            background-color: #fe5500;
+            color: #FFF;
+            border-radius: 0 0 30px;
+            display: inline-flex;
+            align-items: center;
+            &:hover {
 
+            }
+            i {
+                margin: 0 0 0 10px;
+                -webkit-transform: rotate(-45deg);
+                -moz-transform: rotate(-45deg);
+                -o-transform: rotate(-45deg);
+                -ms-transform: rotate(-45deg);
+                transform: rotate(-45deg);
+                display: inline-block;
+                font-size: 20px;
+            }
+        }
+    }
 }
 
 .gallery {
