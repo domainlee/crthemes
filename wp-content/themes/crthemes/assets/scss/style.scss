@@ -21,7 +21,7 @@ body {
     font-family: 'Open Sans', sans-serif;
 }
 ::selection {
-    background: #EEC587;
+    background: #ffa97e;
     color: #fff;
 }
 a {
@@ -142,10 +142,7 @@ a:hover {
 }
 
 .head {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
+    position: relative;
     transition: all 0.3s ease;
     .head__fix & {
         top: -85px;
@@ -156,10 +153,6 @@ a:hover {
         z-index: 100;
     }
     .head__inner {
-        border-bottom: 1px solid #DDD;
-        .head__show & {
-            border-bottom: none;
-        }
         .head__logo {
             margin: 15px 0;
             img {
@@ -167,7 +160,7 @@ a:hover {
             }
         }
         .head__nav {
-            margin: 0 0 0 30px;
+            margin: 0 0 0 50px;
             display: flex;
             flex: 1;
             align-items: center;
@@ -186,12 +179,11 @@ a:hover {
                     > a {
                         margin: 0;
                         color: #6a6a6a;
-                        text-transform: uppercase;
-                        font-size: 13px;
-                        transition: all 0.2s ease;
-                        font-weight: 500;
+                        font-size: 16px;
+                        transition: all .2s ease;
+                        font-weight: 400;
                         &:hover {
-                            color: #eec587;
+                            color: #fe5500;
                         }
                     }
                     &:hover {
@@ -292,10 +284,7 @@ a:hover {
 }
 
 .hero {
-    padding-top: 85px;
-    background-image: url('../img/bg_hero.png');
-    background-size: cover;
-    background-position: center;
+    background-color: #fff4ee;
     .hero__heading {
         font-weight: 700;
         font-size: 48px;
@@ -306,24 +295,7 @@ a:hover {
         font-size: 16px;
     }
     .hero__image {
-        background-repeat: no-repeat;
-        background-size: cover;
-        background-position: center;
-        .hero__content {
-            padding: 0 0 15%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            h3 {
-                color: #fff;
-                font-family: "Playfair Display",serif;
-                font-size: 72px;
-                text-transform: uppercase;
-                font-weight: 400;
-                z-index: 2;
-                letter-spacing: 5px;
-            }
-        }
+        position: relative;
     }
     .hero__button {
         a {
