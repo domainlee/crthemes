@@ -11,6 +11,9 @@ if( have_rows('home_page') ):
             case "layout_banner":
                 the_module('hero-slider', ['image' => get_sub_field('banner_image')]);
                 break;
+            case "layout_feature":
+                the_module('feature');
+                break;
             case "layout_profilo":
                 the_module('profilo');
                 break;
