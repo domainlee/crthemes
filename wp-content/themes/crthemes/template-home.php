@@ -9,7 +9,7 @@ if( have_rows('home_page') ):
         $type = get_row_layout();
         switch ($type) {
             case "layout_banner":
-                the_module('hero-slider', ['image' => get_sub_field('banner_image')]);
+                the_module('hero-slider', ['image' => get_sub_field('banner_image'), 'title' => get_sub_field('banner_title'), 'intro' => get_sub_field('banner_intro'), 'url' => get_sub_field('banner_url')]);
                 break;
             case "layout_feature":
                 the_module('feature');
