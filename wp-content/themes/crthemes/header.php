@@ -71,6 +71,9 @@ endif; ?>
                             );
                         } ?>
                     </div>
+                    <div class="head__button-checkout me-auto">
+                        <a href="<?= site_url().'/checkout'; ?>">Checkout</a>
+                    </div>
                     <div class="head__search d-none">
                         <?= get_search_form(); ?>
                     </div>

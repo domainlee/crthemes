@@ -8,12 +8,12 @@
     <div class="container-xl">
         <div class="row">
             <div class="col-12">
-                <h2 class="feature__heading heading__default"><?= $feature_heading ?></h2>
-                <div class="feature__sub sub__default"><?= $feature_sub ?></div>
+                <h2 class="feature__heading heading__default to-top"><?= $feature_heading ?></h2>
+                <div class="feature__sub sub__default to-top"><?= $feature_sub ?></div>
                 <div class="feature__list">
                     <?php if($list_features): ?>
                         <?php foreach ($list_features as $v): ?>
-                            <div class="feature__item">
+                            <div class="feature__item to-top">
                                 <div class="feature__icon"><?= $v['feature_icon'] ?></div>
                                 <h3 class="feature__title"><?= $v['feature_title'] ?></h3>
                                 <div class="feature__intro"><?= $v['feature_intro'] ?></div>
