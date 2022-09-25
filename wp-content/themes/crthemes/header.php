@@ -72,7 +72,9 @@ endif; ?>
                         } ?>
                     </div>
                     <div class="head__button-checkout me-auto">
-                        <a href="<?= site_url().'/checkout'; ?>">Checkout</a>
+                        <a href="<?= site_url().'/checkout'; ?>">Checkout
+                        <?php echo edd_get_cart_total() ? '$'.edd_get_cart_total():''; ?>
+                        </a>
                     </div>
                     <div class="head__search d-none">
                         <?= get_search_form(); ?>

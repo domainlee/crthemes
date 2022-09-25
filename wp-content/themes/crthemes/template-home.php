@@ -17,6 +17,9 @@ if( have_rows('home_page') ):
             case "layout_profilo":
                 the_module('profilo');
                 break;
+            case "layout_faq":
+                the_module('faq');
+                break;
             case "layout_gallery";
                 the_module('gallery', ['gallery_list' => get_sub_field('gallery_list'), 'title' => get_sub_field('gallery_heading'), 'button_text' => get_sub_field('gallery_button_text'), 'button_url' => get_sub_field('gallery_button_url')]);
                 break;

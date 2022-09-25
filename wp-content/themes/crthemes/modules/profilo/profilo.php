@@ -31,6 +31,7 @@
                             $images = get_field('post_images', $post->ID);
                             $term = get_the_terms($post->ID, 'category');
                             $term_link = get_term_link($term[0]->term_id);
+                            $url_demo = get_field('link_demo', $post->ID);
                             ?>
                             <div class="profilo__item">
                                 <div class="profilo__item--inner">
@@ -42,7 +43,7 @@
                                         <?php echo edd_price($post->ID); ?>
                                         <div>
                                             <a class="profilo__cart" href="<?= site_url().'/checkout?edd_action=add_to_cart&download_id='.$post->ID; ?>">Purchase <i class="icofont-cart"></i></a>
-                                            <a class="profilo__live-view" href="">Live Preview</a>
+                                            <a class="profilo__live-view" target="_blank" href="<?= $url_demo ? $url_demo:'#' ?>">Live Preview</a>
                                         </div>
                                     </div>
                                 </div>

@@ -14,7 +14,7 @@ Version: 1.0.0
 
 /* 1. Theme default css */
 
-$color-main: #C4A170;
+$color-main: #fe5500;
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;700&family=Playfair+Display:wght@400;600;700&display=swap');
 
 body {
@@ -30,7 +30,7 @@ a {
     transition: all 0.3s ease;
 }
 a:hover {
-    color: #EEC587;
+    color: #fe5500;
 }
 .bg-cover {
     background-size: cover;
@@ -212,7 +212,7 @@ a:hover {
                         width: 200px;
                         background-color: #FFF;
                         z-index: 5;
-                        border: 1px solid #eec587;
+                        border: 1px solid #fe5500;
                         box-shadow: 0 0 0 6px #fff;
                         opacity: 0;
                         visibility: hidden;
@@ -221,7 +221,7 @@ a:hover {
                             list-style: none;
                             position: relative;
                             padding: 8px 10px;
-                            border-bottom: 1px solid #eec587;
+                            border-bottom: 1px solid #fe5500;
                             &:last-child {
                                 border-bottom: none;
                             }
@@ -244,7 +244,7 @@ a:hover {
                                 padding: 0;
                                 background-color: #fff;
                                 z-index: 5;
-                                border: 1px solid #eec587;
+                                border: 1px solid #fe5500;
                                 box-shadow: 0 0 0 6px #fff;
                                 opacity: 0;
                                 visibility: hidden;
@@ -253,7 +253,7 @@ a:hover {
                                     list-style: none;
                                     position: relative;
                                     padding: 8px 10px;
-                                    border-bottom: 1px solid #eec587;
+                                    border-bottom: 1px solid #fe5500;
                                     &:last-child {
                                         border-bottom: none;
                                     }
@@ -274,13 +274,13 @@ a:hover {
                 position: relative;
                 input {
                     padding: 8px 10px 8px 35px;
-                    border: 1px solid #eec587;
+                    border: 1px solid #fe5500;
                     border-radius: 5px;
                     width: 170px;
                     font-size: 13px;
                     &:focus {
                         outline: none;
-                        border: 1px solid #EEC587;
+                        border: 1px solid #fe5500;
                     }
                 }
                 button {
@@ -449,11 +449,12 @@ a:hover {
         flex-wrap: wrap;
         margin: 50px -15px 0;
         .profilo__item {
-            width: 50%;
+            margin: 0 0 50px;
             padding: 0 15px;
+            width: 50%;
             .profilo__image {
                 margin: 0 0 15px;
-                border-radius: 15px;
+                border-radius: 5px;
             }
             .profilo__title {
                 font-weight: 600;
@@ -478,6 +479,18 @@ a:hover {
                 font-weight: 500;
                 font-size: 20px;
             }
+        }
+    }
+}
+
+.faq {
+    .faq__item {
+        .faq__question {
+            color: #fe5500;
+        }
+        .faq__answer {
+            font-size: 16px;
+            color: #6f6f6f;
         }
     }
 }
@@ -614,8 +627,8 @@ a:hover {
                 top: initial !important;
                 background-color: #FFF !important;
                 border: none !important;
-                color: #eec587 !important;
-                box-shadow: 0 0 0 1px #eec587 !important;
+                color: #fe5500 !important;
+                box-shadow: 0 0 0 1px #fe5500 !important;
             }
         }
     }
@@ -828,12 +841,12 @@ a:hover {
             margin: 0 5px 5px 0;
             display: inline-flex;
             align-items: center;
-            color: #eec587;
+            color: #fe5500;
             border: 1px solid;
             padding: 2px 5px;
             border-radius: 2px;
             a {
-                color: #eec587;
+                color: #fe5500;
             }
         }
     }
@@ -855,8 +868,8 @@ a:hover {
                     left: inherit;
                     right: inherit;
                     background-color: transparent !important;
-                    color: #eec587 !important;
-                    box-shadow: 0 0 0 1px #eec587 !important;
+                    color: #fe5500 !important;
+                    box-shadow: 0 0 0 1px #fe5500 !important;
                 }
             }
         }
@@ -871,7 +884,7 @@ a:hover {
             margin: 0 0 15px;
             font-size: 28px;
             font-family: "Playfair Display",serif;
-            color: #eec587;
+            color: #fe5500;
         }
     }
     .single__social {
@@ -939,7 +952,7 @@ a:hover {
                 border-radius: 5px;
                 &:focus {
                     outline: none;
-                    border-color: #eec587;
+                    border-color: #fe5500;
                 }
                 &.parsley-error {
                     border-color: #ffc4c4;
@@ -953,7 +966,7 @@ a:hover {
         button {
             padding: 5px 15px;
             border: none;
-            background-color: #eec587;
+            background-color: #fe5500;
             border-radius: 5px;
             margin: 10px 0 0;
             color: #FFF;
@@ -1019,11 +1032,11 @@ a:hover {
             top: 42%;
             width: 30px;
             height: 30px;
-            background-color: #eec587 !important;
+            background-color: #fe5500 !important;
             color: #FFF !important;
             border-radius: 0 !important;
             border: 1px solid #ffffffc9 !important;
-            box-shadow: 0 0 0 2px #eec587;
+            box-shadow: 0 0 0 2px #fe5500;
             &.owl-prev {
                 left: 15px;
             }
@@ -1036,7 +1049,7 @@ a:hover {
         button.owl-dot {
             &.active {
                 span {
-                    background-color: #eec587;
+                    background-color: #fe5500;
                 }
             }
         }
