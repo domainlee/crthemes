@@ -26,7 +26,7 @@
                 $thumbnailId = get_post_thumbnail_id(get_the_ID());
                 $img = wp_get_attachment_image_src($thumbnailId, 'base-small')[0];
                 $output = get_the_excerpt(get_the_ID());
-//                $post_price = get_field('post_price', get_the_ID());
+                $url_demo = get_field('demo_url', get_the_ID());
 //                $post_ground = get_field('post_ground', get_the_ID());
 //                $post_bedrooms = get_field('post_bedrooms', get_the_ID());
 //                $images = get_field('post_images', get_the_ID());
@@ -34,19 +34,22 @@
                 $term_link = get_term_link($term[0]->term_id);
                 ?>
                 <div class="themes__item">
-                    <a href="<?= $link ?>">
-                        <div class="themes__item--inner">
+                    <div class="themes__item--inner">
+                        <a href="<?= $link ?>">
                             <div class="themes__image">
                                 <div class="news__image--inner">
                                     <img src="<?php echo $img; ?>" />
                                 </div>
                             </div>
-                            <div class="themes__content">
-                                <h3 class="themes__title"><?= $title ?></h3>
-                                <div class="themes__intro"><?= $output ?></div>
+                        </a>
+                        <div class="themes__content">
+                            <h3 class="themes__title"><a href="<?= $link ?>"><?= $title ?></a></h3>
+                            <div class="themes__control">
+                                <a class="profilo__cart" href="<?= site_url().'/checkout?edd_action=add_to_cart&download_id='.get_the_ID(); ?>">Purchase <i class="icofont-cart"></i></a>
+                                <a class="profilo__live-view" target="_blank" href="<?= $url_demo ? $url_demo:'#' ?>">Live Preview</a>
                             </div>
                         </div>
-                    </a>
+                    </div>
                 </div>
             <?php endwhile; ?>
             <?php else: ?>

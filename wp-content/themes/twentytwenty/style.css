@@ -6542,3 +6542,20 @@ a.to-the-top > * {
 	text-align: center;
 	padding: 20px;
 }
+.themes__title {
+	font-size: 32px;
+}
+.themes__control {
+	margin: 0 0 50px;
+}
+.themes__control a {
+	display: inline-block;
+}
+.profilo__cart {
+	padding: 10px 20px;
+	border: 1px solid;
+	border-radius: 50px;
+	margin: 0 15px 0 0;
+	color: #333;
+	text-align: center;
+}
