@@ -4,14 +4,21 @@
         'taxonomy' => 'download_category',
         'hide_empty' => false,
     ) );
-
 ?>
 
-<h1 class="themes__heading"><?= $object->name .' wordpress themes' ?></h1>
+<h1 class="themes__heading">
+    <?php if($object->slug === 'html-templates'): ?>
+        <?= $object->name ?>
+    <?php else: ?>
+        <?= ($object->name !== 'Themes' ? $object->name .' themes':'Themes') .' wordpress premium' ?>
+    <?php endif; ?>
+</h1>
 <div class="themes__sub">
     <?php
         foreach ($terms as $t) {
-            echo '<h5><a href="'.get_term_link($t->term_id).'">'.$t->name.'</a></h5>';
+            if($t->name !== 'Themes' || $t->slug !== 'themes') {
+                echo '<h5><a href="'.get_term_link($t->term_id).'">'.$t->name.'</a></h5>';
+            }
         }
     ?>
 </div>
@@ -45,7 +52,8 @@
                         <div class="themes__content">
                             <h3 class="themes__title"><a href="<?= $link ?>"><?= $title ?></a></h3>
                             <div class="themes__control">
-                                <a class="profilo__cart" href="<?= site_url().'/checkout?edd_action=add_to_cart&download_id='.get_the_ID(); ?>">Purchase <i class="icofont-cart"></i></a>
+                                <span><?php echo edd_price(get_the_ID()); ?></span>
+                                <a class="profilo__cart" href="<?= site_url().'/checkout?edd_action=add_to_cart&download_id='.get_the_ID(); ?>">Purchase</a>
                                 <a class="profilo__live-view" target="_blank" href="<?= $url_demo ? $url_demo:'#' ?>">Live Preview</a>
                             </div>
                         </div>
@@ -54,7 +62,7 @@
             <?php endwhile; ?>
             <?php else: ?>
                 <article>
-                    <h2><?php _e( 'Không có bài viết nào.', 'html5blank' ); ?></h2>
+                    <h2><?php _e( 'No themes', 'html5blank' ); ?></h2>
                 </article>
             <?php endif; ?>
         </div>

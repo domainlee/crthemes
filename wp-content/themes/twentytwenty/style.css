@@ -6539,7 +6539,6 @@ a.to-the-top > * {
 	border: 1px solid #DDD;
 	height: 100%;
 	background-color: #FFF;
-	text-align: center;
 	padding: 20px;
 }
 .themes__title {
@@ -6547,6 +6546,13 @@ a.to-the-top > * {
 }
 .themes__control {
 	margin: 0 0 50px;
+	display: flex;
+	align-items: center;
+}
+.themes__control span {
+	margin: 0 auto 0 0;
+	font-size: 20px;
+	font-weight: 600;
 }
 .themes__control a {
 	display: inline-block;
@@ -6555,7 +6561,41 @@ a.to-the-top > * {
 	padding: 10px 20px;
 	border: 1px solid;
 	border-radius: 50px;
-	margin: 0 15px 0 0;
+	margin: 0 5px 0 0;
 	color: #333;
 	text-align: center;
+}
+.profilo__live-view {
+	padding: 10px 20px;
+	border: 1px solid;
+	border-radius: 50px;
+}
+#edd_checkout_cart, fieldset#edd_checkout_user_info {
+	background-color: #FFF;
+}
+.edd_cart_remove_item_btn {
+	font-size: 14px;
+}
+.single-download__inner {
+	display: flex;
+	margin: 0 -20px;
+}
+.single-download__right {
+	width: 60%;
+	padding: 0 20px;
+}
+.single-download__left {
+	width: 40%;
+	padding: 0 20px;
+}
+.single-download__title {
+	font-size: 54px;
+	margin: 50px 0 10px;
+}
+.single-download__thumbnail {
+	padding: 20px;
+	background-color: #FFF;
+}
+.single-download__thumbnail img {
+	width: 100%;
 }
