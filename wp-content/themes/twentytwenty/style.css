@@ -6498,3 +6498,45 @@ a.to-the-top > * {
 		top: 0;
 	}
 }
+.themes a {
+	text-decoration: none;
+}
+.themes__list {
+	display: flex;
+	margin: 0 -15px;
+}
+.themes__item {
+	width: 33.33333%;
+	padding: 0 15px;
+}
+.themes__heading {
+	font-weight: 700;
+	text-align: center;
+	font-size: 36px;
+}
+.themes__sub {
+	display: flex;
+	justify-content: center;
+}
+.themes__sub h5 {
+	display: inline-block;
+	margin: 0 5px;
+	width: inherit;
+	max-width: inherit;
+	font-size: 16px;
+	font-weight: 400;
+}
+.themes__sub h5 a {
+	border-radius: 30px;
+	border: 1px solid;
+	padding: 5px 15px;
+	text-decoration: none;
+	color: #000;
+}
+.themes__item--inner {
+	border: 1px solid #DDD;
+	height: 100%;
+	background-color: #FFF;
+	text-align: center;
+	padding: 20px;
+}
