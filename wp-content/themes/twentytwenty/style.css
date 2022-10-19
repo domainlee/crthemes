@@ -6506,7 +6506,7 @@ a.to-the-top > * {
 	margin: 0 -15px;
 }
 .themes__item {
-	width: 33.33333%;
+	width: 50%;
 	padding: 0 15px;
 }
 .themes__heading {
@@ -6515,6 +6515,7 @@ a.to-the-top > * {
 	font-size: 36px;
 }
 .themes__sub {
+	margin: 0 0 50px;
 	display: flex;
 	justify-content: center;
 }
@@ -6532,6 +6533,7 @@ a.to-the-top > * {
 	padding: 5px 15px;
 	text-decoration: none;
 	color: #000;
+	display: inline-block;
 }
 .themes__item--inner {
 	border: 1px solid #DDD;

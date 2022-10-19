@@ -26,10 +26,10 @@
                 $thumbnailId = get_post_thumbnail_id(get_the_ID());
                 $img = wp_get_attachment_image_src($thumbnailId, 'base-small')[0];
                 $output = get_the_excerpt(get_the_ID());
-                $post_price = get_field('post_price', get_the_ID());
-                $post_ground = get_field('post_ground', get_the_ID());
-                $post_bedrooms = get_field('post_bedrooms', get_the_ID());
-                $images = get_field('post_images', get_the_ID());
+//                $post_price = get_field('post_price', get_the_ID());
+//                $post_ground = get_field('post_ground', get_the_ID());
+//                $post_bedrooms = get_field('post_bedrooms', get_the_ID());
+//                $images = get_field('post_images', get_the_ID());
                 $term = get_the_terms(get_the_ID(), 'category');
                 $term_link = get_term_link($term[0]->term_id);
                 ?>

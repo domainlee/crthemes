@@ -9,10 +9,16 @@ if( have_rows('home_page') ):
         $type = get_row_layout();
         switch ($type) {
             case "layout_banner":
-                the_module('hero-slider', ['list' => get_sub_field('banner_list'), 'title' => get_sub_field('banner_title'), 'content' => get_sub_field('banner_content')]);
+                the_module('hero-slider', ['image' => get_sub_field('banner_image'), 'title' => get_sub_field('banner_title'), 'intro' => get_sub_field('banner_intro'), 'url' => get_sub_field('banner_url')]);
+                break;
+            case "layout_feature":
+                the_module('feature');
                 break;
             case "layout_profilo":
                 the_module('profilo');
+                break;
+            case "layout_faq":
+                the_module('faq');
                 break;
             case "layout_gallery";
                 the_module('gallery', ['gallery_list' => get_sub_field('gallery_list'), 'title' => get_sub_field('gallery_heading'), 'button_text' => get_sub_field('gallery_button_text'), 'button_url' => get_sub_field('gallery_button_url')]);

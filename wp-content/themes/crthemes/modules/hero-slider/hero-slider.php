@@ -1,27 +1,24 @@
 <?php
-    $list;
+    $image;
     $title;
-    $content;
+    $intro;
+    $url;
 ?>
 
 <section class="hero">
-    <?php if($list): ?>
-    <div class="hero__slider">
-        <div class="hero__js owl-carousel owl-theme">
-            <?php foreach ($list as $b): ?>
-                <div>
-                    <a href="" target="_blank">
-                        <figure class="hero__image ratio ratio-16x9 m-0 owl-lazy" data-src="<?= $b['banner_image']['url'] ?>">
-                            <div class="hero__content">
-                                <h3 class="to-top"><?= $b['banner_heading'] ?></h3>
-                            </div>
-                        </figure>
-                    </a>
+    <div class="container-xl">
+        <div class="row py-6 align-items-center">
+            <div class="col-5">
+                <h1 class="hero__heading"><?= $title ?></h1>
+                <p class="hero__intro"><?= $intro ?></p>
+                <div class="hero__button">
+                    <a href="<?= $url ? $url:'#' ?>">Learn More <i class="icofont-arrow-down"></i></a>
                 </div>
-            <?php endforeach; ?>
+            </div>
+            <div class="col-6 offset-1">
+                <figure class="hero__image ratio ratio-1x1 bg-contain bg-center bg-no-repeat lazy" data-src="<?= $image['url'] ?>"></figure>
+            </div>
         </div>
     </div>
-    <?php endif; ?>
-
 </section>
 

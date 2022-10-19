@@ -1,15 +1,14 @@
 <?php
 get_header();
 ?>
-<section class="item-download">
-    <div class="product-single__breadcrumb">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="breadcrumb__title">
-                        <h2>Download</h2>
-                    </div>
-                </div>
+<section class="single-download">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                    <?php if (have_posts()): while (have_posts()) : the_post(); ?>
+                        <?php the_content(); ?>
+                    <?php endwhile; ?>
+                    <?php endif; ?>
             </div>
         </div>
     </div>
