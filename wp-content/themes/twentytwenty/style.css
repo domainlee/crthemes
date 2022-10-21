@@ -6571,6 +6571,8 @@ a.to-the-top > * {
 	padding: 10px 20px;
 	border: 1px solid;
 	border-radius: 50px;
+	display: inline-block;
+	text-decoration: none;
 }
 #edd_checkout_cart, fieldset#edd_checkout_user_info {
 	background-color: #FFF;
@@ -6597,7 +6599,33 @@ a.to-the-top > * {
 .single-download__thumbnail {
 	padding: 20px;
 	background-color: #FFF;
+	text-align: center;
 }
 .single-download__thumbnail img {
 	width: 100%;
+}
+.single-download__left--inner {
+	background-color: #FFF;
+	padding: 50px;
+}
+.profilo__cart {
+	text-decoration: none;
+	display: inline-block;
+}
+.single-download__left--price {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+.single-download__left--noti {
+	margin: 15px 0 0;
+	font-style: italic;
+	color: #666;
+	font-size: 16px;
+}
+#edd_checkout_form_wrap input[type=email], #edd_checkout_form_wrap input[type=password], #edd_checkout_form_wrap input[type=tel], #edd_checkout_form_wrap input[type=text], #edd_checkout_form_wrap textarea {
+	padding: 10px 15px;
+}
+.single-download__thumbnail a {
+	margin: 20px 0 0;
 }
