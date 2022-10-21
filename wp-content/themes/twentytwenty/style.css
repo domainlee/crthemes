@@ -6504,8 +6504,10 @@ a.to-the-top > * {
 .themes__list {
 	display: flex;
 	margin: 0 -15px;
+	flex-wrap: wrap;
 }
 .themes__item {
+	margin: 0 0 30px;
 	width: 50%;
 	padding: 0 15px;
 }

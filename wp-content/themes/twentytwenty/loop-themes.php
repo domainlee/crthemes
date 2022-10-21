@@ -7,14 +7,15 @@
 ?>
 
 <h1 class="themes__heading">
-    <?php if($object->slug === 'html-templates'): ?>
-        <?= $object->name ?>
-    <?php else: ?>
-        <?= ($object->name !== 'Themes' ? $object->name .' themes':'Themes') .' wordpress premium' ?>
-    <?php endif; ?>
+    <?php echo $object->name ?>
 </h1>
 <div class="themes__sub">
     <?php
+        foreach ($terms as $t) {
+            if($t->name == 'Themes' || $t->slug == 'themes') {
+                echo '<h5><a href="'.get_term_link($t->term_id).'">All</a></h5>';
+            }
+        }
         foreach ($terms as $t) {
             if($t->name !== 'Themes' || $t->slug !== 'themes') {
                 echo '<h5><a href="'.get_term_link($t->term_id).'">'.$t->name.'</a></h5>';
