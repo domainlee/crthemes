@@ -900,3 +900,19 @@ function custom_email_confirmation_validation_filter($result, $tag) {
     $result->invalidate( $tag, 'Email exist' );
     return $result;
 }
+
+function my_wpcf7_mail_components($components, $form, $mail_object) {
+    $submission = WPCF7_Submission::get_instance();
+
+    // Get the contact form fields.
+    $contact_form_fields = $submission->get_posted_data();
+
+    // Create a custom message.
+    $custom_message = 'This is my custom message.';
+    $custom_message .= ' ' . $contact_form_fields['your-name'] . ' has sent you a message.';
+
+    // Append the custom message to the email body.
+    $components['body'] = str_replace("[custom-message]", $custom_message, $components['body']);
+    return $components;
+}
+add_filter( 'wpcf7_mail_components', 'my_wpcf7_mail_components', 10, 3 );
