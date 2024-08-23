@@ -881,7 +881,22 @@ function form_change_domain() {
 <?php
 }
 
-add_action('wpcf7_mail_sent', 'contact_form_action');
-function contact_form_action ($cf7) {
-    print_r($cf7->id);die;
+add_action('wpcf7_mail_sent', 'check_after_submit');
+function check_after_submit ($cf7) {
+    if($cf7->id == 576) {
+        print_r($cf7->id);
+        die;
+    }
+}
+
+add_filter( 'wpcf7_validate_text*', 'custom_domain_confirmation_validation_filter', 20, 2 );
+function custom_domain_confirmation_validation_filter($result, $tag) {
+    $result->invalidate( $tag, 'Domain exist' );
+    return $result;
+}
+
+add_filter( 'wpcf7_validate_email*', 'custom_email_confirmation_validation_filter', 20, 2 );
+function custom_email_confirmation_validation_filter($result, $tag) {
+    $result->invalidate( $tag, 'Email exist' );
+    return $result;
 }
