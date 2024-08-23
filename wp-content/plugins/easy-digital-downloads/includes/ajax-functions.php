@@ -232,12 +232,11 @@ function edd_ajax_add_to_cart() {
 
 		$item = array(
 			'id'      => $_POST['download_id'],
-			'options' => $options
+			'options' => $options,
 		);
 
 		$item   = apply_filters( 'edd_ajax_pre_cart_item_template', $item );
-		$items .= html_entity_decode( edd_get_cart_item_template( $key, $item, true ), ENT_COMPAT, 'UTF-8' );
-
+		$items .= edd_get_cart_item_template( $key, $item, true );
 	}
 
 	$return = array(
@@ -248,7 +247,7 @@ function edd_ajax_add_to_cart() {
 	);
 
 	if ( edd_use_taxes() ) {
-		$cart_tax = (float) edd_get_cart_tax();
+		$cart_tax      = (float) edd_get_cart_tax();
 		$return['tax'] = html_entity_decode( edd_currency_filter( edd_format_amount( $cart_tax ) ), ENT_COMPAT, 'UTF-8' );
 	}
 
@@ -306,12 +305,13 @@ function edd_ajax_apply_discount() {
 			$total     = edd_get_cart_total( $discounts );
 
 			$return = array(
-				'msg'         => 'valid',
-				'amount'      => $amount,
-				'total_plain' => $total,
-				'total'       => html_entity_decode( edd_currency_filter( edd_format_amount( $total ) ), ENT_COMPAT, 'UTF-8' ),
-				'code'        => $discount_code,
-				'html'        => edd_get_cart_discounts_html( $discounts ),
+				'msg'               => 'valid',
+				'amount'            => $amount,
+				'total_plain'       => $total,
+				'total'             => html_entity_decode( edd_currency_filter( edd_format_amount( $total ) ), ENT_COMPAT, 'UTF-8' ),
+				'code'              => $discount_code,
+				'html'              => edd_get_cart_discounts_html( $discounts ),
+				'complete_purchase' => edd_get_checkout_button_purchase_label(),
 			);
 		} else {
 			$errors        = edd_get_errors();
@@ -345,12 +345,21 @@ function edd_ajax_update_cart_item_quantity() {
 
 		EDD()->cart->set_item_quantity( $download_id, $quantity, $options );
 
+		$subtotal = EDD()->cart->get_subtotal();
+		$taxes    = EDD()->cart->get_tax();
+		$total    = EDD()->cart->get_total();
+
 		$return = array(
-			'download_id' => $download_id,
-			'quantity'    => EDD()->cart->get_item_quantity( $download_id, $options ),
-			'subtotal'    => html_entity_decode( edd_currency_filter( edd_format_amount( EDD()->cart->get_subtotal() ) ), ENT_COMPAT, 'UTF-8' ),
-			'taxes'       => html_entity_decode( edd_currency_filter( edd_format_amount( EDD()->cart->get_tax() ) ), ENT_COMPAT, 'UTF-8' ),
-			'total'       => html_entity_decode( edd_currency_filter( edd_format_amount( EDD()->cart->get_total() ) ), ENT_COMPAT, 'UTF-8' )
+			'download_id'       => $download_id,
+			'quantity'          => EDD()->cart->get_item_quantity( $download_id, $options ),
+			'subtotal_raw'      => $subtotal,
+			'taxes_raw'         => $taxes,
+			'total_raw'         => $total,
+			'subtotal'          => html_entity_decode( edd_currency_filter( edd_format_amount( $subtotal ) ), ENT_COMPAT, 'UTF-8' ),
+			'taxes'             => html_entity_decode( edd_currency_filter( edd_format_amount( $taxes ) ), ENT_COMPAT, 'UTF-8' ),
+			'total'             => html_entity_decode( edd_currency_filter( edd_format_amount( $total ) ), ENT_COMPAT, 'UTF-8' ),
+			'discounts'         => edd_get_cart_discounts_html(),
+			'complete_purchase' => edd_get_checkout_button_purchase_label(),
 		);
 
 		// Allow for custom cart item quantity handling
@@ -377,11 +386,12 @@ function edd_ajax_remove_discount() {
 		$total = edd_get_cart_total();
 
 		$return = array(
-			'total_plain' => $total,
-			'total'       => html_entity_decode( edd_currency_filter( edd_format_amount( $total ) ), ENT_COMPAT, 'UTF-8' ),
-			'code'        => sanitize_text_field( $_POST['code'] ),
-			'discounts'   => edd_get_cart_discounts(),
-			'html'        => edd_get_cart_discounts_html()
+			'total_plain'       => $total,
+			'total'             => html_entity_decode( edd_currency_filter( edd_format_amount( $total ) ), ENT_COMPAT, 'UTF-8' ),
+			'code'              => sanitize_text_field( $_POST['code'] ),
+			'discounts'         => edd_get_cart_discounts(),
+			'html'              => edd_get_cart_discounts_html(),
+			'complete_purchase' => edd_get_checkout_button_purchase_label(),
 		);
 
 		/**
@@ -493,7 +503,11 @@ function edd_ajax_recalculate_taxes() {
 
 	ob_start();
 	edd_checkout_cart();
-	$cart     = ob_get_clean();
+	/**
+	 * Allows the cart content to be filtered.
+	 * @since 3.1
+	 */
+	$cart     = apply_filters( 'edd_get_checkout_cart', ob_get_clean() );
 	$response = array(
 		'html'         => $cart,
 		'tax_raw'      => edd_get_cart_tax(),
@@ -585,143 +599,16 @@ add_action( 'wp_ajax_nopriv_edd_get_shop_states', 'edd_ajax_get_states_field' );
  *
  * @since 1.6
  * @since 3.0 Use `get_posts()` instead of multiple direct queries (yay caching)
+ * @since 3.1.0.5 Uses EDD\Downloads\Search.
  *
  * @return void
  */
 function edd_ajax_download_search() {
 
-	// We store the last search in a transient for 30 seconds. This _might_
-	// result in a race condition if 2 users are looking at the exact same time,
-	// but we'll worry about that later if that situation ever happens.
-	$args   = get_transient( 'edd_download_search' );
-
-	// Parse args
-	$search = wp_parse_args( (array) $args, array(
-		'text'    => '',
-		'results' => array()
-	) );
-
-	// Get the search string
-	$new_search = isset( $_GET['s'] )
-		? sanitize_text_field( $_GET['s'] )
-		: '';
-
-	// Bail early if the search text has not changed
-	if ( $search['text'] === $new_search ) {
-		echo json_encode( $search['results'] );
-		edd_die();
-	}
-
-	// Set the local static search variable
-	$search['text'] = $new_search;
-
-	// Are we excluding the current ID?
-	$excludes = isset( $_GET['current_id'] )
-		? array_unique( array_map( 'absint', (array) $_GET['current_id'] ) )
-		: array();
-
-	// Are we excluding bundles?
-	$no_bundles = isset( $_GET['no_bundles'] )
-		? filter_var( $_GET['no_bundles'], FILTER_VALIDATE_BOOLEAN )
-		: false;
-
-	// Are we including variations?
-	$variations = isset( $_GET['variations'] )
-		? filter_var( $_GET['variations'], FILTER_VALIDATE_BOOLEAN )
-		: false;
-
-	$variations_only = isset( $_GET['variations_only'] )
-		? filter_var( $_GET['variations_only'], FILTER_VALIDATE_BOOLEAN )
-		: false;
-
-	// Are we including all statuses, or only public ones?
-	$status = ! current_user_can( 'edit_products' )
-		? apply_filters( 'edd_product_dropdown_status_nopriv', array( 'publish' ) )
-		: apply_filters( 'edd_product_dropdown_status',        array( 'publish', 'draft', 'private', 'future' ) );
-
-	// Default query arguments
-	$args = array(
-		'orderby'        => 'title',
-		'order'          => 'ASC',
-		'post_type'      => 'download',
-		'posts_per_page' => 50,
-		'post_status'    => implode( ',', $status ), // String
-		'post__not_in'   => $excludes,               // Array
-		's'              => $new_search              // String
-	);
-
-	// Maybe exclude bundles.
-	if ( true === $no_bundles ) {
-		$args['meta_query'] = array(
-			'relation' => 'OR',
-			array(
-				'key'     => '_edd_product_type',
-				'value'   => 'bundle',
-				'compare' => '!=',
-			),
-			array(
-				'key'     => '_edd_product_type',
-				'value'   => 'bundle',
-				'compare' => 'NOT EXISTS',
-			),
-		);
-	}
-
-	// Get downloads
-	$items = get_posts( $args );
-
-	// Pluck title & ID
-	if ( ! empty( $items ) ) {
-		$items = wp_list_pluck( $items, 'post_title', 'ID' );
-
-		// Loop through all items...
-		foreach ( $items as $post_id => $title ) {
-
-			// Look for variable pricing
-			$prices = edd_get_variable_prices( $post_id );
-
-			if ( ! empty( $prices ) && ( false === $variations|| ! $variations_only ) ) {
-				$title .= ' (' . __( 'All Price Options', 'easy-digital-downloads' ) . ')';
-			}
-
-			if ( empty( $prices ) || ! $variations_only ) {
-				// Add item to results array
-				$search['results'][] = array(
-					'id'   => $post_id,
-					'name' => $title
-				);
-			}
-
-			// Maybe include variable pricing
-			if ( ! empty( $variations ) && ! empty( $prices ) ) {
-				foreach ( $prices as $key => $value ) {
-					$name  = ! empty( $value['name']  ) ? $value['name']  : '';
-
-					if ( ! empty( $name ) ) {
-						$search['results'][] = array(
-							'id'   => $post_id . '_' . $key,
-							'name' => esc_html( $title . ': ' . $name ),
-						);
-					}
-				}
-			}
-		}
-
-	// Empty the results array
-	} else {
-		$search['results'] = array();
-	}
-
-	// Update the transient
-	set_transient( 'edd_download_search', $search, 30 );
-
-	// Output the results
-	echo json_encode( $search['results'] );
-
-	// Done!
-	edd_die();
+	$search = new EDD\Downloads\Search();
+	$search->ajax_search();
 }
-add_action( 'wp_ajax_edd_download_search',        'edd_ajax_download_search' );
+add_action( 'wp_ajax_edd_download_search', 'edd_ajax_download_search' );
 add_action( 'wp_ajax_nopriv_edd_download_search', 'edd_ajax_download_search' );
 
 /**
@@ -774,6 +661,45 @@ function edd_ajax_customer_search() {
 	edd_die();
 }
 add_action( 'wp_ajax_edd_customer_search', 'edd_ajax_customer_search' );
+
+/**
+ * Search the download categories via AJAX
+ *
+ * @since 3.1.0.4
+ * @return void
+ */
+function edd_ajax_download_category_search() {
+	$search  = esc_sql( sanitize_text_field( $_GET['s'] ) );
+	$results = array();
+
+	$category_args = array(
+		'taxonomy'   => array( 'download_category' ),
+		'orderby'    => 'id',
+		'order'      => 'ASC',
+		'hide_empty' => true,
+		'fields'     => 'all',
+		'name__like' => $search,
+	);
+
+	$categories_found = get_terms( $category_args );
+
+	if ( ! empty( $categories_found ) ) {
+		foreach ( $categories_found as $category ) {
+			$results[] = array(
+				'id'   => $category->slug,
+				'name' => $category->name . ' (' . $category->count . ')',
+			);
+		}
+	} else {
+		$results[] = array(
+			'id'   => 0,
+			'name' => __( 'No categories found', 'easy-digital-downloads' ),
+		);
+	}
+
+	echo wp_send_json( $results );
+}
+add_action( 'wp_ajax_edd_download_category_search', 'edd_ajax_download_category_search' );
 
 /**
  * Search the users database via AJAX
@@ -1020,25 +946,25 @@ function edd_ajax_add_order_item() {
 
 			<td class="overridable amount column-amount" data-type="amount">
 				<?php echo esc_html( $symbol ); ?>
-				<input type="text" class="download-amount" name="downloads[0][amount]" value="<?php echo esc_attr( edd_format_amount( $response['amount'] ) ); ?>" <?php readonly( $editable ); ?> />
+				<input type="text" class="download-amount" name="downloads[0][amount]" value="<?php echo esc_attr( edd_format_amount( $response['amount'] ) ); ?>" <?php wp_readonly( $editable ); ?> />
 			</td>
 
 			<?php if ( edd_item_quantities_enabled() ) : ?>
 				<td class="overridable quantity column-quantity" data-type="quantity">
-					<input type="text" class="download-quantity" name="downloads[0][quantity]" value="<?php echo esc_attr( $quantity ); ?>" <?php readonly( $editable ); ?> />
+					<input type="text" class="download-quantity" name="downloads[0][quantity]" value="<?php echo esc_attr( $quantity ); ?>" <?php wp_readonly( $editable ); ?> />
 				</td>
 			<?php endif; ?>
 
 			<?php if ( edd_use_taxes() ) : ?>
 				<td class="overridable tax column-tax" data-type="tax">
 					<?php echo esc_html( $symbol ); ?>
-					<input type="text" class="download-tax" name="downloads[0][tax]" value="<?php echo esc_attr( edd_format_amount( $response['tax'] ) ); ?>" <?php readonly( $editable ); ?> />
+					<input type="text" class="download-tax" name="downloads[0][tax]" value="<?php echo esc_attr( edd_format_amount( $response['tax'] ) ); ?>" <?php wp_readonly( $editable ); ?> />
 				</td>
 			<?php endif; ?>
 
 			<td class="overridable total column-total" data-type="total">
 					<?php echo esc_html( $symbol ); ?>
-					<input type="text" class="download-total" name="downloads[0][total]" value="<?php echo esc_attr( edd_format_amount( $response['total'] ) ); ?>" <?php readonly( $editable ); ?> />
+					<input type="text" class="download-total" name="downloads[0][total]" value="<?php echo esc_attr( edd_format_amount( $response['total'] ) ); ?>" <?php wp_readonly( $editable ); ?> />
 			</td>
 
 			<th scope="row" class="check-column"><a href="#" class="remove-item"><span class="dashicons dashicons-no"></span></a></th>

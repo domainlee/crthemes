@@ -47,6 +47,13 @@ class EDD_Tools_Reset_Stats extends EDD_Batch_Export {
 	public $per_step = 1;
 
 	/**
+	 * Sets the message to use when returning a response to the customer.
+	 *
+	 * @var string
+	 */
+	public $message = '';
+
+	/**
 	 * Retrieve the export data.
 	 *
 	 * @since 2.5
@@ -138,6 +145,7 @@ class EDD_Tools_Reset_Stats extends EDD_Batch_Export {
 			// Reset the sequential order numbers
 			if ( edd_get_option( 'enable_sequential' ) ) {
 				delete_option( 'edd_last_payment_number' );
+				delete_option( 'edd_next_order_number' );
 			}
 
 			$this->done    = true;
@@ -189,15 +197,20 @@ class EDD_Tools_Reset_Stats extends EDD_Batch_Export {
 				// Objects
 				$object = $component->get_interface( 'table' );
 				if ( $object instanceof \EDD\Database\Table && $object->exists() ) {
+					if ( 'adjustments' === $object->name ) {
+						continue;
+					}
 					$tables[] = $object->table_name;
 				}
 
 				// Meta
 				$meta = $component->get_interface( 'meta' );
 				if ( $meta instanceof \EDD\Database\Table && $meta->exists() ) {
+					if ( 'adjustmentmeta' === $meta->name ) {
+						continue;
+					}
 					$tables[] = $meta->table_name;
 				}
-
 			}
 
 			$tables = apply_filters( 'edd_reset_tables_to_truncate', $tables );

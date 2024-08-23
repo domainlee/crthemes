@@ -86,6 +86,14 @@ function edd_maybe_add_store_mode_admin_bar_menu( $wp_admin_bar ) {
 		),
 	) );
 
+	$wp_admin_bar->add_menu( array(
+		'parent' => 'edd-store-menu',
+		'id'     => 'edd-store-prodcuts',
+		/* translators: %s: Downloads plural label */
+		'title'  => sprintf( __( 'All %1$s', 'easy-digital-downloads' ), edd_get_label_plural() ),
+		'href'   => edd_get_admin_url(),
+	) );
+
 	// String.
 	$text = ! edd_is_test_mode()
 		? __( 'Live',      'easy-digital-downloads' )
@@ -99,8 +107,9 @@ function edd_maybe_add_store_mode_admin_bar_menu( $wp_admin_bar ) {
 	$wp_admin_bar->add_menu( array(
 		'parent' => 'edd-store-menu',
 		'id'     => 'edd-store-status',
+		/* translators: %s: store status ("Test Mode" or "Live Mode") */
 		'title'  => sprintf( __( 'Store Status: %s', 'easy-digital-downloads' ), '<span class="edd-mode edd-mode-' . esc_attr( $mode ) . '">' . $text . '</span>' ),
-		'href'  => edd_get_admin_url(
+		'href'   => edd_get_admin_url(
 			array(
 				'page' => 'edd-settings',
 				'tab'  => 'gateways',
@@ -108,31 +117,21 @@ function edd_maybe_add_store_mode_admin_bar_menu( $wp_admin_bar ) {
 		),
 	) );
 
-	$wp_admin_bar->add_menu( array(
-		'parent' => 'edd-store-menu',
-		'id'     => 'edd-store-prodcuts',
-		'title'  => sprintf( __( 'All %1$s', 'easy-digital-downloads' ), edd_get_label_plural() ),
-		'href'  => edd_get_admin_url(),
-	) );
-
-	$wp_admin_bar->add_menu( array(
-		'parent' => 'edd-store-menu',
-		'id'     => 'edd-store-extensions',
-		'title'  => __( 'Extensions', 'easy-digital-downloads' ),
-		'href'  => edd_get_admin_url(
-			array(
-				'page' => 'edd-addons',
-			)
-		),
-	) );
 
 	$pass_manager = new \EDD\Admin\Pass_Manager();
-	if ( false === $pass_manager->has_pass() ) {
+	if ( ! $pass_manager->has_pass() ) {
+		$url = edd_link_helper(
+			'https://easydigitaldownloads.com/lite-upgrade/',
+			array(
+				'utm_medium'  => 'admin-bar',
+				'utm_content' => 'upgrade-to-pro',
+			)
+		);
 		$wp_admin_bar->add_menu( array(
 			'parent' => 'edd-store-menu',
 			'id'     => 'edd-upgrade',
 			'title'  => esc_html__( 'Upgrade to Pro', 'easy-digital-downloads' ),
-			'href'   => 'https://easydigitaldownloads.com/pricing/?utm_campaign=admin&utm_medium=admin-bar&utm_source=WordPress&utm_content=Upgrade+to+Pro',
+			'href'   => $url,
 			'meta'   => array(
 				'target' => '_blank',
 				'rel'    => 'noopener noreferrer',
@@ -145,9 +144,10 @@ function edd_maybe_add_store_mode_admin_bar_menu( $wp_admin_bar ) {
 	if ( ! empty( $is_dev ) ) {
 		$wp_admin_bar->add_menu( array(
 			'id'     => 'edd-is-dev',
+			/* translators: %s: Whether this is a development domain (1 for true, 0 for false) */
 			'title'  => sprintf( __( 'Development Domain %s', 'easy-digital-downloads' ), '<span class="edd-mode">' . $is_dev . '</span>' ),
 			'parent' => 'edd-store-menu',
-			'href'  => edd_get_admin_url(
+			'href'   => edd_get_admin_url(
 				array(
 					'page' => 'edd-settings',
 					'tab'  => 'gateways',

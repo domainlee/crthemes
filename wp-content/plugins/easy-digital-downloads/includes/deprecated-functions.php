@@ -11,6 +11,7 @@
  * @since       1.0
  */
 
+use EDD\Emails\Registry;
 use EDD\Reports;
 
 // Exit if accessed directly
@@ -131,7 +132,7 @@ function edd_local_taxes_only() {
  *
  * @since 1.4.1
  * @deprecated 1.6
- * @uses EDD_Session::get()
+ * @uses EDD\Sessions\Handler::get()
  * @return bool
  */
 function edd_local_tax_opted_in() {
@@ -1148,12 +1149,13 @@ function edd_record_status_change( $payment_id, $new_status, $old_status ) {
 
 	_edd_deprecated_function( __FUNCTION__, '3.0', 'edd_record_order_status_change', $backtrace );
 
-	// Get the list of statuses so that status in the payment note can be translated
+	// Get the list of statuses so that status in the payment note can be translated.
 	$stati      = edd_get_payment_statuses();
 	$old_status = isset( $stati[ $old_status ] ) ? $stati[ $old_status ] : $old_status;
 	$new_status = isset( $stati[ $new_status ] ) ? $stati[ $new_status ] : $new_status;
 
-	$status_change = sprintf( __( 'Status changed from %s to %s', 'easy-digital-downloads' ), $old_status, $new_status );
+	/* translators: 1: Old status, 2: New status */
+	$status_change = sprintf( __( 'Status changed from %1$s to %2$s', 'easy-digital-downloads' ), $old_status, $new_status );
 
 	edd_insert_payment_note( $payment_id, $status_change );
 }
@@ -1289,7 +1291,7 @@ function edd_jilt_callback( $args ) {
 			<?php
 			wp_kses_post(
 				sprintf(
-				/* Translators: %1$s - <a> tag, %2$s - </a> tag */
+				/* translators: 1:  <a> tag, 2.  </a> tag */
 					__( '%1$sClick here%2$s to visit your Jilt dashboard', 'easy-digital-downloads' ),
 					'<a href="' . esc_url( $account_url ) . '" target="_blank">',
 					'</a>'
@@ -1481,7 +1483,7 @@ function maybe_add_jilt_notice_to_abandoned_payment( $payment_id ) {
 				<?php
 				echo wp_kses_post(
 					sprintf(
-						/* Translators: %1$s - <strong> tag, %2$s - </strong> tag, %3$s - <a> tag, %4$s - </a> tag */
+						/* translators: 1:  <strong> tag, 2.  </strong> tag, 3.  <a> tag, 4.  </a> tag */
 						__( '%1$sRecover abandoned purchases like this one.%2$s %3$sTry Jilt for free%4$s.', 'easy-digital-downloads' ),
 						'<strong>',
 						'</strong>',
@@ -1494,7 +1496,7 @@ function maybe_add_jilt_notice_to_abandoned_payment( $payment_id ) {
 			<?php
 			echo wp_kses_post(
 				sprintf(
-					/* Translators: %1$s - Opening anchor tag, %2$s - The url to dismiss the ajax notice, %3$s - Complete the opening of the anchor tag, %4$s - Open span tag, %4$s - Close span tag */
+					/* translators: 1:  Opening anchor tag, 2:  The url to dismiss the ajax notice, 3: Complete the opening of the anchor tag, 4: Open span tag, 5:  Close span tag */
 					__( '%1$s %2$s %3$s %4$s Dismiss this notice. %5$s', 'easy-digital-downloads' ),
 					'<a href="',
 					esc_url(
@@ -1563,7 +1565,11 @@ function edd_sendwp_callback( $args ) {
 	else :
 		?>
 		<p>
-			<?php _e( 'We recommend SendWP to ensure quick and reliable delivery of all emails sent from your store, such as purchase receipts, subscription renewal reminders, password resets, and more.', 'easy-digital-downloads' ); ?> <?php printf( __( '%sLearn more%s', 'easy-digital-downloads' ), '<a href="https://sendwp.com/" target="_blank" rel="noopener noreferrer">', '</a>' ); ?>
+			<?php
+			_e( 'We recommend SendWP to ensure quick and reliable delivery of all emails sent from your store, such as purchase receipts, subscription renewal reminders, password resets, and more.', 'easy-digital-downloads' );
+			/* translators: 1: Opening anchor tag (do not translate) 2. Closing anchor tag (do not translate) */
+			printf( __( '%1$sLearn more%2$s', 'easy-digital-downloads' ), '<a href="https://sendwp.com/" target="_blank" rel="noopener noreferrer">', '</a>' );
+			?>
 		</p>
 		<p>
 			<button type="button" id="edd-sendwp-connect" class="button button-primary"><?php esc_html_e( 'Connect with SendWP', 'easy-digital-downloads' ); ?>
@@ -1742,7 +1748,6 @@ function edd_render_review_status_metabox() {
 	_edd_deprecated_function( __FUNCTION__, '2.11.4' );
 
 	$reviews_location = edd_reviews_location();
-	$is_promo_active  = edd_is_promo_active();
 
 	ob_start();
 
@@ -1758,41 +1763,21 @@ function edd_render_review_status_metabox() {
 		?><p style="text-align: center;"><a href="<?php echo esc_url( $activate_url ); ?>" class="button-secondary"><?php _e( 'Activate Reviews', 'easy-digital-downloads' ); ?></a></p><?php
 
 	} else {
-
-		// Adjust UTM params based on state of promotion.
-		if ( true === $is_promo_active ) {
-			$args = array(
-				'utm_source'   => 'download-metabox',
-				'utm_medium'   => 'wp-admin',
-				'utm_campaign' => 'bfcm2019',
-				'utm_content'  => 'product-reviews-metabox-bfcm',
-			);
-		} else {
-			$args = array(
-				'utm_source'   => 'edit-download',
-				'utm_medium'   => 'enable-reviews',
-				'utm_campaign' => 'admin',
-			);
-		}
-
-		$base_url = 'https://easydigitaldownloads.com/downloads/product-reviews';
-		$url      = add_query_arg( $args, $base_url );
+		$url = edd_link_helper(
+			'https://easydigitaldownloads.com/downloads/product-reviews/',
+			array(
+				'utm_medium'  => 'edit-download',
+				'utm_content' => 'product-reviews',
+			)
+		);
 		?>
 		<p>
 			<?php
-			// Translators: The %s represents the link to the Product Reviews extension.
-			echo wp_kses_post( sprintf( __( 'Would you like to enable reviews for this product? Check out our <a target="_blank" href="%s">Product Reviews</a> extension.', 'easy-digital-downloads' ), esc_url( $url ) ) );
+			/* translators: The %s represents the link to the Product Reviews extension. */
+			echo wp_kses_post( sprintf( __( 'Would you like to enable reviews for this product? Check out our <a target="_blank" href="%s">Product Reviews</a> extension.', 'easy-digital-downloads' ), $url ) );
 			?>
 		</p>
 		<?php
-		// Add an additional note if a promotion is active.
-		if ( true === $is_promo_active ) {
-			?>
-			<p>
-				<?php echo wp_kses_post( __( 'Act now and <strong>SAVE 25%</strong> on your purchase. Sale ends <em>23:59 PM December 6th CST</em>. Use code <code>BFCM2019</code> at checkout.', 'easy-digital-downloads' ) ); ?>
-			</p>
-			<?php
-		}
 	}
 
 	$rendered = ob_get_contents();
@@ -1910,4 +1895,668 @@ function edd_decrease_earnings( $download_id = 0, $amount = 0.00 ) {
 	}
 
 	return $download->get_earnings();
+}
+
+/**
+ * Check to see if we should be displaying promotional content
+ *
+ * In various parts of the plugin, we may choose to promote something like a sale for a limited time only. This
+ * function should be used to set the conditions under which the promotions will display.
+ *
+ * @since 2.9.20
+ * @deprecated 3.1
+ *
+ * @return bool
+ */
+function edd_is_promo_active() {
+	_edd_deprecated_function( __FUNCTION__, '3.1' );
+
+	return false;
+}
+
+/**
+ * Outputs a metabox for promotional content.
+ *
+ * @since 2.9.20
+ * @deprecated 3.1
+ *
+ * @return void
+ */
+function edd_render_promo_metabox() {
+	_edd_deprecated_function( __FUNCTION__, '3.1' );
+	return;
+}
+
+/**
+ * Plugin row meta links
+ *
+ * @since 1.8
+ * @deprecated 3.1
+ * @param  array  $links already defined meta links.
+ * @param  string $file  plugin file path and name being processed.
+ * @return array  $input
+ */
+function edd_plugin_row_meta( $links = array(), $file = '' ) {
+	_edd_deprecated_function( __FUNCTION__, '3.1' );
+	return $links;
+}
+
+/**
+ * Listens to the updated_postmeta hook for our backwards compatible payment_meta updates, and runs through them
+ *
+ * Previously hooked into: updated_postmeta
+ *
+ * @since  2.3
+ * @deprecated 3.1.0.3
+ * @param  int $meta_id    The Meta ID that was updated
+ * @param  int $object_id  The Object ID that was updated (post ID)
+ * @param  string $meta_key   The Meta key that was updated
+ * @param  string|int|float $meta_value The Value being updated
+ * @return bool|int             If successful the number of rows updated, if it fails, false
+ */
+function edd_update_payment_backwards_compat( $meta_id, $object_id, $meta_key, $meta_value ) {
+
+	_edd_deprecated_function( __FUNCTION__, '3.1.0.3' );
+
+	$meta_keys = array( '_edd_payment_meta', '_edd_payment_tax' );
+
+	if ( ! in_array( $meta_key, $meta_keys ) ) {
+		return;
+	}
+
+	global $wpdb;
+	switch( $meta_key ) {
+
+		case '_edd_payment_meta':
+			$meta_value   = maybe_unserialize( $meta_value );
+
+			if( ! isset( $meta_value['tax'] ) ){
+				return;
+			}
+
+			$tax_value    = $meta_value['tax'];
+
+			$data         = array( 'meta_value' => $tax_value );
+			$where        = array( 'post_id'  => $object_id, 'meta_key' => '_edd_payment_tax' );
+			$data_format  = array( '%f' );
+			$where_format = array( '%d', '%s' );
+			break;
+
+		case '_edd_payment_tax':
+			$tax_value    = ! empty( $meta_value ) ? $meta_value : 0;
+			$current_meta = edd_get_payment_meta( $object_id, '_edd_payment_meta', true );
+
+			$current_meta['tax'] = $tax_value;
+			$new_meta            = maybe_serialize( $current_meta );
+
+			$data         = array( 'meta_value' => $new_meta );
+			$where        = array( 'post_id' => $object_id, 'meta_key' => '_edd_payment_meta' );
+			$data_format  = array( '%s' );
+			$where_format = array( '%d', '%s' );
+
+			break;
+
+	}
+
+	$updated = $wpdb->update( $wpdb->postmeta, $data, $where, $data_format, $where_format );
+
+	if ( ! empty( $updated ) ) {
+		// Since we did a direct DB query, clear the postmeta cache.
+		wp_cache_delete( $object_id, 'post_meta' );
+	}
+
+	return $updated;
+
+}
+
+/**
+ * Deletes edd_stats_ transients that have expired to prevent database clogs
+ *
+ * Previously hooked into: edd_daily_scheduled_events
+ *
+ * @since 2.6.7
+ * @deprecated 3.1.0.3
+ * @return void
+*/
+function edd_cleanup_stats_transients() {
+
+	_edd_deprecated_function( __FUNCTION__, '3.1.0.3' );
+
+	global $wpdb;
+
+	if ( defined( 'WP_SETUP_CONFIG' ) ) {
+		return;
+	}
+
+	if ( defined( 'WP_INSTALLING' ) ) {
+		return;
+	}
+
+	$now        = current_time( 'timestamp' );
+	$transients = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options WHERE option_name LIKE '%\_transient_timeout\_edd\_stats\_%' AND option_value+0 < $now LIMIT 0, 200;" );
+	$to_delete  = array();
+
+	if( ! empty( $transients ) ) {
+
+		foreach( $transients as $transient ) {
+
+			$to_delete[] = $transient->option_name;
+			$to_delete[] = str_replace( '_timeout', '', $transient->option_name );
+
+		}
+
+	}
+
+	if ( ! empty( $to_delete ) ) {
+
+		$option_names = implode( "','", $to_delete );
+		$wpdb->query( "DELETE FROM $wpdb->options WHERE option_name IN ('$option_names')"  );
+
+	}
+
+}
+
+/**
+ * Updates all old payments, prior to 1.2, with new
+ * meta for the total purchase amount
+ *
+ * This is so that payments can be queried by their totals
+ *
+ * Prevsiouly hooked into: edd_upgrade_payments
+ *
+ * @since 1.2
+ * @deprecated 3.1.0.3
+ * @param array $data Arguments passed
+ * @return void
+*/
+function edd_update_old_payments_with_totals( $data ) {
+	_edd_deprecated_function( __FUNCTION__, '3.1.0.3' );
+
+	if ( ! wp_verify_nonce( $data['_wpnonce'], 'edd_upgrade_payments_nonce' ) ) {
+		return;
+	}
+
+	if ( get_option( 'edd_payment_totals_upgraded' ) ) {
+		return;
+	}
+
+	$payments = edd_get_payments( array(
+		'offset' => 0,
+		'number' => 9999999,
+		'mode'   => 'all',
+	) );
+
+	if ( $payments ) {
+		foreach ( $payments as $payment ) {
+
+			$payment = new EDD_Payment( $payment->ID );
+			$meta    = $payment->get_meta();
+
+			$payment->total = $meta['amount'];
+			$payment->save();
+		}
+	}
+
+	add_option( 'edd_payment_totals_upgraded', 1 );
+}
+
+/**
+ * Flushes the current user's purchase history transient when a payment status
+ * is updated
+ *
+ * Previously hooked into: edd_update_payment_status
+ *
+ * @since 1.2.2
+ * @deprecated 3.1.0.3
+ * @param int $payment_id the ID number of the payment
+ * @param string $new_status the status of the payment, probably "publish"
+ * @param string $old_status the status of the payment prior to being marked as "complete", probably "pending"
+ */
+function edd_clear_user_history_cache( $payment_id, $new_status, $old_status ) {
+
+	_edd_deprecated_function( __FUNCTION__, '3.1.0.3' );
+
+	$payment = new EDD_Payment( $payment_id );
+
+	if( ! empty( $payment->user_id ) ) {
+		delete_transient( 'edd_user_' . $payment->user_id . '_purchases' );
+	}
+}
+
+/**
+ * Filters the WHERE SQL query for the edd_download_search.
+ * This searches the download titles only, not the excerpt/content.
+ *
+ * @since 3.1.0.2
+ * @deprecated 3.1.0.5
+ * @param string $where
+ * @param WP_Query $wp_query
+ * @return string
+ */
+function edd_ajax_filter_download_where( $where, $wp_query ) {
+
+	_edd_deprecated_function( __FUNCTION__, '3.1.0.5' );
+
+	$search  = new EDD\Downloads\Search();
+
+	return $search->filter_where( $where, $wp_query );
+}
+
+/**
+ * Gets the next available order number.
+ *
+ * This is used when inserting a new order.
+ *
+ * @deprecated 3.1.2
+ * @since 2.0
+ * @return false|int $number The next available order number, unformatted.
+ */
+function edd_get_next_payment_number() {
+
+	_edd_deprecated_function( __FUNCTION__, '3.1.2', 'EDD\Orders\Number\get_next_payment_number' );
+	$order_number = new EDD\Orders\Number();
+
+	return $order_number->get_next_payment_number();
+}
+
+/**
+ * Schedules the one time event via WP_Cron to fire after purchase actions.
+ *
+ * Is run on the edd_complete_purchase action.
+ *
+ * @since 2.8
+ * @since 3.2.0 - Updated to call the DeferredActions class. Throwing an edd_debug_log entry instead of full deprecation.
+ *
+ * @deprecated 3.2.0 Moved to EDD\Orders\DeferredActions::schedule_deferred_actions(). This should not be used by anyone.
+ *
+ * @param $payment_id
+ */
+function edd_schedule_after_payment_action( $payment_id ) {
+	edd_debug_log( 'Calling edd_scheduled_after_payment_action directly has been deprecated in EDD 3.2. Please use the EDD\Orders\DeferredActions class instead.' );
+
+	/**
+	 * @todo offiically throw a deprecated function notice.
+	 */
+
+	EDD\Orders\DeferredActions::schedule_deferred_actions( $payment_id );
+}
+
+/**
+ * Executes the one time event used for after purchase actions.
+ *
+ * This function should have never been called from anywhere but outselves and on our cron.
+ *
+ * @since 2.8
+ * @since 3.1.0.4 This also verifies that all order items have the synced status as the order.
+ *
+ * @deprecated 3.2.0 - Moved to \EDD\Orders\DeferredActions\run_deferred_actions(). This should not be used by anyone.
+ *
+ * @param $payment_id
+ * @param $force
+ */
+function edd_process_after_payment_actions( $payment_id = 0, $force = false ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', '\EDD\Orders\DeferredActions\run_deferred_actions' );
+}
+
+/*
+ * Registers custom post statuses which are used by the Payments and Discount
+ * Codes.
+ *
+ * @since 1.0.9.1
+ * @deprecated 3.2.0
+ */
+function edd_register_post_type_statuses() {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0' );
+}
+
+/**
+ * Triggers Purchase Receipt to be sent after the payment status is updated.
+ *
+ * This is a deprecated function but still exists, so that we can detect if a plugin has removed the action.
+ *
+ * @since 1.0.8.4
+ * @since 2.8 - Add parameters for EDD_Payment and EDD_Customer object.
+ *
+ * @deprecated 3.2.0 - Use EDD\Emails\Types\OrderReceipt instead.
+ *
+ * @param int          $payment_id Payment ID.
+ * @param EDD_Payment  $payment    Payment object for payment ID.
+ * @param EDD_Customer $customer   Customer object for associated payment.
+ * @return void
+ */
+function edd_trigger_purchase_receipt( $payment_id = 0, $payment = null, $customer = null ) {
+
+	if ( 'edd_complete_purchase' !== current_action() ) {
+		_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Types\OrderReceipt' );
+	}
+
+	/**
+	 * In EDD 3.2.0 we will be using the EDD\Emails\Triggers\send_purchase_receipt() function to send the email.
+	 *
+	 * Previously if you wanted to disable this email from sending you would just unhook this action. In order to still support this,
+	 * we'll set a meta here, and check for it when it comes time to send the email.
+	 *
+	 * Developers: If you want to disable sending the purchase receipt email you should use the filter `edd_disable_order_receipt` filter.
+	 */
+	edd_add_order_meta( $payment_id, '_edd_should_send_order_receipt', '1' );
+	edd_debug_log( 'Adding meta for sending the order_receipt for order #' . $payment_id );
+
+	// Trigger this to setup the edd_admin_sale_notice hook.
+	do_action( 'edd_admin_sale_notice', $payment_id, array() );
+}
+add_action( 'edd_complete_purchase', 'edd_trigger_purchase_receipt', 999, 3 );
+
+/**
+ * Email the download link(s) and payment confirmation to the buyer in a
+ * customizable Purchase Receipt
+ *
+ * @since 1.0
+ * @since 2.8 - Add parameters for EDD_Payment and EDD_Customer object.
+ * @since 3.2.0 - Removed most logic and using the EDD\Emails\Types\OrderReceipt class to send the email.
+ *
+ * @deprecated 3.2.0 Use EDD\Emails\Types\OrderReceipt instead.
+ *
+ * @param int          $payment_id   Payment ID
+ * @param bool         $admin_notice Whether to send the admin email notification or not (default: true)
+ * @param EDD_Payment  $payment      Payment object for payment ID.
+ * @param EDD_Customer $customer     Customer object for associated payment.
+ * @return bool Whether the email was sent successfully.
+ */
+function edd_email_purchase_receipt( $payment_id, $admin_notice = true, $to_email = '', $payment = null, $customer = null ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Types\OrderReceipt' );
+
+	if ( ! empty( $payment_id ) ) {
+		$order = edd_get_order( $payment_id );
+	}
+
+	$order_receipt          = EDD\Emails\Registry::get( 'order_receipt', array( $order ) );
+	$order_receipt->send_to = $to_email;
+
+	$sent = $order_receipt->send();
+
+	return $sent;
+}
+
+/**
+ * Resend the Email Purchase Receipt. (This can be done from the Payment History page)
+ *
+ * @since 1.0
+ *
+ * @deprecated 3.2.0 - Handeled with EDD\Emails\Triggers\resend_purchase_receipt instead.
+ *
+ * @param array $data Payment Data
+ * @return void
+ */
+function edd_resend_purchase_receipt( $data ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Triggers\resend_purchase_receipt' );
+
+	/**
+	 * In EDD 3.2.0 we will be using the EDD\Emails\Triggers\send_purchase_receipt() function to send the email.
+	 *
+	 * Previously if you wanted to disable this email from sending you would just unhook this action. In order to still support this,
+	 * we'll set a meta here, and check for it when it comes time to send the email.
+	 *
+	 * Developers: If you want to disable sending the purchase receipt email you should use the filter `edd_disable_order_receipt` filter.
+	 */
+	edd_add_order_meta( $data['purchase_id'], '_edd_should_send_order_receipt', '1' );
+}
+add_action( 'edd_email_links', 'edd_resend_purchase_receipt' );
+
+/**
+ * Trigger the sending of a Test Email
+ *
+ * @since 1.5
+ *
+ * @deprecated 3.2.0 - Handeled with EDD\Emails\Triggers\send_test_email instead.
+ *
+ * @param array $data Parameters sent from Settings page
+ * @return void
+ */
+function edd_send_test_email( $data ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Triggers\send_test_email' );
+}
+
+/**
+ * Email the download link(s) and payment confirmation to the admin accounts for testing.
+ *
+ * @since 1.5
+ *
+ * @since 3.2.0 - Removed all logic as we are now using the EDD\Emails\Triggers and EDD\Emails\Types\OrderReceipt class to send the email.
+ *
+ * @return void
+ */
+function edd_email_test_purchase_receipt() {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Triggers' );
+}
+
+/**
+ * This is a deprecated function now, but still exists so we can know if users are removeing it's action,
+ * to know if we are supposed to send the admin notices or not.
+ *
+ * @since 1.4.2
+ * @since 3.2.0 - Removed all logic as we are now using the EDD\Emails\Types\AdminOrderNotice class to send the email.
+ *
+ * @param int $payment_id Payment ID (default: 0)
+ * @param array $payment_data Payment Meta and Data
+ * @return void
+ */
+function edd_admin_email_notice( $payment_id = 0, $payment_data = array() ) {
+	/**
+	 * In EDD 3.2.0 we will be using the EDD\Emails\Triggers\edd_email_sent_order_receipt() function to send the email.
+	 *
+	 * Previously if you wanted to disable this email from sending you would just unhook this action. In order to still support this,
+	 * we'll set a meta here, and check for it when it comes time to send the email.
+	 *
+	 * Developers: If you want to disable sending the admin order notice email you should use the filter `edd_disable_admin_order_notice` filter.
+	 */
+	edd_add_order_meta( $payment_id, '_edd_should_send_admin_order_notice', '1' );
+	edd_debug_log( 'Adding meta for sending the admin_order_notice for order #' . $payment_id );
+}
+add_action( 'edd_admin_sale_notice', 'edd_admin_email_notice', 10, 2 );
+
+/**
+ * Displays the email preview
+ *
+ * @since 2.1
+ *
+ * @deprecated 3.2.0 This is now handeled by EDD\Emails\Triggers\preview_email()
+ *
+ * @return void
+ */
+function edd_display_email_template_preview() {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Triggers\preview_email()' );
+}
+
+/**
+ * Get sale notification email text
+ *
+ * Returns the stored email text if available, the standard email text if not
+ *
+ * @since 1.7
+ * @since 3.2.0 - Uses the EDD\Emails\Types\AdminOrderNotice class.
+ *
+ * @deprecated 3.2.0
+ *
+ * @return string $message
+ */
+function edd_get_default_sale_notification_email() {
+	$admin_order_notice = new \EDD\Emails\Templates\AdminOrderNotice();
+
+	return $admin_order_notice->get_default( 'content' );
+}
+
+/**
+ * Add rating links to the admin dashboard
+ *
+ * @since       1.8.5
+ * @deprecated  3.2.4
+ * @global      string $typenow
+ * @param       string $footer_text The existing footer text.
+ * @return      string
+ */
+function edd_admin_rate_us( $footer_text = '' ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.4' );
+
+	return $footer_text;
+}
+
+/**
+ * Email Template Body
+ *
+ * @since 1.0.8.2
+ *
+ * @deprecated 3.2.0
+ *
+ * @param int $payment_id Payment ID
+ * @param array $payment_data Payment Data
+ * @return string $email_body Body of the email
+ */
+function edd_get_email_body_content( $payment_id = 0, $payment_data = array() ) {
+	_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Types\OrderReceipt' );
+
+	$order         = edd_get_order( $payment_id );
+	$order_receipt = EDD\Emails\Registry::get( 'order_receipt', array( $order ) );
+
+	return $order_receipt->get_raw_body_content();
+}
+
+/**
+ * Sale Notification Template Body
+ *
+ * @since 1.7
+ *
+ * @deprecated 3.2.0
+ *
+ * @param int $payment_id Payment ID
+ * @param array $payment_data Payment Data
+ * @return string $email_body Body of the email
+ */
+function edd_get_sale_notification_body_content( $payment_id = 0, $payment_data = array() ) {
+	_edd_deprecated_function( __FUNCTION__, '3.2.0', 'EDD\Emails\Types\AdminOrderNotice' );
+
+	$order              = edd_get_order( $payment_id );
+	$admin_order_notice = EDD\Emails\Registry::get( 'admin_order_notice', array( $order ) );
+
+	return $admin_order_notice->get_raw_body_content();
+}
+
+/**
+ * Delete Saved Carts after one week
+ *
+ * This function is only intended to be used by WordPress cron.
+ *
+ * @since 1.8
+ * @deprecated 3.3.0
+ *
+ * @global $wpdb
+ * @return void
+ */
+function edd_delete_saved_carts() {
+	_edd_deprecated_function( __FUNCTION__, '3.3.0' );
+}
+
+/**
+ * Updates week-old+ 'pending' orders to 'abandoned'
+ *
+ *  This function is only intended to be used by WordPress cron.
+ *
+ * @since 1.6
+ * @deprecated 3.3.0
+ * @return void
+*/
+function edd_mark_abandoned_orders() {
+	_edd_deprecated_function( __FUNCTION__, '3.3.0' );
+}
+
+/**
+ * Sends the new user notification email when a user registers during checkout
+ *
+ * @since       1.8.8
+ * @param int   $user_id
+ * @param array $user_data
+ *
+ * @return      void
+ */
+function edd_new_user_notification( $user_id = 0, $user_data = array() ) {
+
+	if( empty( $user_id ) || empty( $user_data ) ) {
+		return;
+	}
+
+	$emails     = EDD()->emails;
+	$from_name  = edd_get_option( 'from_name', wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+	$from_email = edd_get_option( 'from_email', get_bloginfo( 'admin_email' ) );
+
+	// Setup and send the new user email for Admins.
+	$emails->__set( 'from_name', $from_name );
+	$emails->__set( 'from_email', $from_email );
+
+	/* translators: %s: The site name */
+	$admin_subject  = apply_filters( 'edd_user_registration_admin_email_subject', sprintf( __( '[%s] New User Registration', 'easy-digital-downloads' ), $from_name ), $user_data );
+	$admin_heading  = apply_filters( 'edd_user_registration_admin_email_heading', __( 'New user registration', 'easy-digital-downloads' ), $user_data );
+	/* translators: %s: The customer's username */
+	$admin_message  = sprintf( __( 'Username: %s', 'easy-digital-downloads' ), $user_data['user_login'] ) . "\r\n\r\n";
+	/* translators: the user email */
+	$admin_message .= sprintf( __( 'E-mail: %s', 'easy-digital-downloads' ), $user_data['user_email'] ) . "\r\n";
+
+	$admin_message = apply_filters( 'edd_user_registration_admin_email_message', $admin_message, $user_data );
+
+	$emails->__set( 'heading', $admin_heading );
+
+	$emails->send( get_option( 'admin_email' ), $admin_subject, $admin_message );
+
+	// Setup and send the new user email for the end user.
+	/* translators: Site name */
+	$user_subject  = apply_filters( 'edd_user_registration_email_subject', sprintf( __( '[%s] Your username and password', 'easy-digital-downloads' ), $from_name ), $user_data );
+	$user_heading  = apply_filters( 'edd_user_registration_email_heading', __( 'Your account info', 'easy-digital-downloads' ), $user_data );
+	/* translators: %s: The customer's username */
+	$user_message  = apply_filters( 'edd_user_registration_email_username', sprintf( __( 'Username: %s', 'easy-digital-downloads' ), $user_data['user_login'] ) . "\r\n", $user_data );
+
+	if ( did_action( 'edd_pre_process_purchase' ) ) {
+		$password_message = __( 'Password entered at checkout', 'easy-digital-downloads' );
+	} else {
+		$password_message = __( 'Password entered at registration', 'easy-digital-downloads' );
+	}
+
+	/* translators: %s: password message */
+	$user_message .= apply_filters( 'edd_user_registration_email_password', sprintf( __( 'Password: %s', 'easy-digital-downloads' ), '[' . $password_message . ']' ) . "\r\n" );
+
+	$login_url = apply_filters( 'edd_user_registration_email_login_url', wp_login_url() );
+	if( $emails->html ) {
+
+		$user_message .= '<a href="' . esc_url( $login_url ) . '"> ' . esc_attr__( 'Click here to log in', 'easy-digital-downloads' ) . ' &rarr;</a>' . "\r\n";
+
+	} else {
+		/* translators: %s: login URL */
+		$user_message .= sprintf( __( 'To log in, visit: %s', 'easy-digital-downloads' ), esc_url( $login_url ) ) . "\r\n";
+	}
+
+	$user_message = apply_filters( 'edd_user_registration_email_message', $user_message, $user_data );
+
+	$emails->__set( 'heading', $user_heading );
+
+	$emails->send( $user_data['user_email'], $user_subject, $user_message );
+}
+
+/**
+ * Drop our custom tables when a mu site is deleted
+ *
+ * @deprecated 3.0   Handled by WP_DB_Table
+ * @since      2.5
+ * @param      array $tables  The tables to drop
+ * @param      int   $blog_id The Blog ID being deleted
+ * @return     array          The tables to drop
+ */
+function edd_wpmu_drop_tables( $tables, $blog_id ) {
+
+	switch_to_blog( $blog_id );
+	$customers_db     = new EDD_DB_Customers();
+	$customer_meta_db = new EDD_DB_Customer_Meta();
+	if ( $customers_db->installed() ) {
+		$tables[] = $customers_db->table_name;
+		$tables[] = $customer_meta_db->table_name;
+	}
+	restore_current_blog();
+
+	return $tables;
 }

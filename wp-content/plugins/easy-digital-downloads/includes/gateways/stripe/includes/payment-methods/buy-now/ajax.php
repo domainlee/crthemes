@@ -14,33 +14,29 @@
 function edds_buy_now_ajax_add_to_cart() {
 	$data = $_POST;
 
-	if ( ! isset( $data['download_id'] ) || ! isset( $data['nonce'] ) ) {
+	if ( empty( $data['download_id'] ) ) {
 		return wp_send_json_error( array(
 			'message' => __( 'Unable to add item to cart.', 'easy-digital-downloads' ),
 		) );
 	}
-		
+
 	$download_id = absint( $data['download_id'] );
-	$price_id    = absint( $data['price_id'] );
-	$quantity    = absint( $data['quantity'] );
-
-	$nonce       = sanitize_text_field( $data['nonce'] );
-	$valid_nonce = wp_verify_nonce( $nonce, 'edd-add-to-cart-' . $download_id );
-
-	if ( false === $valid_nonce ) {
+	if ( false === edds_verify( 'nonce', 'edd-add-to-cart-' . $download_id ) ) {
 		return wp_send_json_error( array(
 			'message' => __( 'Unable to add item to cart.', 'easy-digital-downloads' ),
 		) );
 	}
 
-	// Empty cart.
-	edd_empty_cart();
+	$args = array(
+		'quantity' => absint( $data['quantity'] ),
+	);
+
+	if ( edd_has_variable_prices( $download_id ) ) {
+		$args['price_id'] = absint( $data['price_id'] );
+	}
 
 	// Add individual item.
-	edd_add_to_cart( $download_id, array(
-		'quantity' => $quantity,
-		'price_id' => $price_id,
-	) );
+	edd_add_to_cart( $download_id, $args );
 
 	return wp_send_json_success( array(
 		'checkout' => edds_buy_now_checkout(),
@@ -55,7 +51,9 @@ add_action( 'wp_ajax_nopriv_edds_add_to_cart', 'edds_buy_now_ajax_add_to_cart' )
  * @since 2.8.0
  */
 function edds_buy_now_ajax_empty_cart() {
-	edd_empty_cart();
+	if ( ! empty( EDD()->cart->contents ) ) {
+		EDD()->cart->empty_cart();
+	}
 
 	return wp_send_json_success();
 }

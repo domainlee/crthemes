@@ -28,16 +28,16 @@ function edd_download_shortcode( $atts, $content = null ) {
 	$post_id = is_object( $post ) ? $post->ID : 0;
 
 	$atts = shortcode_atts( array(
-		'id' 	        => $post_id,
-		'price_id'      => isset( $atts['price_id'] ) ? $atts['price_id'] : false,
-		'sku'			=> '',
-		'price'         => '1',
-		'direct'        => '0',
-		'text'          => '',
-		'style'         => edd_get_option( 'button_style', 'button' ),
-		'color'         => edd_get_option( 'checkout_color', 'blue' ),
-		'class'         => 'edd-submit',
-		'form_id'       => ''
+		'id'       => $post_id,
+		'price_id' => isset( $atts['price_id'] ) ? $atts['price_id'] : false,
+		'sku'      => '',
+		'price'    => '1',
+		'direct'   => '0',
+		'text'     => '',
+		'style'    => edd_get_option( 'button_style', 'button' ),
+		'color'    => edd_get_button_color_class(),
+		'class'    => 'edd-submit',
+		'form_id'  => '',
 	),
 	$atts, 'purchase_link' );
 
@@ -50,10 +50,7 @@ function edd_download_shortcode( $atts, $content = null ) {
 		}
 	}
 
-	// Override color if color == inherit
-	if( isset( $atts['color'] )	) {
-		$atts['color'] = ( $atts['color'] == 'inherit' ) ? '' : $atts['color'];
-	}
+	$atts['text'] = sanitize_text_field( $atts['text'] );
 
 	if( ! empty( $atts['sku'] ) ) {
 
@@ -283,15 +280,15 @@ add_shortcode( 'download_discounts', 'edd_discounts_shortcode' );
  */
 function edd_purchase_collection_shortcode( $atts, $content = null ) {
 	extract( shortcode_atts( array(
-		'taxonomy'	=> '',
-		'terms'		=> '',
-		'text'		=> __('Purchase All Items','easy-digital-downloads' ),
-		'style'     => edd_get_option( 'button_style', 'button' ),
-		'color'     => edd_get_option( 'checkout_color', 'blue' ),
-		'class'		=> 'edd-submit'
+		'taxonomy' => '',
+		'terms'    => '',
+		'text'     => __( 'Purchase All Items', 'easy-digital-downloads' ),
+		'style'    => edd_get_option( 'button_style', 'button' ),
+		'color'    => edd_get_button_color_class(),
+		'class'    => 'edd-submit',
 	), $atts, 'purchase_collection' ) );
 
-	$button_display = implode( ' ', array( $style, $color, $class ) );
+	$button_display = implode( ' ', array_filter( array( $style, $color, $class ) ) );
 
 	return '<a href="' . esc_url( add_query_arg( array( 'edd_action' => 'purchase_collection', 'taxonomy' => sanitize_key( $taxonomy ), 'terms' => sanitize_key( $terms ) ) ) ) . '" class="' . esc_attr( $button_display ) . '">' . esc_html( $text ) . '</a>';
 }
@@ -594,12 +591,12 @@ function edd_downloads_query( $atts, $content = null ) {
 	if ( $downloads->have_posts() ) :
 		$i = 1;
 		$columns_class   = array( 'edd_download_columns_' . $atts['columns'] );
-		$custom_classes  = array_filter( explode( ',', $atts['class'] ) );
+		$custom_classes  = array_map( 'sanitize_html_class', explode( ',', $atts['class'] ) );
 		$wrapper_classes = array_unique( array_merge( $columns_class, $custom_classes ) );
 		$wrapper_classes = implode( ' ', $wrapper_classes );
 	?>
 
-		<div class="edd_downloads_list <?php echo apply_filters( 'edd_downloads_list_wrapper_class', $wrapper_classes, $atts ); ?>">
+		<div class="edd_downloads_list <?php echo esc_attr( apply_filters( 'edd_downloads_list_wrapper_class', $wrapper_classes, $atts ) ); ?>">
 
 			<?php do_action( 'edd_downloads_list_top', $atts, $downloads ); ?>
 
@@ -615,8 +612,9 @@ function edd_downloads_query( $atts, $content = null ) {
 
 		<?php
 
-	else:
-		printf( _x( 'No %s found', 'download post type name', 'easy-digital-downloads' ), edd_get_label_plural() );
+	else :
+		/* translators: plural download label */
+		printf( _x( 'No %s found', 'download post type name', 'easy-digital-downloads' ), esc_html( edd_get_label_plural() ) );
 	endif;
 
 	do_action( 'edd_downloads_list_after', $atts, $downloads, $query );
@@ -668,40 +666,46 @@ add_shortcode( 'edd_price', 'edd_download_price_shortcode' );
 function edd_receipt_shortcode( $atts, $content = null ) {
 	global $edd_receipt_args;
 
-	$edd_receipt_args = shortcode_atts( array(
-		'error'           => __( 'Sorry, trouble retrieving order receipt.', 'easy-digital-downloads' ),
-		'price'           => true,
-		'discount'        => true,
-		'products'        => true,
-		'date'            => true,
-		'notes'           => true,
-		'payment_key'     => false,
-		'payment_method'  => true,
-		'payment_id'      => true
-	), $atts, 'edd_receipt' );
+	$edd_receipt_args = shortcode_atts(
+		array(
+			'error'          => __( 'Sorry, trouble retrieving order receipt.', 'easy-digital-downloads' ),
+			'price'          => true,
+			'discount'       => true,
+			'products'       => true,
+			'date'           => true,
+			'notes'          => true,
+			'payment_key'    => false,
+			'payment_method' => true,
+			'payment_id'     => true,
+		),
+		$atts,
+		'edd_receipt'
+	);
 
 	$session = edd_get_purchase_session();
 
+	$payment_key = false;
 	if ( isset( $_GET['payment_key'] ) ) {
 		$payment_key = urldecode( $_GET['payment_key'] );
-	} else if ( $session ) {
+	} elseif ( ! empty( $_GET['order'] ) && ! empty( $_GET['id'] ) ) {
+		$payment_key = edd_get_payment_key( absint( $_GET['id'] ) );
+	} elseif ( $session ) {
 		$payment_key = $session['purchase_key'];
 	} elseif ( $edd_receipt_args['payment_key'] ) {
 		$payment_key = $edd_receipt_args['payment_key'];
 	}
 
-	// No key found
-	if ( ! isset( $payment_key ) ) {
+	$order = edd_get_order_by( 'payment_key', $payment_key );
+	if ( ! $order ) {
 		return '<p class="edd-alert edd-alert-error">' . $edd_receipt_args['error'] . '</p>';
 	}
 
-	$order         = edd_get_order_by( 'payment_key', $payment_key );
-	$user_can_view = edd_can_view_receipt( $payment_key );
+	$user_can_view = edd_can_view_receipt( $order );
 
-	// Key was provided, but user is logged out. Offer them the ability to login and view the receipt
-	if ( ! $user_can_view && ! empty( $payment_key ) && ! is_user_logged_in() && ! edd_is_guest_payment( $order->id ) ) {
+	// Key was provided, but user is logged out. Offer them the ability to login and view the receipt.
+	if ( ! $user_can_view && ! empty( $payment_key ) && ! is_user_logged_in() && ! edd_is_guest_payment( $order ) ) {
 		global $edd_login_redirect;
-		$edd_login_redirect = edd_get_current_page_url();
+		$edd_login_redirect = edd_get_receipt_page_uri( $order->id );
 
 		ob_start();
 
@@ -715,7 +719,7 @@ function edd_receipt_shortcode( $atts, $content = null ) {
 
 	$user_can_view = apply_filters( 'edd_user_can_view_receipt', $user_can_view, $edd_receipt_args );
 
-	// If this was a guest checkout and the purchase session is empty, output a relevant error message
+	// If this was a guest checkout and the purchase session is empty, output a relevant error message.
 	if ( empty( $session ) && ! is_user_logged_in() && ! $user_can_view ) {
 		return '<p class="edd-alert edd-alert-error">' . apply_filters( 'edd_receipt_guest_error_message', __( 'Receipt could not be retrieved, your purchase session has expired.', 'easy-digital-downloads' ) ) . '</p>';
 	}
@@ -781,7 +785,7 @@ add_shortcode( 'edd_profile_editor', 'edd_profile_editor_shortcode' );
 function edd_process_profile_editor_updates( $data ) {
 
 	// Profile field change request.
-	if ( empty( $_POST['edd_profile_editor_submit'] ) && ! is_user_logged_in() ) {
+	if ( empty( $data['edd_profile_editor_submit'] ) && ! is_user_logged_in() ) {
 		return false;
 	}
 
@@ -791,7 +795,7 @@ function edd_process_profile_editor_updates( $data ) {
 	}
 
 	// Verify nonce.
-	if ( ! wp_verify_nonce( $data['edd_profile_editor_nonce'], 'edd-profile-editor-nonce' ) ) {
+	if ( empty( $data['edd_profile_editor_nonce'] ) || ! wp_verify_nonce( $data['edd_profile_editor_nonce'], 'edd-profile-editor-nonce' ) ) {
 		return false;
 	}
 
@@ -800,6 +804,9 @@ function edd_process_profile_editor_updates( $data ) {
 
 	// Fetch customer record.
 	$customer = edd_get_customer_by( 'user_id', $user_id );
+	if ( ! empty( $customer->user_id ) && $customer->user_id != $user_id ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+		edd_set_error( 'customer_mismatch', __( 'Your profile could not be updated. Please contact a site administrator.', 'easy-digital-downloads' ) );
+	}
 
 	$display_name = isset( $data['edd_display_name'] )    ? sanitize_text_field( $data['edd_display_name'] )    : $old_user_data->display_name;
 	$first_name   = isset( $data['edd_first_name'] )      ? sanitize_text_field( $data['edd_first_name'] )      : $old_user_data->first_name;
@@ -817,16 +824,16 @@ function edd_process_profile_editor_updates( $data ) {
 		'first_name'   => $first_name,
 		'last_name'    => $last_name,
 		'display_name' => $display_name,
-		'user_email'   => $email
+		'user_email'   => $email,
 	);
 
 	$address = array(
-		'line1'    => $line1,
-		'line2'    => $line2,
-		'city'     => $city,
-		'state'    => $state,
-		'zip'      => $zip,
-		'country'  => $country
+		'line1'   => $line1,
+		'line2'   => $line2,
+		'city'    => $city,
+		'state'   => $state,
+		'zip'     => $zip,
+		'country' => $country,
 	);
 
 	do_action( 'edd_pre_update_user_profile', $user_id, $userdata );
@@ -848,9 +855,15 @@ function edd_process_profile_editor_updates( $data ) {
 			edd_set_error( 'email_invalid', __( 'The email you entered is invalid. Please enter a valid email.', 'easy-digital-downloads' ) );
 		}
 
+		$customers = edd_get_customers(
+			array(
+				'email'           => $email,
+				'user_id__not_in' => array( $user_id ),
+			)
+		);
 		// Make sure the new email doesn't belong to another user.
-		if ( email_exists( $email ) ) {
-			edd_set_error( 'email_exists', __( 'The email you entered belongs to another user. Please use another.', 'easy-digital-downloads' ) );
+		if ( email_exists( $email ) || ! empty( $customers ) ) {
+			edd_set_error( 'email_exists', __( 'This email address is not available.', 'easy-digital-downloads' ) );
 		}
 	}
 
@@ -859,18 +872,23 @@ function edd_process_profile_editor_updates( $data ) {
 
 	// Send back to the profile editor if there are errors.
 	if ( ! empty( $errors ) ) {
-		edd_redirect( $data['edd_redirect'] );
+		if ( ! empty( $data['edd_redirect'] ) ) {
+			edd_redirect( $data['edd_redirect'] );
+		}
+		return false;
 	}
 
 	// Update user.
 	$updated = wp_update_user( $userdata );
 
-	// If the current user does not have an associated customer record, create one.
+	// If the current user does not have an associated customer record, create one so that all of the customer's data is stored.
 	if ( ! $customer && $updated ) {
-		$customer_id = edd_add_customer( array(
-			'user_id' => $updated,
-			'email'   => $email,
-		) );
+		$customer_id = edd_add_customer(
+			array(
+				'user_id' => $updated,
+				'email'   => $email,
+			)
+		);
 
 		$customer = edd_get_customer_by( 'id', $customer_id );
 	}
@@ -884,7 +902,7 @@ function edd_process_profile_editor_updates( $data ) {
 			'type'        => 'billing',
 			'is_primary'  => 1,
 			'number'      => 1,
-			'fields'      => 'ids'
+			'fields'      => 'ids',
 		) );
 
 		// Try updating the address if it exists.
@@ -941,43 +959,47 @@ function edd_process_profile_editor_updates( $data ) {
 add_action( 'edd_edit_user_profile', 'edd_process_profile_editor_updates' );
 
 /**
- * Process the 'remove' URL on the profile editor when customers wish to remove an email address
+ * Process the 'remove' URL on the profile editor when customers wish to remove an email address.
  *
  * @since  2.6
+ * @param array $data The array of data passed from the profile editor.
  * @return void
  */
-function edd_process_profile_editor_remove_email() {
+function edd_process_profile_editor_remove_email( $data ) {
 	if ( ! is_user_logged_in() ) {
-		return false;
+		return;
 	}
 
 	// Pending users can't edit their profile
 	if ( edd_user_pending_verification() ) {
-		return false;
+		return;
 	}
 
 	// Nonce security
-	if ( ! wp_verify_nonce( $_GET['_wpnonce'], 'edd-remove-customer-email' ) ) {
-		return false;
+	if ( ! wp_verify_nonce( $data['_wpnonce'], 'edd-remove-customer-email' ) ) {
+		return;
 	}
 
-	if ( empty( $_GET['email'] ) || ! is_email( $_GET['email'] ) ) {
-		return false;
+	if ( empty( $data['email'] ) || ! is_email( $data['email'] ) ) {
+		return;
 	}
 
-	$customer = new EDD_Customer( get_current_user_id(), true );
-	if ( $customer->remove_email( $_GET['email'] ) ) {
+	$user_id  = get_current_user_id();
+	$customer = new EDD_Customer( $user_id, true );
 
-		$url = add_query_arg( 'updated', true, $_GET['redirect'] );
+	if ( $customer->user_id == $user_id && $customer->remove_email( $data['email'] ) ) {
 
-		$user          = wp_get_current_user();
-		$user_login    = ! empty( $user->user_login ) ? $user->user_login : edd_get_bot_name();
-		$customer_note = sprintf( __( 'Email address %s removed by %s', 'easy-digital-downloads' ), sanitize_email( $_GET['email'] ), $user_login );
+		$url = add_query_arg( 'updated', true, $data['redirect'] );
+
+		$user       = wp_get_current_user();
+		$user_login = ! empty( $user->user_login ) ? $user->user_login : edd_get_bot_name();
+		/* translators: 1: email address, 2: username */
+		$customer_note = sprintf( __( 'Email address %1$s removed by %2$s', 'easy-digital-downloads' ), sanitize_email( $data['email'] ), $user_login );
 		$customer->add_note( $customer_note );
 
 	} else {
 		edd_set_error( 'profile-remove-email-failure', __( 'Error removing email address from profile. Please try again later.', 'easy-digital-downloads' ) );
-		$url = $_GET['redirect'];
+		$url = $data['redirect'];
 	}
 
 	edd_redirect( $url );

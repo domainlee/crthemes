@@ -99,6 +99,7 @@ function edds_prb_purchase_link( $download_id, $args ) {
 
 	// Shim the Checkout processing nonce.
 	wp_nonce_field( 'edd-process-checkout', 'edd-process-checkout-nonce', false );
+	echo edds_get_tokenizer_input( $download_id );
 
 	$instance_id++;
 }
@@ -115,7 +116,8 @@ function edds_prb_checkout_button_purchase( $button ) {
 		return $button;
 	}
 
-	$errors = '<div id="edds-prb-error-wrap"></div>';
+	$tokenizer = edds_get_tokenizer_input();
+	$errors    = '<div id="edds-prb-error-wrap"></div>';
 
 	$button = edds_get_prb_markup(
 		edds_prb_get_cart_data(),
@@ -127,7 +129,7 @@ function edds_prb_checkout_button_purchase( $button ) {
 		)
 	);
 
-	return $errors . $button;
+	return $tokenizer . $errors . $button;
 }
 
 /**

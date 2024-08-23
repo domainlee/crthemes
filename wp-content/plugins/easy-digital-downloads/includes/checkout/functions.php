@@ -19,28 +19,7 @@ defined( 'ABSPATH' ) || exit;
  * @return bool True if on the Checkout page, false otherwise
  */
 function edd_is_checkout() {
-	global $wp_query;
-
-	$is_object_set    = isset( $wp_query->queried_object );
-	$is_object_id_set = isset( $wp_query->queried_object_id );
-	$is_checkout      = is_page( edd_get_option( 'purchase_page' ) );
-
-	if( ! $is_object_set ) {
-		unset( $wp_query->queried_object );
-	} else if ( is_singular() ) {
-		$content = $wp_query->queried_object->post_content;
-	}
-
-	if( ! $is_object_id_set ) {
-		unset( $wp_query->queried_object_id );
-	}
-
-	// If we know this isn't the primary checkout page, check other methods.
-	if ( ! $is_checkout && isset( $content ) && has_shortcode( $content, 'download_checkout' ) ) {
-		$is_checkout = true;
-	}
-
-	return apply_filters( 'edd_is_checkout', $is_checkout );
+	return apply_filters( 'edd_is_checkout', EDD\Checkout\Validator::is_checkout() );
 }
 
 /**
@@ -53,59 +32,6 @@ function edd_can_checkout() {
 	$can_checkout = true; // Always true for now
 
 	return (bool) apply_filters( 'edd_can_checkout', $can_checkout );
-}
-
-/**
- * Retrieve the Success page URI
- *
- * @since       1.6
- * @return      string
-*/
-function edd_get_success_page_uri( $query_string = null ) {
-	$page_id = edd_get_option( 'success_page', 0 );
-	$page_id = absint( $page_id );
-
-	$success_page = get_permalink( $page_id );
-
-	if ( $query_string ) {
-		$success_page .= $query_string;
-	}
-
-	return apply_filters( 'edd_get_success_page_uri', $success_page );
-}
-
-/**
- * Determines if we're currently on the Success page.
- *
- * @since 1.9.9
- * @return bool True if on the Success page, false otherwise.
- */
-function edd_is_success_page() {
-	$is_success_page = edd_get_option( 'success_page', false );
-	$is_success_page = isset( $is_success_page ) ? is_page( $is_success_page ) : false;
-
-	return apply_filters( 'edd_is_success_page', $is_success_page );
-}
-
-/**
- * Send To Success Page
- *
- * Sends the user to the succes page.
- *
- * @param string $query_string
- * @since       1.0
- * @return      void
-*/
-function edd_send_to_success_page( $query_string = null ) {
-	$redirect = edd_get_success_page_uri();
-
-	if ( $query_string ) {
-		$redirect .= $query_string;
-	}
-
-	$gateway = isset( $_REQUEST['edd-gateway'] ) ? $_REQUEST['edd-gateway'] : '';
-
-	edd_redirect( apply_filters('edd_success_page_redirect', $redirect, $gateway, $query_string) );
 }
 
 /**

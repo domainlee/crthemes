@@ -9,171 +9,41 @@
  * @since       1.0
  */
 
-// Exit if accessed directly
+// Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Email the download link(s) and payment confirmation to the buyer in a
- * customizable Purchase Receipt
- *
- * @since 1.0
- * @since 2.8 - Add parameters for EDD_Payment and EDD_Customer object.
- *
- * @param int          $payment_id   Payment ID
- * @param bool         $admin_notice Whether to send the admin email notification or not (default: true)
- * @param EDD_Payment  $payment      Payment object for payment ID.
- * @param EDD_Customer $customer     Customer object for associated payment.
- * @return bool Whether the email was sent successfully.
- */
-function edd_email_purchase_receipt( $payment_id, $admin_notice = true, $to_email = '', $payment = null, $customer = null ) {
-	if ( is_null( $payment ) ) {
-		$payment = edd_get_payment( $payment_id );
-	}
-
-	$payment_data = $payment->get_meta( '_edd_payment_meta', true );
-
-	$from_name    = edd_get_option( 'from_name', wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
-	$from_name    = apply_filters( 'edd_purchase_from_name', $from_name, $payment_id, $payment_data );
-
-	$from_email   = edd_get_option( 'from_email', get_bloginfo( 'admin_email' ) );
-	$from_email   = apply_filters( 'edd_purchase_from_address', $from_email, $payment_id, $payment_data );
-
-	if ( empty( $to_email ) ) {
-		$to_email = $payment->email;
-	}
-
-	$subject      = edd_get_option( 'purchase_subject', __( 'Purchase Receipt', 'easy-digital-downloads' ) );
-	$subject      = apply_filters( 'edd_purchase_subject', wp_strip_all_tags( $subject ), $payment_id );
-	$subject      = wp_specialchars_decode( edd_do_email_tags( $subject, $payment_id ) );
-
-	$heading      = edd_get_option( 'purchase_heading', __( 'Purchase Receipt', 'easy-digital-downloads' ) );
-	$heading      = apply_filters( 'edd_purchase_heading', $heading, $payment_id, $payment_data );
-	$heading      = edd_do_email_tags( $heading, $payment_id );
-
-	$attachments  = apply_filters( 'edd_receipt_attachments', array(), $payment_id, $payment_data );
-
-	$message      = edd_do_email_tags( edd_get_email_body_content( $payment_id, $payment_data ), $payment_id );
-
-	$emails = EDD()->emails;
-
-	$emails->__set( 'from_name', $from_name );
-	$emails->__set( 'from_email', $from_email );
-	$emails->__set( 'heading', $heading );
-
-	$headers = apply_filters( 'edd_receipt_headers', $emails->get_headers(), $payment_id, $payment_data );
-	$emails->__set( 'headers', $headers );
-
-	$sent = $emails->send( $to_email, $subject, $message, $attachments );
-
-	if ( $admin_notice && ! edd_admin_notices_disabled( $payment_id ) ) {
-		do_action( 'edd_admin_sale_notice', $payment_id, $payment_data );
-	}
-
-	return $sent;
-}
+use EDD\Database\Queries\Email as Query;
 
 /**
- * Email the download link(s) and payment confirmation to the admin accounts for testing.
+ * Retrieves the email template registry.
  *
- * @since 1.5
- * @return void
+ * @since 3.3.0
+ * @return EDD\Emails\Templates\Registry $emails The email templates
  */
-function edd_email_test_purchase_receipt() {
-
-	$from_name   = edd_get_option( 'from_name', wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
-	$from_name   = apply_filters( 'edd_purchase_from_name', $from_name, 0, array() );
-
-	$from_email  = edd_get_option( 'from_email', get_bloginfo( 'admin_email' ) );
-	$from_email  = apply_filters( 'edd_test_purchase_from_address', $from_email, 0, array() );
-
-	$subject     = edd_get_option( 'purchase_subject', __( 'Purchase Receipt', 'easy-digital-downloads' ) );
-	$subject     = apply_filters( 'edd_purchase_subject', wp_strip_all_tags( $subject ), 0 );
-	$subject     = wp_specialchars_decode( edd_do_email_tags( $subject, 0 ) );
-
-	$heading     = edd_get_option( 'purchase_heading', __( 'Purchase Receipt', 'easy-digital-downloads' ) );
-	$heading     = edd_email_preview_template_tags( apply_filters( 'edd_purchase_heading', $heading, 0, array() ) );
-
-	$attachments = apply_filters( 'edd_receipt_attachments', array(), 0, array() );
-
-	$message     = edd_email_preview_template_tags( edd_get_email_body_content( 0, array() ), 0 );
-
-	$emails = EDD()->emails;
-	$emails->__set( 'from_name' , $from_name );
-	$emails->__set( 'from_email', $from_email );
-	$emails->__set( 'heading'   , $heading );
-
-	$headers = apply_filters( 'edd_receipt_headers', $emails->get_headers(), 0, array() );
-	$emails->__set( 'headers', $headers );
-
-	$emails->send( edd_get_admin_notice_emails(), $subject, $message, $attachments );
-
+function edd_get_email_registry() {
+	return EDD\Emails\Templates\Registry::get_instance();
 }
-
-/**
- * Sends the Admin Sale Notification Email
- *
- * @since 1.4.2
- * @param int $payment_id Payment ID (default: 0)
- * @param array $payment_data Payment Meta and Data
- * @return void
- */
-function edd_admin_email_notice( $payment_id = 0, $payment_data = array() ) {
-
-	$payment_id = absint( $payment_id );
-
-	if( empty( $payment_id ) ) {
-		return;
-	}
-
-	if( ! edd_get_payment_by( 'id', $payment_id ) ) {
-		return;
-	}
-
-	$from_name   = edd_get_option( 'from_name', wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
-	$from_name   = apply_filters( 'edd_purchase_from_name', $from_name, $payment_id, $payment_data );
-
-	$from_email  = edd_get_option( 'from_email', get_bloginfo( 'admin_email' ) );
-	$from_email  = apply_filters( 'edd_admin_sale_from_address', $from_email, $payment_id, $payment_data );
-
-	$subject     = edd_get_option( 'sale_notification_subject', sprintf( __( 'New download purchase - Order #%1$s', 'easy-digital-downloads' ), $payment_id ) );
-	$subject     = apply_filters( 'edd_admin_sale_notification_subject', wp_strip_all_tags( $subject ), $payment_id );
-	$subject     = wp_specialchars_decode( edd_do_email_tags( $subject, $payment_id ) );
-
-	$heading     = edd_get_option( 'sale_notification_heading', __( 'New Sale!', 'easy-digital-downloads' ) );
-	$heading     = apply_filters( 'edd_admin_sale_notification_heading', $heading, $payment_id, $payment_data );
-	$heading     = edd_do_email_tags( $heading, $payment_id );
-
-	$attachments = apply_filters( 'edd_admin_sale_notification_attachments', array(), $payment_id, $payment_data );
-
-	$message     = edd_get_sale_notification_body_content( $payment_id, $payment_data );
-
-	$emails = EDD()->emails;
-
-	$emails->__set( 'from_name', $from_name );
-	$emails->__set( 'from_email', $from_email );
-	$emails->__set( 'heading', $heading );
-
-	$headers = apply_filters( 'edd_admin_sale_notification_headers', $emails->get_headers(), $payment_id, $payment_data );
-	$emails->__set( 'headers', $headers );
-
-	$emails->send( edd_get_admin_notice_emails(), $subject, $message, $attachments );
-
-}
-add_action( 'edd_admin_sale_notice', 'edd_admin_email_notice', 10, 2 );
 
 /**
  * Retrieves the emails for which admin notifications are sent to (these can be
  * changed in the EDD Settings)
  *
  * @since 1.0
- * @return mixed
+ * @param null|EDD\Orders\Order $email Optional. The email object. Default: null. Added in 3.2.3.
+ * @return array $emails The emails to send admin notices to
  */
-function edd_get_admin_notice_emails() {
+function edd_get_admin_notice_emails( $email = null ) {
 	$emails = edd_get_option( 'admin_notice_emails', false );
 	$emails = strlen( trim( $emails ) ) > 0 ? $emails : get_bloginfo( 'admin_email' );
 	$emails = array_map( 'trim', explode( "\n", $emails ) );
 
-	return apply_filters( 'edd_admin_notice_emails', $emails );
+	/**
+	 * Filters the emails for which admin notifications are sent.
+	 *
+	 * @param array $emails The emails to send admin notices to.
+	 * @param null|EDD\Orders\Order $email Optional. The email object. Default: null. Added in 3.2.3.
+	 */
+	return apply_filters( 'edd_admin_notice_emails', $emails, $email );
 }
 
 /**
@@ -181,230 +51,185 @@ function edd_get_admin_notice_emails() {
  *
  * @since 1.5.2
  *
- * @param int $payment_id
+ * @param int $payment_id The payment ID
  * @return mixed
  */
 function edd_admin_notices_disabled( $payment_id = 0 ) {
-	$ret = edd_get_option( 'disable_admin_notices', false );
-	return (bool) apply_filters( 'edd_admin_notices_disabled', $ret, $payment_id );
+	$email  = edd_get_email( 'admin_order_notice' );
+	$status = $email && $email->is_enabled();
+
+	return (bool) apply_filters( 'edd_admin_notices_disabled', empty( $status ), $payment_id );
 }
 
 /**
- * Get sale notification email text
+ * Get an email.
  *
- * Returns the stored email text if available, the standard email text if not
+ * @since 3.3.0
  *
- * @since 1.7
- * @author Daniel J Griffiths
- * @return string $message
+ * @param int|string $email_id The email ID. This can also be the email_id because that's really how we identify emails.
+ * @return \EDD\Emails\Email|false
  */
-function edd_get_default_sale_notification_email() {
-	$default_email_body = __( 'Hello', 'easy-digital-downloads' ) . "\n\n" . sprintf( __( 'A %s purchase has been made', 'easy-digital-downloads' ), edd_get_label_plural() ) . ".\n\n";
-	$default_email_body .= sprintf( __( '%s sold:', 'easy-digital-downloads' ), edd_get_label_plural() ) . "\n\n";
-	$default_email_body .= '{download_list}' . "\n\n";
-	$default_email_body .= __( 'Purchased by: ', 'easy-digital-downloads' ) . ' {name}' . "\n";
-	$default_email_body .= __( 'Amount: ', 'easy-digital-downloads' ) . ' {price}' . "\n";
-	$default_email_body .= __( 'Payment Method: ', 'easy-digital-downloads' ) . ' {payment_method}' . "\n\n";
-	$default_email_body .= __( 'Thank you', 'easy-digital-downloads' );
+function edd_get_email( $email_id = 0 ) {
+	$query = new Query();
+	if ( ! is_numeric( $email_id ) ) {
+		return $query->get_item_by( 'email_id', $email_id );
+	}
 
-	$message = edd_get_option( 'sale_notification', false );
-	$message = ! empty( $message ) ? $message : $default_email_body;
-
-	return $message;
+	return $query->get_item( $email_id );
 }
 
 /**
- * Get various correctly formatted names used in emails
+ * Adds an email to the database.
  *
- * @since 1.9
- * @param $user_info
- * @param $payment   EDD_Payment for getting the names
- *
- * @return array $email_names
+ * @since 3.3.0
+ * @param array $args The query arguments.
+ * @return int|false
  */
-function edd_get_email_names( $user_info, $payment = false ) {
-	$email_names = array();
-	$email_names['fullname'] = '';
+function edd_add_email( $args = array() ) {
+	$query = new Query();
 
-	if ( $payment instanceof EDD_Payment ) {
-
-		$email_names['name']     = $payment->email;
-		$email_names['username'] = $payment->email;
-		if ( $payment->user_id > 0 ) {
-
-			$user_data               = get_userdata( $payment->user_id );
-			$email_names['name']     = $payment->first_name;
-			$email_names['fullname'] = trim( $payment->first_name . ' ' . $payment->last_name );
-			if ( ! empty( $user_data->user_login ) ) {
-				$email_names['username'] = $user_data->user_login;
-			}
-
-		} elseif ( ! empty( $payment->first_name ) ) {
-
-			$email_names['name']     = $payment->first_name;
-			$email_names['fullname'] = trim( $payment->first_name . ' ' . $payment->last_name );
-			$email_names['username'] = $payment->first_name;
-
-		}
-	} else {
-
-		if ( is_serialized( $user_info ) ) {
-
-			preg_match( '/[oO]\s*:\s*\d+\s*:\s*"\s*(?!(?i)(stdClass))/', $user_info, $matches );
-			if ( ! empty( $matches ) ) {
-				return array(
-					'name'     => '',
-					'fullname' => '',
-					'username' => '',
-				);
-			} else {
-				$user_info = maybe_unserialize( $user_info );
-			}
-
-		}
-
-		if ( isset( $user_info['id'] ) && $user_info['id'] > 0 && isset( $user_info['first_name'] ) ) {
-			$user_data = get_userdata( $user_info['id'] );
-			$email_names['name']      = $user_info['first_name'];
-			$email_names['fullname']  = $user_info['first_name'] . ' ' . $user_info['last_name'];
-			$email_names['username']  = $user_data->user_login;
-		} elseif ( isset( $user_info['first_name'] ) ) {
-			$email_names['name']     = $user_info['first_name'];
-			$email_names['fullname'] = $user_info['first_name'] . ' ' . $user_info['last_name'];
-			$email_names['username'] = $user_info['first_name'];
-		} else {
-			$email_names['name']     = $user_info['email'];
-			$email_names['username'] = $user_info['email'];
-		}
-
-	}
-
-	return $email_names;
+	return $query->add_item( $args );
 }
 
 /**
- * Handle installation and connection for Recapture via ajax
+ * Updates an email in the database.
  *
- * @since 2.10.2
+ * @since 3.3.0
+ * @param int   $email_id The email ID.
+ * @param array $args     The query arguments.
+ * @return bool
  */
-function edd_recapture_remote_install_handler () {
+function edd_update_email( $email_id = 0, $args = array() ) {
+	$query = new Query();
 
-	if ( ! current_user_can( 'manage_shop_settings' ) || ! current_user_can( 'install_plugins' ) ) {
-		wp_send_json_error( array(
-			'error' => __( 'You do not have permission to do this.', 'easy-digital-downloads' )
-		) );
-	}
-
-	include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
-	include_once ABSPATH . 'wp-admin/includes/file.php';
-	include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-	$plugins = get_plugins();
-
-	if( ! array_key_exists( 'recapture-for-edd/recapture.php', $plugins ) ) {
-
-		/*
-		* Use the WordPress Plugins API to get the plugin download link.
-		*/
-		$api = plugins_api( 'plugin_information', array(
-			'slug' => 'recapture-for-edd',
-		) );
-
-		if ( is_wp_error( $api ) ) {
-			wp_send_json_error( array(
-				'error' => $api->get_error_message(),
-				'debug' => $api
-			) );
-		}
-
-		/*
-		* Use the AJAX Upgrader skin to quietly install the plugin.
-		*/
-		$upgrader = new Plugin_Upgrader( new WP_Ajax_Upgrader_Skin() );
-		$install = $upgrader->install( $api->download_link );
-		if ( is_wp_error( $install ) ) {
-			wp_send_json_error( array(
-				'error' => $install->get_error_message(),
-				'debug' => $api
-			) );
-		}
-
-		$activated = activate_plugin( $upgrader->plugin_info() );
-
-	} else {
-
-		$activated = activate_plugin( 'recapture-for-edd/recapture.php' );
-
-	}
-
-	/*
-	* Final check to see if Recapture is available.
-	*/
-	if ( is_wp_error( $activated ) ) {
-		wp_send_json_error( array(
-			'error' => __( 'Something went wrong. Recapture for EDD was not installed correctly.', 'easy-digital-downloads' )
-		) );
-	}
-
-	wp_send_json_success();
+	return $query->update_item( $email_id, $args );
 }
-add_action( 'wp_ajax_edd_recapture_remote_install', 'edd_recapture_remote_install_handler' );
 
 /**
- * Maybe adds a notice to abandoned payments if Recapture isn't installed.
+ * Deletes an email from the database.
  *
- * @since 2.10.2
- *
- * @param int $payment_id The ID of the abandoned payment, for which a Recapture notice is being thrown.
+ * @since 3.3.0
+ * @param int $email_id The email ID.
+ * @return bool
  */
-function maybe_add_recapture_notice_to_abandoned_payment( $payment_id ) {
+function edd_delete_email( $email_id = 0 ) {
+	$query = new Query();
 
-	if ( ! class_exists( 'Recapture' )
-		&& 'abandoned' === edd_get_payment_status( $payment_id )
-		&& ! get_user_meta( get_current_user_id(), '_edd_try_recapture_dismissed', true )
-	) {
-		?>
-		<div class="notice notice-warning recapture-notice">
-			<p>
-				<?php
-				echo wp_kses_post(
-					sprintf(
-						/* Translators: %1$s - <strong> tag, %2$s - </strong> tag, %3$s - <a> tag, %4$s - </a> tag */
-						__( '%1$sRecover abandoned purchases like this one.%2$s %3$sTry Recapture for free%4$s.', 'easy-digital-downloads' ),
-						'<strong>',
-						'</strong>',
-						'<a href="https://recapture.io/abandoned-carts-easy-digital-downloads" rel="noopener" target="_blank">',
-						'</a>'
-					)
-				);
-				?>
-			</p>
-			<?php
-			echo wp_kses_post(
-				sprintf(
-					/* Translators: %1$s - Opening anchor tag, %2$s - The url to dismiss the ajax notice, %3$s - Complete the opening of the anchor tag, %4$s - Open span tag, %4$s - Close span tag */
-					__( '%1$s %2$s %3$s %4$s Dismiss this notice. %5$s', 'easy-digital-downloads' ),
-					'<a href="',
-					esc_url(
-						wp_nonce_url(
-							add_query_arg(
-								array(
-									'edd_action' => 'dismiss_notices',
-									'edd_notice' => 'try_recapture',
-								)
-							),
-							'edd_notice_nonce'
-						)
-					),
-					'" type="button" class="notice-dismiss">',
-					'<span class="screen-reader-text">',
-					'</span>
-					</a>'
-				)
-			);
-			?>
-		</div>
-		<?php
-	}
+	return $query->delete_item( $email_id );
 }
-add_action( 'edd_view_order_details_before', 'maybe_add_recapture_notice_to_abandoned_payment' );
+
+/**
+ * Gets an email by a field.
+ *
+ * @since 3.3.0
+ * @param string $field The field to query by.
+ * @param string $value The value to query by.
+ * @return \EDD\Emails\Email
+ */
+function edd_get_email_by( $field = '', $value = '' ) {
+	$query = new Query();
+
+	return $query->get_item_by( $field, $value );
+}
+
+/**
+ * Gets emails.
+ *
+ * @since 3.3.0
+ * @param array $args The query arguments.
+ * @return \EDD\Emails\Email[]
+ */
+function edd_get_emails( $args = array() ) {
+
+	$r     = wp_parse_args(
+		$args,
+		array(
+			'number' => 300,
+		)
+	);
+	$query = new Query();
+
+	return $query->query( $r );
+}
+
+/**
+ * Add meta data field to an email.
+ *
+ * @since 3.3.0
+ *
+ * @param int    $email_id   Order ID.
+ * @param string $meta_key   Meta data name.
+ * @param mixed  $meta_value Meta data value. Must be serializable if non-scalar.
+ * @param bool   $unique     Optional. Whether the same key should not be added. Default false.
+ *
+ * @return int|false Meta ID on success, false on failure.
+ */
+function edd_add_email_meta( $email_id, $meta_key, $meta_value, $unique = false ) {
+	return add_metadata( 'edd_email', $email_id, $meta_key, $meta_value, $unique );
+}
+
+/**
+ * Remove meta data matching criteria from an email.
+ *
+ * You can match based on the key, or key and value. Removing based on key and value, will keep from removing duplicate
+ * meta data with the same key. It also allows removing all meta data matching key, if needed.
+ *
+ * @since 3.3.0
+ *
+ * @param int    $email_id   Order ID.
+ * @param string $meta_key   Meta data name.
+ * @param mixed  $meta_value Optional. Meta data value. Must be serializable if non-scalar. Default empty.
+ *
+ * @return bool True on success, false on failure.
+ */
+function edd_delete_email_meta( $email_id, $meta_key, $meta_value = '' ) {
+	return delete_metadata( 'edd_email', $email_id, $meta_key, $meta_value );
+}
+
+/**
+ * Retrieve email meta field for an email.
+ *
+ * @since 3.3.0
+ *
+ * @param int    $email_id  Order ID.
+ * @param string $key       Optional. The meta key to retrieve. By default, returns data for all keys. Default empty.
+ * @param bool   $single    Optional, default is false. If true, return only the first value of the specified meta_key.
+ *                          This parameter has no effect if meta_key is not specified.
+ *
+ * @return mixed Will be an array if $single is false. Will be value of meta data field if $single is true.
+ */
+function edd_get_email_meta( $email_id, $key = '', $single = false ) {
+	return get_metadata( 'edd_email', $email_id, $key, $single );
+}
+
+/**
+ * Update email meta field based on email ID.
+ *
+ * Use the $prev_value parameter to differentiate between meta fields with the
+ * same key and email ID.
+ *
+ * If the meta field for the email does not exist, it will be added.
+ *
+ * @since 3.3.0
+ *
+ * @param int    $email_id   Email ID.
+ * @param string $meta_key   Meta data key.
+ * @param mixed  $meta_value Meta data value. Must be serializable if non-scalar.
+ * @param mixed  $prev_value Optional. Previous value to check before removing. Default empty.
+ *
+ * @return int|bool Meta ID if the key didn't exist, true on successful update, false on failure.
+ */
+function edd_update_email_meta( $email_id, $meta_key, $meta_value, $prev_value = '' ) {
+	return update_metadata( 'edd_email', $email_id, $meta_key, $meta_value, $prev_value );
+}
+
+/**
+ * Delete everything from email meta matching meta key.
+ *
+ * @since 3.3.0
+ * @param string $meta_key Key to search for when deleting.
+ * @return bool Whether the email meta key was deleted from the database.
+ */
+function edd_delete_email_meta_by_key( $meta_key ) {
+	return delete_metadata( 'edd_email', null, $meta_key, '', true );
+}

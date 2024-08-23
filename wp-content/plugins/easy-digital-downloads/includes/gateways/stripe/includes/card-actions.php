@@ -36,7 +36,7 @@ function edd_stripe_process_card_update() {
 	}
 
 	// Nonce failed.
-	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], $payment_method . '_update' ) ) {
+	if ( ! edds_verify( 'nonce', $payment_method . '_update' ) ) {
 		wp_send_json_error(
 			array(
 				'message' => __( 'Error updating card.', 'easy-digital-downloads' ),
@@ -155,7 +155,7 @@ function edd_stripe_process_card_default() {
 	}
 
 	// Nonce failed.
-	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], $payment_method . '_update' ) ) {
+	if ( ! edds_verify( 'nonce', $payment_method . '_update' ) ) {
 		wp_send_json_error(
 			array(
 				'message' => __( 'Error updating card.', 'easy-digital-downloads' ),
@@ -222,7 +222,7 @@ function edd_stripe_process_card_delete() {
 	}
 
 	// Nonce failed.
-	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], $payment_method . '_update' ) ) {
+	if ( ! edds_verify( 'nonce', $payment_method . '_update' ) ) {
 		wp_send_json_error(
 			array(
 				'message' => __( 'Error updating card.', 'easy-digital-downloads' ),
@@ -336,7 +336,7 @@ function edds_add_payment_method() {
 	}
 
 	// Nonce failed.
-	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'edd-stripe-add-card' ) ) {
+	if ( ! edds_verify( 'nonce', 'edd-stripe-add-card' ) ) {
 		wp_send_json_error(
 			array(
 				'message' => __( 'Error adding card.', 'easy-digital-downloads' ),
@@ -357,13 +357,21 @@ function edds_add_payment_method() {
 	}
 
 	$stripe_customer_id = edds_get_stripe_customer_id( get_current_user_id() );
-	$stripe_customer    = edds_get_stripe_customer(
+
+	$customer_name = '';
+	if ( ! empty( $edd_customer->name ) ) {
+		$customer_name = $edd_customer->name;
+	}
+
+	$stripe_customer = edds_get_stripe_customer(
 		$stripe_customer_id,
 		array(
 			'email'       => $edd_customer->email,
 			'description' => $edd_customer->email,
+			'name'        => $customer_name,
 		)
 	);
+
 	if ( false === $stripe_customer ) {
 		wp_send_json_error(
 			array(
@@ -479,7 +487,7 @@ function edds_get_stripe_customer( $stripe_customer_id, $customer_args ) {
 			if ( isset( $customer->deleted ) && $customer->deleted ) { // If customer was deleted in Stripe, try to create a new one.
 				$customer = edds_create_stripe_customer( $customer_args );
 			}
-		} catch ( \Stripe\Error\Base $e ) {
+		} catch ( \EDD\Vendor\Stripe\Exception\ApiErrorException $e ) {
 			$error_code = $e->getStripeCode();
 			if ( 'resource_missing' === $error_code ) { // If Stripe returns an error of 'resource_missing', try to create a new Stripe Customer.
 				try {
@@ -540,5 +548,4 @@ function edds_create_stripe_customer( $customer_args = array() ) {
 	}
 
 	return $customer;
-
 }

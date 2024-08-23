@@ -1,4 +1,15 @@
 <?php
+/**
+ * EDD Stripe: Rate Limiting
+ *
+ * @package EDD_Stripe
+ * @since   2.8.0
+ */
+
+// Exit if accessed directly.
+defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
+
+use EDD\Utils\FileSystem;
 
 /**
  * Class EDD_Stripe_Rate_Limiting
@@ -17,14 +28,14 @@ class EDD_Stripe_Rate_Limiting {
 	 *
 	 * @var string
 	 */
-	private $filename   = '';
+	private $filename = '';
 
 	/**
 	 * The file path to the log file.
 	 *
 	 * @var string
 	 */
-	private $file       = '';
+	private $file = '';
 
 	/**
 	 * Set up the EDD Logging Class
@@ -42,13 +53,8 @@ class EDD_Stripe_Rate_Limiting {
 	 * @since 2.6.19
 	 */
 	private function actions() {
-
-		// Setup the log file.
-		add_action( 'plugins_loaded', array( $this, 'setup_log_file' ), 11 );
-
 		// Catch any recurring errors as they don't run through the main Stripe extension.
 		add_action( 'edd_before_purchase_form', array( $this, 'listen_for_recurring_card_errors' ), 0 );
-
 	}
 
 	/**
@@ -60,7 +66,30 @@ class EDD_Stripe_Rate_Limiting {
 
 		// Hide the purchase button if the visitor has hit the limit of errors.
 		add_filter( 'edd_checkout_button_purchase', array( $this, 'maybe_hide_purchase_button' ) );
+	}
 
+	/**
+	 * Process the card testing logs.
+	 *
+	 * Loops over the card testing logs, and if an entry is past it's expiration, remove it from the list.
+	 *
+	 * @since 2.8.13
+	 */
+	public function cleanup_log() {
+		$current_logs = $this->get_decoded_file();
+		if ( empty( $current_logs ) ) {
+			return;
+		}
+
+		foreach ( $current_logs as $blocking_id => $entry ) {
+			$expiration = ! empty( $entry['timeout'] ) ? $entry['timeout'] : 0;
+
+			if ( $expiration < current_time( 'timestamp' ) ) { // @codingStandardsIgnoreLine
+				unset( $current_logs[ $blocking_id ] );
+			}
+		}
+
+		$this->write_to_log( $current_logs );
 	}
 
 	/**
@@ -70,15 +99,20 @@ class EDD_Stripe_Rate_Limiting {
 	 * @return void
 	 */
 	public function setup_log_file() {
-
-		$upload_dir       = wp_upload_dir();
-		$this->filename   = wp_hash( home_url( '/' ) ) . '-edd-stripe-rate-limiting.log';
-		$this->file       = trailingslashit( $upload_dir['basedir'] ) . $this->filename;
-
-		if ( ! is_writeable( $upload_dir['basedir'] ) ) {
-			$this->is_writable = false;
+		if ( ! empty( $this->file ) ) {
+			return;
 		}
 
+		$upload_dir     = edd_get_upload_dir();
+		$this->filename = wp_hash( home_url( '/' ) ) . '-edd-stripe-rate-limiting.log';
+		$this->file     = trailingslashit( $upload_dir ) . $this->filename;
+		if ( ! FileSystem::get_fs()->exists( $this->file ) ) {
+			FileSystem::maybe_move_file( $this->filename, $this->file );
+		}
+
+		if ( ! FileSystem::get_fs()->is_writable( $upload_dir ) ) {
+			$this->is_writable = false;
+		}
 	}
 
 	/**
@@ -98,7 +132,7 @@ class EDD_Stripe_Rate_Limiting {
 		$expiration  = ! empty( $entry['timeout'] ) ? $entry['timeout'] : 0;
 		$card_errors = ! empty( $entry['count'] ) ? $entry['count'] : 0;
 
-		if ( $expiration < current_time( 'timestamp' ) ) {
+		if ( $expiration < current_time( 'timestamp' ) ) { // @codingStandardsIgnoreLine
 			$this->remove_log_entry( $this->get_card_error_id() );
 			return false;
 		}
@@ -142,7 +176,7 @@ class EDD_Stripe_Rate_Limiting {
 	 */
 	public function get_rate_limiting_entry( $blocking_id = '' ) {
 		$current_logs = $this->get_decoded_file();
-		$entry = array();
+		$entry        = array();
 
 		if ( array_key_exists( $blocking_id, $current_logs ) ) {
 			$entry = $current_logs[ $blocking_id ];
@@ -185,7 +219,7 @@ class EDD_Stripe_Rate_Limiting {
 		if ( empty( $current_count ) ) {
 			$current_count = 1;
 		} else {
-			$current_count++;
+			++$current_count;
 		}
 
 		$this->update_rate_limiting_count( $blocking_id, $current_count );
@@ -217,10 +251,9 @@ class EDD_Stripe_Rate_Limiting {
 		$current_log = $this->get_decoded_file();
 
 		$current_log[ $blocking_id ]['count']   = $current_count;
-		$current_log[ $blocking_id ]['timeout'] = current_time( 'timestamp' ) + $expiration_in_seconds;
+		$current_log[ $blocking_id ]['timeout'] = current_time( 'timestamp' ) + $expiration_in_seconds; // @codingStandardsIgnoreLine
 
 		$this->write_to_log( $current_log );
-
 	}
 
 	/**
@@ -252,11 +285,12 @@ class EDD_Stripe_Rate_Limiting {
 	 * Uses IP tracking in an attempt to mitigate the amount of bogus WordPress user accounts being created.
 	 *
 	 * @since 2.6.19
+	 * @since 2.8.13 Try and use the __stripe_sid cookie before relying on IP.
 	 *
 	 * @return string
 	 */
 	public function get_card_error_id() {
-		return edd_get_ip();
+		return isset( $_COOKIE['__stripe_sid'] ) ? $_COOKIE['__stripe_sid'] : edd_get_ip();
 	}
 
 	/**
@@ -276,7 +310,6 @@ class EDD_Stripe_Rate_Limiting {
 		}
 
 		return $purchase_button_markup;
-
 	}
 
 	/**
@@ -294,7 +327,6 @@ class EDD_Stripe_Rate_Limiting {
 		if ( isset( $errors['edd_recurring_stripe_error'] ) && ! empty( $errors['edd_recurring_stripe_error'] ) ) {
 			$this->increment_card_error_count();
 		}
-
 	}
 
 	/**
@@ -332,18 +364,18 @@ class EDD_Stripe_Rate_Limiting {
 	protected function get_file() {
 
 		$file = json_encode( array() );
+		$this->setup_log_file();
 
-		if ( @file_exists( $this->file ) ) {
+		if ( FileSystem::get_fs()->exists( $this->file ) ) {
 
-			if ( ! is_writeable( $this->file ) ) {
+			if ( ! FileSystem::get_fs()->is_writable( $this->file ) ) {
 				$this->is_writable = false;
 			}
 
-			$file = @file_get_contents( $this->file );
+			$file = FileSystem::get_fs()->get_contents( $this->file );
 		} else {
-
-			@file_put_contents( $this->file, $file );
-			@chmod( $this->file, 0664 );
+			FileSystem::get_fs()->put_contents( $this->file, $file );
+			FileSystem::get_fs()->chmod( $this->file, 0664 );
 		}
 
 		return $file;
@@ -359,11 +391,28 @@ class EDD_Stripe_Rate_Limiting {
 	 * @return void
 	 */
 	public function write_to_log( $content = array() ) {
+		if ( count( $content ) > 200 ) {
+			// Reduce the max number of identifiers to 200.
+			$content = array_slice( $content, -200 );
+		}
+
 		$content = json_encode( $content );
 
 		if ( $this->is_writable ) {
-			@file_put_contents( $this->file, $content );
+			FileSystem::get_fs()->put_contents( $this->file, $content );
 		}
 	}
 
+	/**
+	 * Get the error message to display when the card error limit has been hit.
+	 *
+	 * @since 2.9.2.2
+	 * @return string The error message.
+	 */
+	public function get_rate_limit_error_message() {
+		return esc_html__(
+			'We are unable to process your payment at this time, please try again later or contact support.',
+			'easy-digital-downloads'
+		);
+	}
 }

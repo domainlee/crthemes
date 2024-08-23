@@ -840,3 +840,31 @@ function twentytwentyFindParents( target, query ) {
 
 	return parents;
 }
+
+;(function () {
+	'use strict';
+	jQuery(document).ready(function() {
+		if (jQuery('.accordion--js').length) {
+			var accordions = jQuery('.accordion--js');
+			accordions.each(function () {
+				var accordion_item = jQuery(this).data('grp-name');
+				var t = jQuery(this);
+				var accordion = t.find('.accrodion');
+				t.addClass(accordion_item);
+				t.find('.accrodion .accrodion-content').hide();
+				t.find('.accrodion.active').find('.accrodion-content').show();
+				accordion.each(function() {
+					jQuery(this).find('.accrodion-title').on('click', function () {
+						if (jQuery(this).parent().hasClass('active') === false ) {
+							jQuery('.accordion--js.'+accordion_item).find('.accrodion').removeClass('active');
+							jQuery('.accordion--js.'+accordion_item).find('.accrodion').find('.accrodion-content').slideUp();
+							jQuery(this).parent().addClass('active');
+							jQuery(this).parent().find('.accrodion-content').slideDown();
+						};
+					});
+				});
+			});
+
+		};
+	});
+}());

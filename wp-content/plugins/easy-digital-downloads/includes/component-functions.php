@@ -234,6 +234,36 @@ function edd_setup_components() {
 		'object' => '\\EDD\\Logs\\File_Download_Log',
 	) );
 
+	edd_register_component( 'notification', array(
+		'schema' => '\\EDD\\Database\\Schemas\\Notifications',
+		'table'  => '\\EDD\\Database\\Tables\\Notifications',
+		'query'  => '\\EDD\\Database\\Queries\\Notification',
+		'object' => '\\EDD\\Notifications\\Notification',
+		'meta'   => false,
+	) );
+
+	edd_register_component(
+		'email',
+		array(
+			'schema' => '\\EDD\\Database\\Schemas\\Emails',
+			'table'  => '\\EDD\\Database\\Tables\\Emails',
+			'query'  => '\\EDD\\Database\\Queries\\Email',
+			'object' => '\\EDD\\Emails\\Email',
+			'meta'   => '\\EDD\\Database\\Tables\\EmailMeta',
+		)
+	);
+
+	edd_register_component(
+		'log_email',
+		array(
+			'schema' => '\\EDD\\Database\\Schemas\\LogsEmails',
+			'table'  => '\\EDD\\Database\\Tables\\LogsEmails',
+			'query'  => '\\EDD\\Database\\Queries\\LogEmail',
+			'object' => '\\EDD\\Emails\\LogEmail',
+			'meta'   => '\\EDD\\Database\\Tables\\LogsEmailMeta',
+		)
+	);
+
 	// Set the locally static setup var.
 	$setup = true;
 

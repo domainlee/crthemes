@@ -224,14 +224,7 @@ class EDD_Payments_Query extends EDD_Stats {
 		}
 
 		foreach ( $this->items as $order ) {
-			$payment = edd_get_payment( $order->id );
-
-			if ( edd_get_option( 'enable_sequential' ) ) {
-				// Backwards compatibility, needs to set `payment_number` attribute
-				$payment->payment_number = $payment->number;
-			}
-
-			$this->payments[] = apply_filters( 'edd_payment', $payment, $order->id, $this );
+			$this->payments[] = apply_filters( 'edd_payment', edd_get_payment( $order->id ), $order->id, $this );
 		}
 
 		do_action( 'edd_post_get_payments', $this );
@@ -527,22 +520,22 @@ class EDD_Payments_Query extends EDD_Stats {
 		$order_ids = array();
 
 		if ( is_array( $this->args['download'] ) ) {
-			$orders = edd_get_order_items( array(
+			$order_items = edd_get_order_items( array(
 				'product_id__in' => (array) $this->args['download'],
 			) );
 
-			foreach ( $orders as $order ) {
-				/** @var $order EDD\Orders\Order_Item */
-				$order_ids[] = $order->order_id;
+			foreach ( $order_items as $order_item ) {
+				/** @var $order_item EDD\Orders\Order_Item */
+				$order_ids[] = $order_item->order_id;
 			}
 		} else {
-			$orders = edd_get_order_items( array(
+			$order_items = edd_get_order_items( array(
 				'product_id' => $this->args['download'],
 			) );
 
-			foreach ( $orders as $order ) {
-				/** @var $order EDD\Orders\Order_Item */
-				$order_ids[] = $order->id;
+			foreach ( $order_items as $order_item ) {
+				/** @var $order_item EDD\Orders\Order_Item */
+				$order_ids[] = $order_item->order_id;
 			}
 		}
 
@@ -591,10 +584,10 @@ class EDD_Payments_Query extends EDD_Stats {
 
 		if ( $this->args['start_date'] ) {
 			if ( is_numeric( $this->start_date ) ) {
-				$this->start_date = \Carbon\Carbon::createFromTimestamp( $this->start_date )->toDateTimeString();
+				$this->start_date = \EDD\Utils\Date::createFromTimestamp( $this->start_date )->toDateTimeString();
 			}
 
-			$this->start_date = \Carbon\Carbon::parse( $this->start_date, edd_get_timezone_id() )->setTimezone( 'UTC' )->timestamp;
+			$this->start_date = \EDD\Utils\Date::parse( $this->start_date, edd_get_timezone_id() )->setTimezone( 'UTC' )->timestamp;
 
 			$arguments['date_created_query']['after'] = array(
 				'year'  => date( 'Y', $this->start_date ),
@@ -607,10 +600,10 @@ class EDD_Payments_Query extends EDD_Stats {
 
 		if ( $this->args['end_date'] ) {
 			if ( is_numeric( $this->end_date ) ) {
-				$this->end_date = \Carbon\Carbon::createFromTimestamp( $this->end_date )->toDateTimeString();
+				$this->end_date = \EDD\Utils\Date::createFromTimestamp( $this->end_date )->toDateTimeString();
 			}
 
-			$this->end_date = \Carbon\Carbon::parse( $this->end_date, edd_get_timezone_id() )->setTimezone( 'UTC' )->timestamp;
+			$this->end_date = \EDD\Utils\Date::parse( $this->end_date, edd_get_timezone_id() )->setTimezone( 'UTC' )->timestamp;
 
 			$arguments['date_created_query']['before'] = array(
 				'year'  => date( 'Y', $this->end_date ),
@@ -696,7 +689,7 @@ class EDD_Payments_Query extends EDD_Stats {
 		}
 
 		if ( ! is_null( $this->args['post__not_in'] ) ) {
-			$arguments['id__in'] = $this->args['post__not_in'];
+			$arguments['id__not_in'] = $this->args['post__not_in'];
 		}
 
 		if ( ! empty( $this->args['mode'] ) && 'all' !== $this->args['mode'] ) {

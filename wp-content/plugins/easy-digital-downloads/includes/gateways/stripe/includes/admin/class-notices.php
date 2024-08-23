@@ -102,7 +102,7 @@ class EDD_Stripe_Admin_Notices {
 			return $output;
 		}
 
-		if ( true === $this->is_dismissed( $notice_id ) ) {
+		if ( ! empty( $notice['dismissible'] ) && true === $this->is_dismissed( $notice_id ) ) {
 			return $output;
 		}
 

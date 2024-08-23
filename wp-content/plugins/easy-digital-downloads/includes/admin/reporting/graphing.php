@@ -602,7 +602,14 @@ function edd_reports_graph_of_download( $download_id = 0 ) {
 	?>
 	<div class="metabox-holder" style="padding-top: 0;">
 		<div class="postbox">
-			<h3><span><?php printf( __('Earnings Over Time for %s', 'easy-digital-downloads' ), get_the_title( $download_id ) ); ?></span></h3>
+			<h3>
+				<span>
+					<?php
+					/* translators: %s: Download title */
+					printf( __( 'Earnings Over Time for %s', 'easy-digital-downloads' ), get_the_title( $download_id ) );
+					?>
+				</span>
+			</h3>
 
 			<div class="inside">
 				<?php
@@ -611,10 +618,44 @@ function edd_reports_graph_of_download( $download_id = 0 ) {
 				$graph->set( 'multiple_y_axes', true );
 				$graph->display();
 				?>
-				<p class="edd_graph_totals"><strong><?php _e( 'Total earnings for period shown: ', 'easy-digital-downloads' ); echo edd_currency_filter( edd_format_amount( $earnings_totals ) ); ?></strong></p>
-				<p class="edd_graph_totals"><strong><?php _e( 'Total sales for period shown: ', 'easy-digital-downloads' ); echo $sales_totals; ?></strong></p>
-				<p class="edd_graph_totals"><strong><?php printf( __( 'Average monthly earnings: %s', 'easy-digital-downloads' ), edd_currency_filter( edd_format_amount( edd_get_average_monthly_download_earnings( $download_id ) ) ) ); ?>
-				<p class="edd_graph_totals"><strong><?php printf( __( 'Average monthly sales: %s', 'easy-digital-downloads' ), number_format( edd_get_average_monthly_download_sales( $download_id ), 0 ) ); ?>
+				<p class="edd_graph_totals">
+					<strong>
+						<?php
+						_e( 'Total earnings for period shown: ', 'easy-digital-downloads' );
+						echo edd_currency_filter( edd_format_amount( $earnings_totals ) );
+						?>
+					</strong>
+				</p>
+				<p class="edd_graph_totals">
+					<strong>
+						<?php
+						_e( 'Total sales for period shown: ', 'easy-digital-downloads' );
+						echo $sales_totals;
+						?>
+					</strong>
+				</p>
+				<p class="edd_graph_totals">
+					<strong>
+						<?php
+						printf(
+							/* translators: %s: Formatted currency value for earnings */
+							__( 'Average monthly earnings: %s', 'easy-digital-downloads' ),
+							edd_currency_filter( edd_format_amount( edd_get_average_monthly_download_earnings( $download_id ) ) )
+						);
+						?>
+					</strong>
+				</p>
+				<p class="edd_graph_totals">
+					<strong>
+						<?php
+						printf(
+							/* translators: %s: Number of sales */
+							__( 'Average monthly sales: %s', 'easy-digital-downloads' ),
+							number_format( edd_get_average_monthly_download_sales( $download_id ), 0 )
+						);
+						?>
+					</strong>
+				</p>
 			</div>
 		</div>
 	</div>
@@ -630,6 +671,10 @@ function edd_reports_graph_of_download( $download_id = 0 ) {
  * @param array $form_data POSTed data from the filters form.
  */
 function edd_parse_report_dates( $form_data ) {
+	if ( ! current_user_can( 'view_shop_reports' ) ) {
+		return;
+	}
+
 	// Load the Reports API dependencies.
 	Reports\Init::bootstrap();
 
@@ -637,9 +682,11 @@ function edd_parse_report_dates( $form_data ) {
 
 	$redirect = ! empty( $form_data['edd_redirect'] )
 		? $form_data['edd_redirect']
-		: edd_get_admin_url( array(
-			'page' => 'edd-reports',
-		) );
+		: edd_get_admin_url(
+			array(
+				'page' => 'edd-reports',
+			)
+		);
 
 	$filter_args = array();
 
@@ -650,9 +697,11 @@ function edd_parse_report_dates( $form_data ) {
 
 			case 'dates':
 				if ( ! empty( $form_data['range'] ) ) {
-					$range = sanitize_key( $form_data['range'] );
+					$range          = sanitize_key( $form_data['range'] );
+					$relative_range = sanitize_key( $form_data['relative_range'] );
 				} else {
-					$range = Reports\get_dates_filter_range();
+					$range          = Reports\get_dates_filter_range();
+					$relative_range = Reports\get_relative_dates_filter_range();
 				}
 
 				if ( 'other' === $range ) {
@@ -679,7 +728,8 @@ function edd_parse_report_dates( $form_data ) {
 							'filter_to'   => ! empty( $form_data['filter_to'] )
 								? sanitize_text_field( $form_data['filter_to'] )
 								: '',
-							'range'       => 'other',
+							'range'          => 'other',
+							'relative_range' => 'previous_period',
 						),
 						$filter_args
 					);
@@ -690,9 +740,10 @@ function edd_parse_report_dates( $form_data ) {
 
 					$filter_args = array_merge(
 						array(
-							'filter_from' => $dates['start']->format( 'date-mysql' ),
-							'filter_to'   => $dates['end']->format( 'date-mysql' ),
-							'range'       => $range,
+							'filter_from'    => $dates['start']->format( 'date-mysql' ),
+							'filter_to'      => $dates['end']->format( 'date-mysql' ),
+							'range'          => $range,
+							'relative_range' => $relative_range,
 						),
 						$filter_args
 					);
@@ -736,6 +787,9 @@ add_action( 'edd_filter_reports', 'edd_parse_report_dates' );
  * @description: Outputs a "Refresh Reports" button for graphs
  */
 function edd_reports_refresh_button() {
+	if ( ! current_user_can( 'view_shop_reports' ) ) {
+		return;
+	}
 
 	$url = wp_nonce_url( add_query_arg( array(
 		'edd_action'  => 'refresh_reports_transients',
@@ -757,6 +811,11 @@ add_action( 'edd_reports_graph_after', 'edd_reports_refresh_button' );
  */
 function edd_run_refresh_reports_transients( $data ) {
 	if ( ! wp_verify_nonce( $data['_wpnonce'], 'edd-refresh-reports' ) ) {
+		return;
+	}
+
+	// Users who cannot view shop reports should not be able to refresh them.
+	if ( ! current_user_can( 'view_shop_reports' ) ) {
 		return;
 	}
 

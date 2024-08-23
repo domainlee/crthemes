@@ -1,26 +1,33 @@
 <?php
 
 /**
- * Handles automatic upgrades behind the scenes.
+ * Automatic 'upgrade' to detect an existing Stripe install to keep them on card-elements.
  *
- * @since 2.8.10
+ * Since people can customize the checkout experiance, we need to keep existing installs on card
+ * elements, and let them manually migrate to the payment elements integration. This sets an option
+ * for the elements mode, and if the site is already set up, defines an option to label the fact that
+ * they still have access to swap between card and payment elements.
+ *
+ * @since 2.9.0
  */
 add_action( 'admin_init', function() {
-	/*
-	 * Move license data to new option, after product name change.
-	 * @link https://github.com/awesomemotive/edd-stripe/issues/715
-	 */
-	$license_key = edd_get_option( 'edd_stripe_payment_gateway_license_key' );
-	if ( $license_key ) {
-		edd_update_option( 'edd_stripe_pro_payment_gateway_license_key', sanitize_text_field( $license_key ) );
-		edd_delete_option( 'edd_stripe_payment_gateway_license_key' );
-
-		$license_status = get_option( 'edd_stripe_payment_gateway_license_active' );
-		if ( $license_status ) {
-			update_option( 'edd_stripe_pro_payment_gateway_license_active', $license_status );
-			delete_option( 'edd_stripe_payment_gateway_license_active' );
-		}
+	// If the elements mode exists, don't run this again.
+	if ( false !== edd_get_option( 'stripe_elements_mode' ) ) {
+		return;
 	}
+
+	$elements_mode = 'payment-elements';
+	$connect       = edd_stripe()->connect();
+
+	if (
+		! empty( $connect->get_connect_id() ) ||
+		edds_stripe_connect_can_manage_keys()
+	) {
+		$elements_mode = 'card-elements';
+		add_option( '_edds_legacy_elements_enabled', 1, false );
+	}
+
+	edd_update_option( 'stripe_elements_mode', $elements_mode );
 } );
 
 /**

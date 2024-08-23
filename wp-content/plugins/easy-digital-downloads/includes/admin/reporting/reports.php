@@ -30,7 +30,8 @@ function edd_admin_load_report() {
 
 	// Redirect URL (on error)
 	$redirect_url = edd_get_admin_url( array(
-		'page' => 'edd-reports'
+		'page' => 'edd-reports',
+		'view' => 'overview',
 	) );
 
 	// Redirect if user cannot view reports
@@ -306,8 +307,9 @@ function edd_register_overview_report( $reports ) {
 					'data_callback' => function () use ( $dates ) {
 						$stats = new EDD\Stats();
 						return $stats->get_customer_count( array(
-							'range'    => $dates['range'],
-							'relative' => true,
+							'range'          => $dates['range'],
+							'relative'       => true,
+							'purchase_count' => true,
 						) );
 					},
 					'display_args'  => array(
@@ -348,28 +350,64 @@ function edd_register_overview_report( $reports ) {
 					'type'          => 'line',
 					'options'       => array(
 						'datasets' => array(
-							'sales'    => array(
-								'label'                => __( 'Sales', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(252,108,18)',
-								'backgroundColor'      => 'rgba(252,108,18,0.2)',
-								'fill'                 => true,
-								'borderDash'           => array( 2, 6 ),
-								'borderCapStyle'       => 'round',
-								'borderJoinStyle'      => 'round',
-								'pointRadius'          => 4,
-								'pointHoverRadius'     => 6,
-								'pointBackgroundColor' => 'rgb(255,255,255)',
-							),
 							'earnings' => array(
 								'label'                => __( 'Earnings', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'type'                 => 'currency',
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'earnings-y',
+							),
+							'sales'    => array(
+								'label'                => __( 'Sales', 'easy-digital-downloads' ),
+								'borderColor'          => 'rgba(252,108,18,0.75)',
+								'backgroundColor'      => 'rgba(252,108,18,0.05)',
+								'fill'                 => true,
+								'borderWidth'          => 2,
+								'borderCapStyle'       => 'round',
+								'borderJoinStyle'      => 'round',
+								'pointRadius'          => 4,
+								'pointHoverRadius'     => 6,
+								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'sales-y',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'id'        => 'earnings-y',
+									'type'      => 'linear',
+									'display'   => true,
+									'position'  => 'left',
+									'ticks'     => array(
+										'formattingType' => 'format',
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+									),
+								),
+								array(
+									'id'        => 'sales-y',
+									'type'      => 'linear',
+									'position'  => 'right',
+									'display'   => true,
+									'ticks'     => array(
+										'formattingType'    => 'integer',
+										'beginAtZero'       => true,
+										'hideNegativeTicks' => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+										'color'   => 'rgba(0,0,0,0.03)',
+									),
+								),
 							),
 						),
 					),
@@ -409,19 +447,7 @@ function edd_register_downloads_report( $reports ) {
 		// Mock downloads and prices in case they cannot be found later.
 		$download       = edd_get_download();
 		$prices         = array();
-		$download_label = '';
-		if ( $download_data ) {
-			$download = edd_get_download( $download_data['download_id'] );
-			$prices   = $download->get_prices();
-			if ( isset( $download_data['price_id'] ) && is_numeric( $download_data['price_id'] ) ) {
-				$args       = array( 'price_id' => $download_data['price_id'] );
-				$price_name = edd_get_price_name( $download->ID, $args );
-				if ( $price_name ) {
-					$download->post_title .= ': ' . $price_name;
-				}
-			}
-			$download_label = esc_html( ' (' . $download->post_title . ')' );
-		}
+		$download_label = Reports\get_download_label( $download_data );
 
 		$tiles = array_filter( array(
 			'most_valuable_download',
@@ -460,7 +486,6 @@ function edd_register_downloads_report( $reports ) {
 
 		$tables = array_filter( array(
 			'top_selling_downloads',
-			'earnings_by_taxonomy',
 		), function( $endpoint ) use ( $download_data ) {
 			return false === $download_data;
 		} );
@@ -478,6 +503,7 @@ function edd_register_downloads_report( $reports ) {
 		) );
 
 		$reports->register_endpoint( 'most_valuable_download', array(
+			/* translators: %s: Download singular label */
 			'label' => sprintf( __( 'Most Valuable %s', 'easy-digital-downloads' ), edd_get_label_singular() ),
 			'views' => array(
 				'tile' => array(
@@ -566,19 +592,8 @@ function edd_register_downloads_report( $reports ) {
 			),
 		) );
 
-		$reports->register_endpoint( 'earnings_by_taxonomy', array(
-			'label' => __( 'Earnings By Taxonomy', 'easy-digital-downloads' ) . ' &mdash; ' . $label,
-			'views' => array(
-				'table' => array(
-					'display_args' => array(
-						'class_name' => '\\EDD\\Reports\\Data\\Downloads\\Earnings_By_Taxonomy_List_Table',
-						'class_file' => EDD_PLUGIN_DIR . 'includes/reports/data/downloads/class-earnings-by-taxonomy-list-table.php',
-					),
-				),
-			),
-		) );
-
 		$reports->register_endpoint( 'top_selling_downloads', array(
+			/* translators: %s: Downloads plural label */
 			'label' => sprintf( __( 'Top Selling %s', 'easy-digital-downloads' ), edd_get_label_plural() ) . ' &mdash; ' . $label,
 			'views' => array(
 				'table' => array(
@@ -698,129 +713,230 @@ function edd_register_downloads_report( $reports ) {
 					'data_callback' => function () use ( $download_data, $currency ) {
 						global $wpdb;
 
-						$dates        = Reports\get_dates_filter( 'objects' );
-						$day_by_day   = Reports\get_dates_filter_day_by_day();
-						$hour_by_hour = Reports\get_dates_filter_hour_by_hour();
+						$dates       = Reports\get_dates_filter( 'objects' );
+						$chart_dates = Reports\parse_dates_for_range( null, 'now', false );
+						$period      = Reports\get_graph_period();
+						$sql_clauses = Reports\get_sql_clauses( $period, 'edd_oi.date_created' );
 
-						$sql_clauses = array(
-							'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day',
-							'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
-							'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
+						$union_clauses = array(
+							'select'  => 'date',
+							'groupby' => 'date',
+							'orderby' => 'date',
 						);
 
-						if ( $hour_by_hour ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day, HOUR(date_created) AS hour',
-								'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-							);
-						} elseif ( ! $day_by_day ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month',
-								'groupby' => 'YEAR(date_created), MONTH(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created)',
-							);
-						}
-
 						$price_id = isset( $download_data['price_id'] ) && is_numeric( $download_data['price_id'] )
-							? $wpdb->prepare( 'AND price_id = %d', absint( $download_data['price_id'] ) )
+							? sprintf( 'AND price_id = %d', absint( $download_data['price_id'] ) )
 							: '';
 
-						$results = $wpdb->get_results( $wpdb->prepare(
-							"SELECT COUNT(total) AS sales, SUM(total / rate) AS earnings, {$sql_clauses['select']}
+						$earnings_statuses      = edd_get_gross_order_statuses();
+						$earnings_status_string = implode( ', ', array_fill( 0, count( $earnings_statuses ), '%s' ) );
+
+						$order_item_earnings = $wpdb->prepare(
+							"SELECT SUM(edd_oi.total / edd_oi.rate) AS earnings, {$sql_clauses['select']}
 							FROM {$wpdb->edd_order_items} edd_oi
-							WHERE product_id = %d {$price_id} AND date_created >= %s AND date_created <= %s AND status = 'complete'
+							INNER JOIN {$wpdb->edd_orders} edd_o ON edd_oi.order_id = edd_o.id
+							WHERE edd_oi.product_id = %d {$price_id} AND edd_oi.date_created >= %s AND edd_oi.date_created <= %s AND edd_o.status IN ({$earnings_status_string})
+							GROUP BY {$sql_clauses['groupby']}",
+							$download_data['download_id'],
+							$dates['start']->copy()->format( 'mysql' ),
+							$dates['end']->copy()->format( 'mysql' ),
+							...$earnings_statuses
+						);
+
+						/**
+						 * The adjustments query needs a different order status check than the order items. This is due to the fact that
+						 * adjustments refunded would end up being double counted, and therefore create an inaccurate revenue report.
+						 */
+						$adjustments_statuses      = edd_get_net_order_statuses();
+						$adjustments_status_string = implode( ', ', array_fill( 0, count( $adjustments_statuses ), '%s' ) );
+
+						$order_adjustments = $wpdb->prepare(
+							"SELECT SUM(edd_oa.total / edd_oa.rate) AS earnings, {$sql_clauses['select']}
+							FROM {$wpdb->edd_order_adjustments} edd_oa
+							INNER JOIN {$wpdb->edd_order_items} edd_oi ON
+								edd_oi.id = edd_oa.object_id
+								AND edd_oi.product_id = %d
+								{$price_id}
+								AND edd_oi.date_created >= %s AND edd_oi.date_created <= %s
+							INNER JOIN {$wpdb->edd_orders} edd_o ON edd_oi.order_id = edd_o.id AND edd_o.type = 'sale' AND edd_o.status IN ({$adjustments_status_string})
+							WHERE edd_oa.object_type = 'order_item'
+							AND edd_oa.type != 'discount'
+							GROUP BY {$sql_clauses['groupby']}",
+							$download_data['download_id'],
+							$dates['start']->copy()->format( 'mysql' ),
+							$dates['end']->copy()->format( 'mysql' ),
+							...$adjustments_statuses
+						);
+
+						$earnings_sql     = "SELECT SUM(earnings) as earnings, {$union_clauses['select']} FROM ({$order_item_earnings} UNION {$order_adjustments})a GROUP BY {$union_clauses['groupby']} ORDER BY {$union_clauses['orderby']}";
+						$earnings_results = $wpdb->get_results( $earnings_sql );
+
+						$statuses      = edd_get_net_order_statuses();
+						$status_string = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+						$join = $wpdb->prepare(
+							"INNER JOIN {$wpdb->edd_orders} edd_o ON (edd_oi.order_id = edd_o.id) AND edd_o.status IN({$status_string}) AND edd_o.type = 'sale' ",
+							...$statuses
+						);
+
+						$sales_sql = $wpdb->prepare(
+							"SELECT COUNT(edd_oi.total) AS sales, {$sql_clauses['select']}
+							FROM {$wpdb->edd_order_items} edd_oi
+							{$join}
+							WHERE edd_oi.product_id = %d %1s AND edd_oi.date_created >= %s AND edd_oi.date_created <= %s AND edd_oi.status IN ({$status_string})
 							GROUP BY {$sql_clauses['groupby']}
 							ORDER BY {$sql_clauses['orderby']} ASC",
-							$download_data['download_id'], $dates['start']->copy()->format( 'mysql' ), $dates['end']->copy()->format( 'mysql' ) ) );
+							$download_data['download_id'],
+							$price_id,
+							$dates['start']->copy()->format( 'mysql' ),
+							$dates['end']->copy()->format( 'mysql' ),
+							...$statuses
+						);
+
+						$sales_results = $wpdb->get_results( $sales_sql );
 
 						$sales    = array();
 						$earnings = array();
 
 						// Initialise all arrays with timestamps and set values to 0.
-						while ( strtotime( $dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $dates['end']->copy()->format( 'mysql' ) ) ) {
-							if ( $hour_by_hour ) {
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $dates['start']->day, $dates['start']->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+						while ( strtotime( $chart_dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $chart_dates['end']->copy()->format( 'mysql' ) ) ) {
+							$timestamp     = $chart_dates['start']->copy()->format( 'U' );
+							$date_on_chart = $chart_dates['start'];
 
-								$sales[ $timestamp ][] = $timestamp;
-								$sales[ $timestamp ][] = 0;
+							$sales[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+							$sales[ $timestamp ][1] = 0;
 
-								$earnings[ $timestamp ][] = $timestamp;
-								$earnings[ $timestamp ][] = 0.00;
+							$earnings[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+							$earnings[ $timestamp ][1] = 0.00;
 
-								$dates['start']->addHour( 1 );
-							} else {
-								$day = ( true === $day_by_day )
-									? $dates['start']->day
-									: 1;
+							// Loop through each date there were sales/earnings, which we queried from the database.
+							foreach ( $earnings_results as $earnings_result ) {
+								$date_of_db_value = EDD()->utils->date( $earnings_result->date );
 
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-
-								$sales[ $timestamp ][] = $timestamp;
-								$sales[ $timestamp ][] = 0;
-
-								$earnings[ $timestamp ][] = $timestamp;
-								$earnings[ $timestamp ][] = 0.00;
-
-								$dates['start'] = ( true === $day_by_day )
-									? $dates['start']->addDays( 1 )
-									: $dates['start']->addMonth( 1 );
-							}
-						}
-
-						foreach ( $results as $result ) {
-							if ( $hour_by_hour ) {
-
-								/**
-								 * If this is hour by hour, the database returns the timestamps in UTC and an offset
-								 * needs to be applied to that.
-								 */
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $result->day, $result->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-							} else {
-								$day = ( true === $day_by_day )
-									? $result->day
-									: 1;
-
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+								// Add any sales/earnings that happened during this hour.
+								if ( 'hour' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
+										$earnings[ $timestamp ][1] += $earnings_result->earnings;
+									}
+									// Add any sales/earnings that happened during this day.
+								} elseif ( 'day' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
+										$earnings[ $timestamp ][1] += $earnings_result->earnings;
+									}
+									// Add any sales/earnings that happened during this month.
+								} else {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m' ) === $date_on_chart->format( 'Y-m' ) ) {
+										$earnings[ $timestamp ][1] += $earnings_result->earnings;
+									}
+								}
 							}
 
-							$sales[ $timestamp ][1]    += $result->sales;
-							$earnings[ $timestamp ][1] += floatval( $result->earnings );
-						}
+							// Loop through each date there were sales/earnings, which we queried from the database.
+							foreach ( $sales_results as $sales_result ) {
+								$date_of_db_value = EDD()->utils->date( $sales_result->date );
 
-						$sales    = array_values( $sales );
-						$earnings = array_values( $earnings );
+								// Add any sales/earnings that happened during this hour.
+								if ( 'hour' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
+										$sales[ $timestamp ][1] += $sales_result->sales;
+									}
+									// Add any sales/earnings that happened during this day.
+								} elseif ( 'day' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
+										$sales[ $timestamp ][1] += $sales_result->sales;
+									}
+									// Add any sales/earnings that happened during this month.
+								} else {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m' ) === $date_on_chart->format( 'Y-m' ) ) {
+										$sales[ $timestamp ][1] += $sales_result->sales;
+									}
+								}
+							}
+
+							// Move the chart along to the next hour/day/month to get ready for the next loop.
+							if ( 'hour' === $period ) {
+								$chart_dates['start']->addHour( 1 );
+							} elseif ( 'day' === $period ) {
+								$chart_dates['start']->addDays( 1 );
+							} else {
+								$chart_dates['start']->addMonth( 1 );
+							}
+						}
 
 						return array(
-							'sales'    => $sales,
-							'earnings' => $earnings,
+							'earnings' => array_values( $earnings ),
+							'sales'    => array_values( $sales ),
 						);
 					},
 					'type'          => 'line',
 					'options'       => array(
 						'datasets' => array(
-							'sales'    => array(
-								'label'                => __( 'Sales', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(252,108,18)',
-								'backgroundColor'      => 'rgba(252,108,18,0.2)',
-								'fill'                 => true,
-								'borderDash'           => array( 2, 6 ),
-								'borderCapStyle'       => 'round',
-								'borderJoinStyle'      => 'round',
-								'pointRadius'          => 4,
-								'pointHoverRadius'     => 6,
-								'pointBackgroundColor' => 'rgb(255,255,255)',
-							),
 							'earnings' => array(
 								'label'                => __( 'Earnings', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'type'                 => 'currency',
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'earnings-y',
+							),
+							'sales'    => array(
+								'label'                => __( 'Sales', 'easy-digital-downloads' ),
+								'borderColor'          => 'rgba(252,108,18,0.75)',
+								'backgroundColor'      => 'rgba(252,108,18,0.05)',
+								'fill'                 => true,
+								'borderWidth'          => 2,
+								'borderCapStyle'       => 'round',
+								'borderJoinStyle'      => 'round',
+								'pointRadius'          => 4,
+								'pointHoverRadius'     => 6,
+								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'sales-y',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'id'        => 'earnings-y',
+									'type'      => 'linear',
+									'display'   => true,
+									'position'  => 'left',
+									'ticks'     => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'format',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+									),
+									'gridLines' => array(
+										'display' => true,
+									),
+								),
+								array(
+									'id'        => 'sales-y',
+									'type'      => 'linear',
+									'position'  => 'right',
+									'display'   => true,
+									'ticks'     => array(
+										'maxTicksLimit'     => 5,
+										'formattingType'    => 'integer',
+										'suggestedMin'      => 0,
+										'beginAtZero'       => true,
+										'hideNegativeTicks' => true,
+									),
+									'gridLines' => array(
+										'display' => true,
+										'color'   => 'rgba(0,0,0,0.03)',
+									),
+								),
 							),
 						),
 					),
@@ -832,6 +948,56 @@ function edd_register_downloads_report( $reports ) {
 	}
 }
 add_action( 'edd_reports_init', 'edd_register_downloads_report' );
+
+/**
+ * Register downloads taxonomy report and endpoints.
+ *
+ * @since 3.2.7
+ * @param \EDD\Reports\Data\Report_Registry $reports Report registry.
+ */
+function edd_register_downloads_taxonomy_report( $reports ) {
+	try {
+		$options = Reports\get_dates_filter_options();
+		$dates   = Reports\get_filter_value( 'dates' );
+
+		$hbh   = Reports\get_dates_filter_hour_by_hour();
+		$label = $options[ $dates['range'] ] . ( $hbh ? ' (' . edd_get_timezone_abbr() . ')' : '' );
+
+		$reports->add_report(
+			'downloads_taxonomy',
+			array(
+				/* translators: %s: Downloads label */
+				'label'     => sprintf( __( '%s Terms', 'easy-digital-downloads' ), edd_get_label_singular() ),
+				'priority'  => 11,
+				'icon'      => 'category',
+				'endpoints' => array(
+					'tables' => array(
+						'earnings_by_taxonomy',
+					),
+				),
+				'filters'   => array( 'dates' ),
+			)
+		);
+
+		$reports->register_endpoint(
+			'earnings_by_taxonomy',
+			array(
+				'label' => __( 'Earnings By Term', 'easy-digital-downloads' ) . ' &mdash; ' . $label,
+				'views' => array(
+					'table' => array(
+						'display_args' => array(
+							'class_name' => '\\EDD\\Reports\\Data\\Downloads\\Earnings_By_Taxonomy_List_Table',
+							'class_file' => EDD_PLUGIN_DIR . 'src/Reports/Data/Downloads/Earnings_By_Taxonomy_List_Table.php',
+						),
+					),
+				),
+			)
+		);
+	} catch ( \EDD_Exception $exception ) {
+		edd_debug_log_exception( $exception );
+	}
+}
+add_action( 'edd_reports_init', 'edd_register_downloads_taxonomy_report' );
 
 
 /**
@@ -884,11 +1050,15 @@ function edd_register_refunds_report( $reports ) {
 				'tile' => array(
 					'data_callback' => function () use ( $dates, $currency ) {
 						$stats  = new EDD\Stats();
-						$number = $stats->get_order_refund_count( array(
-							'range'    => $dates['range'],
-							'currency' => $currency
-						) );
-						return esc_html( $number );
+
+						return esc_html(
+							$stats->get_order_refund_count(
+								array(
+									'range'    => $dates['range'],
+									'currency' => $currency,
+								)
+							)
+						);
 					},
 					'display_args'  => array(
 						'comparison_label' => $label,
@@ -903,12 +1073,16 @@ function edd_register_refunds_report( $reports ) {
 				'tile' => array(
 					'data_callback' => function () use ( $dates, $currency ) {
 						$stats  = new EDD\Stats();
-						$number = $stats->get_order_refund_count( array(
-							'range'    => $dates['range'],
-							'status'   => array( 'complete' ),
-							'currency' => $currency
-						) );
-						return esc_html( $number );
+
+						return esc_html(
+							$stats->get_order_refund_count(
+								array(
+									'range'          => $dates['range'],
+									'currency'       => $currency,
+									'fully_refunded' => true,
+								)
+							)
+						);
 					},
 					'display_args'  => array(
 						'comparison_label' => $label,
@@ -925,8 +1099,7 @@ function edd_register_refunds_report( $reports ) {
 						$stats  = new EDD\Stats();
 						$number = $stats->get_order_item_refund_count( array(
 							'range'    => $dates['range'],
-							'status'   => array( 'refunded' ),
-							'currency' => $currency
+							'currency' => $currency,
 						) );
 						return esc_html( $number );
 					},
@@ -1024,28 +1197,67 @@ function edd_register_refunds_report( $reports ) {
 					'type'          => 'line',
 					'options'       => array(
 						'datasets' => array(
-							'number' => array(
-								'label'                => __( 'Number', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(252,108,18)',
-								'backgroundColor'      => 'rgba(252,108,18,0.2)',
-								'fill'                 => true,
-								'borderDash'           => array( 2, 6 ),
-								'borderCapStyle'       => 'round',
-								'borderJoinStyle'      => 'round',
-								'pointRadius'          => 4,
-								'pointHoverRadius'     => 6,
-								'pointBackgroundColor' => 'rgb(255,255,255)',
-							),
 							'amount' => array(
 								'label'                => __( 'Amount', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'type'                 => 'currency',
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'amount-y',
+							),
+							'number' => array(
+								'label'                => _x( 'Number', 'Context: As in the total number of items', 'easy-digital-downloads' ),
+								'borderColor'          => 'rgba(252,108,18,0.75)',
+								'backgroundColor'      => 'rgba(252,108,18,0.05)',
+								'fill'                 => true,
+								'borderWidth'          => 2,
+								'borderCapStyle'       => 'round',
+								'borderJoinStyle'      => 'round',
+								'pointRadius'          => 4,
+								'pointHoverRadius'     => 6,
+								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'number-y',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'id'        => 'amount-y',
+									'type'      => 'linear',
+									'display'   => true,
+									'position'  => 'left',
+									'ticks'     => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'format',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+									),
+								),
+								array(
+									'id'        => 'number-y',
+									'type'      => 'linear',
+									'position'  => 'right',
+									'display'   => true,
+									'ticks'     => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'integer',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+										'color'   => 'rgba(0,0,0,0.03)',
+									),
+								),
 							),
 						),
 					),
@@ -1353,28 +1565,9 @@ function edd_register_payment_gateways_report( $reports ) {
 						global $wpdb;
 
 						$dates        = Reports\get_dates_filter( 'objects' );
-						$day_by_day   = Reports\get_dates_filter_day_by_day();
-						$hour_by_hour = Reports\get_dates_filter_hour_by_hour();
-
-						$sql_clauses = array(
-							'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day',
-							'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
-							'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
-						);
-
-						if ( $hour_by_hour ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day, HOUR(date_created) AS hour',
-								'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-							);
-						} elseif ( ! $day_by_day ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month',
-								'groupby' => 'YEAR(date_created), MONTH(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created)',
-							);
-						}
+						$chart_dates  = Reports\parse_dates_for_range( null, 'now', false );
+						$period       = Reports\get_graph_period();
+						$sql_clauses  = Reports\get_sql_clauses( $period, 'date_created' );
 
 						$gateway = Reports\get_filter_value( 'gateways' );
 						$column  = $exclude_taxes
@@ -1397,93 +1590,135 @@ function edd_register_payment_gateways_report( $reports ) {
 							ORDER BY {$sql_clauses['orderby']} ASC",
 							esc_sql( $gateway ), $dates['start']->copy()->format( 'mysql' ), $dates['end']->copy()->format( 'mysql' ) ) );
 
-						$sales = array();
+						$sales    = array();
 						$earnings = array();
 
-						// Initialise all arrays with timestamps and set values to 0.
-						while ( strtotime( $dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $dates['end']->copy()->format( 'mysql' ) ) ) {
-							if ( $hour_by_hour ) {
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $dates['start']->day, $dates['start']->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+						/**
+						 * Initialise all arrays with timestamps and set values to 0.
+						 *
+						 * We use the Chart based dates for this loop, so the graph shows in the proper date ranges while the actual DB queries are all UTC based.
+						 */
+						while ( strtotime( $chart_dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $chart_dates['end']->copy()->format( 'mysql' ) ) ) {
+							$timestamp     = $chart_dates['start']->copy()->format( 'U' );
+							$date_on_chart = $chart_dates['start'];
 
-								$sales[ $timestamp ][] = $timestamp;
-								$sales[ $timestamp ][] = 0;
+							$sales[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+							$sales[ $timestamp ][1] = 0;
 
-								$earnings[ $timestamp ][] = $timestamp;
-								$earnings[ $timestamp ][] = 0.00;
+							$earnings[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+							$earnings[ $timestamp ][1] = 0.00;
 
-								$dates['start']->addHour( 1 );
-							} else {
-								$day = ( true === $day_by_day )
-									? $dates['start']->day
-									: 1;
+							// Loop through each date there were sales/earnings, which we queried from the database.
+							foreach ( $results as $result ) {
+								$date_of_db_value = EDD()->utils->date( $result->date );
 
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-
-								$sales[ $timestamp ][] = $timestamp;
-								$sales[ $timestamp ][] = 0;
-
-								$earnings[ $timestamp ][] = $timestamp;
-								$earnings[ $timestamp ][] = 0.00;
-
-								$dates['start'] = ( true === $day_by_day )
-									? $dates['start']->addDays( 1 )
-									: $dates['start']->addMonth( 1 );
-							}
-						}
-
-						foreach ( $results as $result ) {
-							if ( $hour_by_hour ) {
-
-								/**
-								 * If this is hour by hour, the database returns the timestamps in UTC and an offset
-								 * needs to be applied to that.
-								 */
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $result->day, $result->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-							} else {
-								$day = ( true === $day_by_day )
-									? $result->day
-									: 1;
-
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+								// Add any sales/earnings that happened during this hour.
+								if ( 'hour' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
+										$sales[ $timestamp ][1] += $result->sales;
+										$earnings[ $timestamp ][1] += $result->earnings;
+									}
+									// Add any sales/earnings that happened during this day.
+								} elseif ( 'day' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
+										$sales[ $timestamp ][1] += $result->sales;
+										$earnings[ $timestamp ][1] += $result->earnings;
+									}
+									// Add any sales/earnings that happened during this month.
+								} else {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m' ) === $date_on_chart->format( 'Y-m' ) ) {
+										$sales[ $timestamp ][1] += $result->sales;
+										$earnings[ $timestamp ][1] += $result->earnings;
+									}
+								}
 							}
 
-							$sales[ $timestamp ][1]    += $result->sales;
-							$earnings[ $timestamp ][1] += floatval( $result->earnings );
+							// Move the chart along to the next hour/day/month to get ready for the next loop.
+							if ( 'hour' === $period ) {
+								$chart_dates['start']->addHour( 1 );
+							} elseif ( 'day' === $period ) {
+								$chart_dates['start']->addDays( 1 );
+							} else {
+								$chart_dates['start']->addMonth( 1 );
+							}
 						}
 
 						$sales    = array_values( $sales );
 						$earnings = array_values( $earnings );
 
 						return array(
-							'sales'    => $sales,
 							'earnings' => $earnings,
+							'sales'    => $sales,
 						);
 					},
 					'type'          => 'line',
 					'options'       => array(
 						'datasets' => array(
-							'sales'    => array(
-								'label'                => __( 'Sales', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(252,108,18)',
-								'backgroundColor'      => 'rgba(252,108,18,0.2)',
-								'fill'                 => true,
-								'borderDash'           => array( 2, 6 ),
-								'borderCapStyle'       => 'round',
-								'borderJoinStyle'      => 'round',
-								'pointRadius'          => 4,
-								'pointHoverRadius'     => 6,
-								'pointBackgroundColor' => 'rgb(255,255,255)',
-							),
 							'earnings' => array(
 								'label'                => __( 'Earnings', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'type'                 => 'currency',
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'earnings-y',
+							),
+							'sales'    => array(
+								'label'                => __( 'Sales', 'easy-digital-downloads' ),
+								'borderColor'          => 'rgba(252,108,18,0.75)',
+								'backgroundColor'      => 'rgba(252,108,18,0.05)',
+								'fill'                 => true,
+								'borderWidth'          => 2,
+								'borderCapStyle'       => 'round',
+								'borderJoinStyle'      => 'round',
+								'pointRadius'          => 4,
+								'pointHoverRadius'     => 6,
+								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'sales-y',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'id'        => 'earnings-y',
+									'type'      => 'linear',
+									'display'   => true,
+									'position'  => 'left',
+									'ticks'     => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'format',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+									),
+								),
+								array(
+									'id'        => 'sales-y',
+									'type'      => 'linear',
+									'position'  => 'right',
+									'display'   => true,
+									'ticks'     => array(
+										'maxTicksLimit'     => 5,
+										'formattingType'    => 'integer',
+										'suggestedMin'      => 0,
+										'beginAtZero'       => true,
+										'hideNegativeTicks' => true,
+										'precision'      => 0,
+									),
+									'gridLines' => array(
+										'display' => true,
+										'color'   => 'rgba(0,0,0,0.03)',
+									),
+								),
 							),
 						),
 					),
@@ -1519,18 +1754,7 @@ function edd_register_taxes_report( $reports ) {
 			? edd_parse_product_dropdown_value( Reports\get_filter_value( 'products' ) )
 			: false;
 
-		$download_label = '';
-		if ( $download_data ) {
-			$download = edd_get_download( $download_data['download_id'] );
-			if ( isset( $download_data['price_id'] ) && is_numeric( $download_data['price_id'] ) ) {
-				$args       = array( 'price_id' => $download_data['price_id'] );
-				$price_name = edd_get_price_name( $download->ID, $args );
-				if ( $price_name ) {
-					$download->post_title .= ': ' . $price_name;
-				}
-			}
-			$download_label = esc_html( ' (' . $download->post_title . ')' );
-		}
+		$download_label = Reports\get_download_label( $download_data );
 
 		$country = Reports\get_filter_value( 'countries' );
 		$region  = Reports\get_filter_value( 'regions' );
@@ -1661,18 +1885,7 @@ function edd_register_file_downloads_report( $reports ) {
 			? edd_parse_product_dropdown_value( Reports\get_filter_value( 'products' ) )
 			: false;
 
-		$download_label = '';
-		if ( $download_data ) {
-			$download = edd_get_download( $download_data['download_id'] );
-			if ( isset( $download_data['price_id'] ) && is_numeric( $download_data['price_id'] ) ) {
-				$args       = array( 'price_id' => $download_data['price_id'] );
-				$price_name = edd_get_price_name( $download->ID, $args );
-				if ( $price_name ) {
-					$download->post_title .= ': ' . $price_name;
-				}
-			}
-			$download_label = esc_html( ' (' . $download->post_title . ')' );
-		}
+		$download_label = Reports\get_download_label( $download_data );
 
 		$tiles = array_filter( array(
 			'number_of_file_downloads',
@@ -1810,28 +2023,10 @@ function edd_register_file_downloads_report( $reports ) {
 					'data_callback' => function () use ( $filter, $download_data ) {
 						global $wpdb;
 
-						$dates        = Reports\get_dates_filter( 'objects' );
-						$chart_dates  = Reports\parse_dates_for_range( null, 'now', false );
-						$day_by_day   = Reports\get_dates_filter_day_by_day();
-						$hour_by_hour = Reports\get_dates_filter_hour_by_hour();
-
-						$sql_clauses = array(
-							'select' => 'date_created AS date',
-							'where'  => '',
-						);
-
-						// Default to 'monthly'.
-						$sql_clauses['groupby'] = 'MONTH(date_created)';
-						$sql_clauses['orderby'] = 'MONTH(date_created)';
-
-						// Now drill down to the smallest unit.
-						if ( $hour_by_hour ) {
-							$sql_clauses['groupby'] = 'HOUR(date_created)';
-							$sql_clauses['orderby'] = 'HOUR(date_created)';
-						} elseif ( $day_by_day ) {
-							$sql_clauses['groupby'] = 'DATE(date_created)';
-							$sql_clauses['orderby'] = 'DATE(date_created)';
-						}
+						$dates       = Reports\get_dates_filter( 'objects' );
+						$chart_dates = Reports\parse_dates_for_range( null, 'now', false );
+						$period      = Reports\get_graph_period();
+						$sql_clauses = Reports\get_sql_clauses( $period );
 
 						$product_id = '';
 						$price_id   = '';
@@ -1855,28 +2050,24 @@ function edd_register_file_downloads_report( $reports ) {
 						$file_downloads = array();
 
 						// Initialise all arrays with timestamps and set values to 0.
-						while ( strtotime( $dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $dates['end']->copy()->format( 'mysql' ) ) ) {
-							$utc_timezone    = new DateTimeZone( 'UTC' );
-							$timezone        = new DateTimeZone( edd_get_timezone_id() );
+						while ( strtotime( $chart_dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $chart_dates['end']->copy()->format( 'mysql' ) ) ) {
+							$timestamp       = $chart_dates['start']->copy()->format( 'U' );
+							$date_on_chart   = $chart_dates['start'];
 
-							$timestamp       = $dates['start']->copy()->format( 'U' );
-							$date_on_chart   = new DateTime( $chart_dates['start'], $timezone );
-
-							$file_downloads[ $timestamp ][0] = $timestamp;
+							$file_downloads[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
 							$file_downloads[ $timestamp ][1] = 0;
 
 							foreach ( $results as $result ) {
-								$date_of_db_value = new DateTime( $result->date, $utc_timezone );
-								$date_of_db_value = $date_of_db_value->setTimeZone( $timezone );
+								$date_of_db_value = EDD()->utils->date( $result->date );
 
 								// Add any file downloads that happened during this hour.
-								if ( $hour_by_hour ) {
+								if ( 'hour' === $period ) {
 									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
 									if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
 										$file_downloads[ $timestamp ][1] += absint( $result->total );
 									}
 									// Add any file downloads that happened during this day.
-								} elseif ( $day_by_day ) {
+								} elseif ( 'day' === $period ) {
 									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
 									if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
 										$file_downloads[ $timestamp ][1] += absint( $result->total );
@@ -1891,14 +2082,11 @@ function edd_register_file_downloads_report( $reports ) {
 							}
 
 							// Move the chart along to the next hour/day/month to get ready for the next loop.
-							if ( $hour_by_hour ) {
-								$dates['start']->addHour( 1 );
+							if ( 'hour' === $period ) {
 								$chart_dates['start']->addHour( 1 );
-							} elseif ( $day_by_day ) {
-								$dates['start']->addDays( 1 );
+							} elseif ( 'day' === $period ) {
 								$chart_dates['start']->addDays( 1 );
 							} else {
-								$dates['start']->addMonth( 1 );
 								$chart_dates['start']->addMonth( 1 );
 							}
 						}
@@ -1912,13 +2100,31 @@ function edd_register_file_downloads_report( $reports ) {
 						'datasets' => array(
 							'file_downloads' => array(
 								'label'                => __( 'File Downloads', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+								'yAxisID'              => 'file-downloads-y',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'id'       => 'file-downloads-y',
+									'type'     => 'linear',
+									'display'  => true,
+									'position' => 'left',
+									'ticks'    => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'integer',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+								),
 							),
 						),
 					),
@@ -2138,28 +2344,9 @@ function edd_register_discounts_report( $reports ) {
 							global $wpdb;
 
 							$dates        = Reports\get_dates_filter( 'objects' );
-							$day_by_day   = Reports\get_dates_filter_day_by_day();
-							$hour_by_hour = Reports\get_dates_filter_hour_by_hour();
-
-							$sql_clauses = array(
-								'select'  => 'YEAR(edd_oa.date_created) AS year, MONTH(edd_oa.date_created) AS month, DAY(edd_oa.date_created) AS day',
-								'groupby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created), DAY(edd_oa.date_created)',
-								'orderby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created), DAY(edd_oa.date_created)',
-							);
-
-							if ( $hour_by_hour ) {
-								$sql_clauses = array(
-									'select'  => 'YEAR(edd_oa.date_created) AS year, MONTH(edd_oa.date_created) AS month, DAY(edd_oa.date_created) AS day, HOUR(edd_oa.date_created) AS hour',
-									'groupby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created), DAY(edd_oa.date_created), HOUR(edd_oa.date_created)',
-									'orderby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created), DAY(edd_oa.date_created), HOUR(edd_oa.date_created)',
-								);
-							} elseif ( ! $day_by_day ) {
-								$sql_clauses = array(
-									'select'  => 'YEAR(edd_oa.date_created) AS year, MONTH(edd_oa.date_created) AS month',
-									'groupby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created)',
-									'orderby' => 'YEAR(edd_oa.date_created), MONTH(edd_oa.date_created)',
-								);
-							}
+							$chart_dates  = Reports\parse_dates_for_range( null, 'now', false );
+							$period       = Reports\get_graph_period();
+							$sql_clauses  = Reports\get_sql_clauses( $period, 'edd_oa.date_created' );
 
 							$discount_code = ! empty( $d->code )
 								? $wpdb->prepare( 'AND type = %s AND description = %s', 'discount', esc_sql( $d->code ) )
@@ -2176,48 +2363,45 @@ function edd_register_discounts_report( $reports ) {
 							$discount_usage = array();
 
 							// Initialise all arrays with timestamps and set values to 0.
-							while ( strtotime( $dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $dates['end']->copy()->format( 'mysql' ) ) ) {
-								if ( $hour_by_hour ) {
-									$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $dates['start']->day, $dates['start']->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+							while ( strtotime( $chart_dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $chart_dates['end']->copy()->format( 'mysql' ) ) ) {
+								$timestamp     = $chart_dates['start']->copy()->format( 'U' );
+								$date_on_chart = $chart_dates['start'];
 
-									$discount_usage[ $timestamp ][] = $timestamp;
-									$discount_usage[ $timestamp ][] = 0;
+								$discount_usage[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+								$discount_usage[ $timestamp ][1] = 0;
 
-									$dates['start']->addHour( 1 );
-								} else {
-									$day = ( true === $day_by_day )
-										? $dates['start']->day
-										: 1;
+								// Loop through each date in which there were discount codes used, which we queried from the database.
+								foreach ( $results as $result ) {
+									$date_of_db_value = EDD()->utils->date( $result->date );
 
-									$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-
-									$discount_usage[ $timestamp ][] = $timestamp;
-									$discount_usage[ $timestamp ][] = 0;
-
-									$dates['start'] = ( true === $day_by_day )
-										? $dates['start']->addDays( 1 )
-										: $dates['start']->addMonth( 1 );
-								}
-							}
-
-							foreach ( $results as $result ) {
-								if ( $hour_by_hour ) {
-
-									/**
-									 * If this is hour by hour, the database returns the timestamps in UTC and an offset
-									 * needs to be applied to that.
-									 */
-									$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $result->day, $result->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-								} else {
-									$day = ( true === $day_by_day )
-										? $result->day
-										: 1;
-
-									$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+									// Add any discount codes that were used during this hour.
+									if ( 'hour' === $period ) {
+										// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+										if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
+											$discount_usage[ $timestamp ][1] += abs( $result->total );
+										}
+										// Add any discount codes that were used during this day.
+									} elseif ( 'day' === $period ) {
+										// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+										if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
+											$discount_usage[ $timestamp ][1] += abs( $result->total );
+										}
+										// Add any discount codes that were used during this month.
+									} else {
+										// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+										if ( $date_of_db_value->format( 'Y-m' ) === $date_on_chart->format( 'Y-m' ) ) {
+											$discount_usage[ $timestamp ][1] += abs( $result->total );
+										}
+									}
 								}
 
-								if ( array_key_exists( $timestamp, $discount_usage ) ) {
-									$discount_usage[ $timestamp ][1] += $result->total;
+								// Move the chart along to the next hour/day/month to get ready for the next loop.
+								if ( 'hour' === $period ) {
+									$chart_dates['start']->addHour( 1 );
+								} elseif ( 'day' === $period ) {
+									$chart_dates['start']->addDays( 1 );
+								} else {
+									$chart_dates['start']->addMonth( 1 );
 								}
 							}
 
@@ -2230,13 +2414,29 @@ function edd_register_discounts_report( $reports ) {
 							'datasets' => array(
 								'discount_usage' => array(
 									'label'                => __( 'Discount Usage', 'easy-digital-downloads' ),
-									'borderColor'          => 'rgb(24,126,244)',
-									'backgroundColor'      => 'rgba(24,126,244,0.05)',
+									'borderColor'          => 'rgba(24,126,244,0.75)',
+									'backgroundColor'      => 'rgba(24,126,244,0.1)',
 									'fill'                 => true,
 									'borderWidth'          => 2,
 									'pointRadius'          => 4,
 									'pointHoverRadius'     => 6,
 									'pointBackgroundColor' => 'rgb(255,255,255)',
+								),
+							),
+							'scales' => array(
+								'yAxes' => array(
+									array(
+										'type'     => 'linear',
+										'display'  => true,
+										'position' => 'left',
+										'ticks'    => array(
+											'maxTicksLimit'  => 2,
+											'formattingType' => 'integer',
+											'suggestedMin'   => 0,
+											'beginAtZero'    => true,
+											'precision'      => 0,
+										),
+									),
 								),
 							),
 						),
@@ -2295,8 +2495,9 @@ function edd_register_customer_report( $reports ) {
 					'data_callback' => function () use ( $dates ) {
 						$stats = new EDD\Stats();
 						return $stats->get_customer_count( array(
-							'range'    => $dates['range'],
-							'relative' => true,
+							'range'          => $dates['range'],
+							'relative'       => true,
+							'purchase_count' => true,
 						) );
 					},
 					'display_args'  => array(
@@ -2369,90 +2570,66 @@ function edd_register_customer_report( $reports ) {
 						global $wpdb;
 
 						$dates        = Reports\get_dates_filter( 'objects' );
-						$day_by_day   = Reports\get_dates_filter_day_by_day();
-						$hour_by_hour = Reports\get_dates_filter_hour_by_hour();
-
-						$sql_clauses = array(
-							'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day',
-							'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
-							'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created)',
-						);
-
-						if ( $hour_by_hour ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month, DAY(date_created) AS day, HOUR(date_created) AS hour',
-								'groupby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created), DAY(date_created), HOUR(date_created)',
-							);
-						} elseif ( ! $day_by_day ) {
-							$sql_clauses = array(
-								'select'  => 'YEAR(date_created) AS year, MONTH(date_created) AS month',
-								'groupby' => 'YEAR(date_created), MONTH(date_created)',
-								'orderby' => 'YEAR(date_created), MONTH(date_created)',
-							);
-						}
+						$chart_dates  = Reports\parse_dates_for_range( null, 'now', false );
+						$period       = Reports\get_graph_period();
+						$sql_clauses  = Reports\get_sql_clauses( $period );
 
 						$results = $wpdb->get_results( $wpdb->prepare(
 							"SELECT COUNT(c.id) AS total, {$sql_clauses['select']}
-					         FROM {$wpdb->edd_customers} c
-					         WHERE c.date_created >= %s AND c.date_created <= %s
-					         GROUP BY {$sql_clauses['groupby']}
-					         ORDER BY {$sql_clauses['orderby']} ASC",
-							$dates['start']->copy()->format( 'mysql' ), $dates['end']->copy()->format( 'mysql' ) ) );
+							 FROM {$wpdb->edd_customers} c
+							 WHERE c.date_created >= %s AND c.date_created <= %s
+							 AND c.purchase_count > 0
+							 GROUP BY {$sql_clauses['groupby']}
+							 ORDER BY {$sql_clauses['orderby']} ASC",
+							$dates['start']->copy()->format( 'mysql' ),
+							$dates['end']->copy()->format( 'mysql' ) ) );
 
 						$customers = array();
 
 						// Initialise all arrays with timestamps and set values to 0.
-						while ( strtotime( $dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $dates['end']->copy()->format( 'mysql' ) ) ) {
-							if ( $hour_by_hour ) {
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $dates['start']->day, $dates['start']->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+						while ( strtotime( $chart_dates['start']->copy()->format( 'mysql' ) ) <= strtotime( $chart_dates['end']->copy()->format( 'mysql' ) ) ) {
+							$timestamp     = $chart_dates['start']->copy()->format( 'U' );
+							$date_on_chart = $chart_dates['start'];
 
-								$customers[ $timestamp ][] = $timestamp;
-								$customers[ $timestamp ][] = 0;
+							$customers[ $timestamp ][0] = $date_on_chart->format( 'Y-m-d H:i:s' );
+							$customers[ $timestamp ][1] = 0;
 
-								$earnings[ $timestamp ][] = $timestamp;
-								$earnings[ $timestamp ][] = 0.00;
+							foreach ( $results as $result ) {
+								$date_of_db_value = EDD()->utils->date( $result->date );
 
-								$dates['start']->addHour( 1 );
-							} else {
-								$day = ( true === $day_by_day )
-									? $dates['start']->day
-									: 1;
-
-								$timestamp = \Carbon\Carbon::create( $dates['start']->year, $dates['start']->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-
-								$customers[ $timestamp ][] = $timestamp;
-								$customers[ $timestamp ][] = 0;
-
-								$dates['start'] = ( true === $day_by_day )
-									? $dates['start']->addDays( 1 )
-									: $dates['start']->addMonth( 1 );
-							}
-						}
-
-						foreach ( $results as $result ) {
-							if ( $hour_by_hour ) {
-
-								/**
-								 * If this is hour by hour, the database returns the timestamps in UTC and an offset
-								 * needs to be applied to that.
-								 */
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $result->day, $result->hour, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
-							} else {
-								$day = ( true === $day_by_day )
-									? $result->day
-									: 1;
-
-								$timestamp = \Carbon\Carbon::create( $result->year, $result->month, $day, 0, 0, 0, 'UTC' )->setTimezone( edd_get_timezone_id() )->timestamp;
+								// Add any new customers that were created during this hour.
+								if ( 'hour' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d H' ) === $date_on_chart->format( 'Y-m-d H' ) ) {
+										$customers[ $timestamp ][1] += $result->total;
+									}
+									// Add any new customers that were created during this day.
+								} elseif ( 'day' === $period ) {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m-d' ) === $date_on_chart->format( 'Y-m-d' ) ) {
+										$customers[ $timestamp ][1] += $result->total;
+									}
+									// Add any new customers that were created during this month.
+								} else {
+									// If the date of this db value matches the date on this line graph/chart, set the y axis value for the chart to the number in the DB result.
+									if ( $date_of_db_value->format( 'Y-m' ) === $date_on_chart->format( 'Y-m' ) ) {
+										$customers[ $timestamp ][1] += $result->total;
+									}
+								}
 							}
 
-							$customers[ $timestamp ][1] += $result->total;
+							// Move the chart along to the next hour/day/month to get ready for the next loop.
+							if ( 'hour' === $period ) {
+								$chart_dates['start']->addHour( 1 );
+							} elseif ( 'day' === $period ) {
+								$chart_dates['start']->addDays( 1 );
+							} else {
+								$chart_dates['start']->addMonth( 1 );
+							}
 						}
-
-						$customers = array_values( $customers );
 
 						return array(
-							'customers' => $customers,
+							'customers' => array_values( $customers ),
 						);
 					},
 					'type'          => 'line',
@@ -2460,13 +2637,29 @@ function edd_register_customer_report( $reports ) {
 						'datasets' => array(
 							'customers' => array(
 								'label'                => __( 'New Customers', 'easy-digital-downloads' ),
-								'borderColor'          => 'rgb(24,126,244)',
-								'backgroundColor'      => 'rgba(24,126,244,0.05)',
+								'borderColor'          => 'rgba(24,126,244,0.75)',
+								'backgroundColor'      => 'rgba(24,126,244,0.1)',
 								'fill'                 => true,
 								'borderWidth'          => 2,
 								'pointRadius'          => 4,
 								'pointHoverRadius'     => 6,
 								'pointBackgroundColor' => 'rgb(255,255,255)',
+							),
+						),
+						'scales' => array(
+							'yAxes' => array(
+								array(
+									'type'     => 'linear',
+									'display'  => true,
+									'position' => 'left',
+									'ticks'    => array(
+										'maxTicksLimit'  => 5,
+										'formattingType' => 'integer',
+										'suggestedMin'   => 0,
+										'beginAtZero'    => true,
+										'precision'      => 0,
+									),
+								),
 							),
 						),
 					),
@@ -2507,470 +2700,31 @@ add_action( 'edd_reports_init', 'edd_register_export_report' );
  * @since 3.0
  */
 function display_export_report() {
-	global $wpdb;
-
 	wp_enqueue_script( 'edd-admin-tools-export' );
 	?>
 	<div id="edd-dashboard-widgets-wrap">
 		<div class="metabox-holder">
 			<div id="post-body">
 				<div id="post-body-content" class="edd-reports-export edd-admin--has-grid">
-
-				<?php do_action( 'edd_reports_tab_export_content_top' ); ?>
-
-				<div class="postbox edd-export-earnings-report">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Earnings Report', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV giving a detailed look into earnings over time.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-earnings-report" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-to-and-from-container">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Earnings Start', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd_export_earnings_start_month" class="screen-reader-text"><?php esc_html_e( 'Select start month', 'easy-digital-downloads' ); ?></label>
-									<?php echo EDD()->html->month_dropdown( 'start_month', 0, 'edd_export_earnings', true ); ?>
-								<label for="edd_export_earnings_start_year" class="screen-reader-text"><?php esc_html_e( 'Select start year', 'easy-digital-downloads' ); ?></label>
-									<?php echo EDD()->html->year_dropdown( 'start_year', 0, 5, 0, 'edd_export_earnings' ); ?>
-							</fieldset>
-
-							<span class="edd-to-and-from--separator"><?php echo _x( '&mdash; to &mdash;', 'Date one to date two', 'easy-digital-downloads' ); ?></span>
-
-							<fieldset class="edd-to-and-from-container">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Earnings End', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd_export_earnings_end_month" class="screen-reader-text"><?php esc_html_e( 'Select end month', 'easy-digital-downloads' ); ?></label>
-									<?php echo EDD()->html->month_dropdown( 'end_month', 0, 'edd_export_earnings', true ); ?>
-								<label for="edd_export_earnings_end_year" class="screen-reader-text"><?php esc_html_e( 'Select end year', 'easy-digital-downloads' ); ?></label>
-									<?php echo EDD()->html->year_dropdown( 'end_year', 0, 5, 0, 'edd_export_earnings' ); ?>
-							</fieldset>
-							<?php wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' ); ?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Earnings_Report_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-sales-earnings">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Sales and Earnings', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of all sales or earnings on a day-by-day basis.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-sales-earnings" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Sales and Earnings Dates', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd-order-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-order-export-start',
-											'class'       => 'edd-export-start',
-											'name'        => 'order-export-start',
-											'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' ),
-										)
-									);
-									?>
-								<label for="edd-order-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-order-export-end',
-											'class'       => 'edd-export-end',
-											'name'        => 'order-export-end',
-											'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' ),
-										)
-									);
-
-									?>
-							</fieldset>
-							<label for="edd_orders_export_download" class="screen-reader-text"><?php esc_html_e( 'Select Download', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->product_dropdown(
-									array(
-										'name'        => 'download_id',
-										'id'          => 'edd_orders_export_download',
-										'chosen'      => true,
-										/* translators: the plural post type label */
-										'placeholder' => sprintf( __( 'All %s', 'easy-digital-downloads' ), edd_get_label_plural() ),
-									)
-								);
-								?>
-							<label for="edd_order_export_customer" class="screen-reader-text"><?php esc_html_e( 'Select Customer', 'easy-digital-downloads' ); ?></label>
-							<?php
-								echo EDD()->html->customer_dropdown(
-									array(
-										'name'          => 'customer_id',
-										'id'            => 'edd_order_export_customer',
-										'chosen'        => true,
-										'none_selected' => '',
-										'placeholder'   => __( 'All Customers', 'easy-digital-downloads' ),
-									)
-								);
-
-								wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' ); ?>
-
-								<input type="hidden" name="edd-export-class" value="EDD_Batch_Sales_And_Earnings_Export"/>
-								<button type="submit" class="button button-secondary"><?php esc_html_e( 'Export', 'easy-digital-downloads' ); ?></button>
-							</form>
-						</div>
-				</div>
-
-				<div class="postbox edd-export-orders">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Orders', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of all orders.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-orders" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Order Dates', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd-orders-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-orders-export-start',
-											'class'       => 'edd-export-start',
-											'name'        => 'orders-export-start',
-											'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' ),
-										)
-									);
-									?>
-								<label for="edd-orders-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-orders-export-end',
-											'class'       => 'edd-export-end',
-											'name'        => 'orders-export-end',
-											'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' ),
-										)
-									);
-									?>
-							</fieldset>
-							<label for="edd_orders_export_status" class="screen-reader-text"><?php esc_html_e( 'Select Status', 'easy-digital-downloads' ); ?></label>
-								<?php
-									echo EDD()->html->select(
-										array(
-											'id'               => 'edd_orders_export_status',
-											'name'             => 'status',
-											'show_option_all'  => __( 'All Statuses', 'easy-digital-downloads' ),
-											'show_option_none' => false,
-											'selected'         => false,
-											'options'          => edd_get_payment_statuses(),
-										)
-									);
-
-								wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-								?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Payments_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-taxed-orders">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Taxed Orders', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of all orders, taxed by Country and/or Region.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-taxed-orders" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Taxed Order Dates', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd-taxed-orders-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-taxed-orders-export-start',
-											'class'       => 'edd-export-start',
-											'name'        => 'taxed-orders-export-start',
-											'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-									?>
-								<label for="edd-taxed-orders-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-taxed-orders-export-end',
-											'class'       => 'edd-export-end',
-											'name'        => 'taxed-orders-export-end',
-											'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-									?>
-							</fieldset>
-							<label for="edd_taxed_orders_export_status" class="screen-reader-text"><?php esc_html_e( 'Select Status', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->select(
-									array(
-										'id'               => 'edd_taxed_orders_export_status',
-										'name'             => 'status',
-										'show_option_all'  => __( 'All Statuses', 'easy-digital-downloads' ),
-										'show_option_none' => false,
-										'selected'         => false,
-										'options'          => edd_get_payment_statuses(),
-									)
-								);
-								?>
-							<label for="edd_reports_filter_taxed_countries" class="screen-reader-text"><?php esc_html_e( 'Select Country', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->country_select(
-									array(
-										'name'            => 'country',
-										'id'              => 'edd_reports_filter_taxed_countries',
-										'selected'        => false,
-										'show_option_all' => false,
-									)
-								);
-								?>
-							<label for="edd_reports_filter_regions" class="screen-reader-text"><?php esc_html_e( 'Select Region', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->region_select(
-									array(
-										'id'          => 'edd_reports_filter_regions',
-										'placeholder' => __( 'All Regions', 'easy-digital-downloads' ),
-									)
-								);
-
-								wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-								?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Taxed_Orders_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-customers">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Customers', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php printf( esc_html__( 'Download a CSV of customers. Select a taxonomy to see all the customers who purchased %s in that taxonomy.', 'easy-digital-downloads' ), edd_get_label_plural( true ) ); ?></p>
-						<form id="edd-export-customers" class="edd-export-form edd-import-export-form" method="post">
-							<?php
-							$taxonomies = edd_get_download_taxonomies();
-							$taxonomies = array_map( 'sanitize_text_field', $taxonomies );
-
-							$placeholders = implode( ', ', array_fill( 0, count( $taxonomies ), '%s' ) );
-
-							$taxonomy__in = $wpdb->prepare( "tt.taxonomy IN ({$placeholders})", $taxonomies );
-
-							$sql = "SELECT t.*, tt.*, tr.object_id
-									FROM {$wpdb->terms} AS t
-									INNER JOIN {$wpdb->term_taxonomy} AS tt ON t.term_id = tt.term_id
-									INNER JOIN {$wpdb->term_relationships} AS tr ON tr.term_taxonomy_id = tt.term_taxonomy_id
-									WHERE {$taxonomy__in}";
-
-							$results = $wpdb->get_results( $sql );
-
-							$taxonomies = array();
-
-							if ( $results ) {
-								foreach ( $results as $r ) {
-									$t = get_taxonomy( $r->taxonomy );
-									$taxonomies[ absint( $r->term_id ) ] = $t->labels->singular_name . ': ' . esc_html( $r->name );
-								}
-							}
-							?>
-							<label for="edd_export_taxonomy" class="screen-reader-text"><?php esc_html_e( 'Select Taxonomy', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->select(
-									array(
-										'name'             => 'taxonomy',
-										'id'               => 'edd_export_taxonomy',
-										'options'          => $taxonomies,
-										'selected'         => false,
-										'show_option_none' => false,
-										'show_option_all'  => __( 'All Taxonomies', 'easy-digital-downloads' ),
-									)
-								);
-								?>
-							<label for="edd_customer_export_download" class="screen-reader-text"><?php esc_html_e( 'Select Download', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->product_dropdown(
-									array(
-										'name'        => 'download',
-										'id'          => 'edd_customer_export_download',
-										'chosen'      => true,
-										/* translators: the plural post type label */
-										'placeholder' => sprintf( __( 'All %s', 'easy-digital-downloads' ), edd_get_label_plural() ),
-									)
-								);
-
-								wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-								?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Customers_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-taxed-customers">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export Taxed Customers', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of all customers that were taxed.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-taxed-customers" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export Taxed Customer Dates', 'easy-digital-downloads' ); ?></legend>
-							<label for="edd-taxed-customers-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-								<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-taxed-customers-export-start',
-											'class'       => 'edd-export-start',
-											'name'        => 'taxed-customers-export-start',
-											'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-								?>
-							<label for="edd-taxed-customers-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->date_field(
-									array(
-										'id'          => 'edd-taxed-customers-export-end',
-										'class'       => 'edd-export-end',
-										'name'        => 'taxed-customers-export-end',
-										'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' )
-									)
-								);
-								?>
-							</fieldset>
-							<?php
-							wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-
-							?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Taxed_Customers_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-downloads">
-					<h2 class="hndle"><span><?php esc_html_e(
-						/* translators: the singular post type label */
-						sprintf( __( 'Export %s Products', 'easy-digital-downloads' ), edd_get_label_singular() ) ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e(
-							/* translators: the plural post type label */
-							sprintf( __( 'Download a CSV of product %1$s.', 'easy-digital-downloads' ), edd_get_label_plural( true ) ) ); ?></p>
-						<form id="edd-export-downloads" class="edd-export-form edd-import-export-form" method="post">
-						<label for="edd_download_export_download" class="screen-reader-text"><?php esc_html_e( 'Select Download', 'easy-digital-downloads' ); ?></label>
-							<?php echo EDD()->html->product_dropdown(
-								array(
-									'name'        => 'download_id',
-									'id'          => 'edd_download_export_download',
-									'chosen'      => true,
-									/* translators: the plural post type label */
-									'placeholder' => sprintf( __( 'All %s', 'easy-digital-downloads' ), edd_get_label_plural() ),
-								)
-							);
-							?>
-							<?php wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' ); ?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_Downloads_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-api-requests">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export API Request Logs', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of API request logs.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-api-requests" class="edd-export-form edd-import-export-form" method="post">
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export API Request Log Dates', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd-api-requests-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-api-requests-export-start',
-											'class'       => 'edd-export-start',
-											'name'        => 'api-requests-export-start',
-											'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-									?>
-								<label for="edd-api-requests-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-api-requests-export-end',
-											'class'       => 'edd-export-end',
-											'name'        => 'api-requests-export-end',
-											'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-
-									?>
-							</fieldset>
-							<?php
-							wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-
-							?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_API_Requests_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<div class="postbox edd-export-download-history">
-					<h2 class="hndle"><span><?php esc_html_e( 'Export File Download Logs', 'easy-digital-downloads' ); ?></span></h2>
-					<div class="inside">
-						<p><?php esc_html_e( 'Download a CSV of file download logs.', 'easy-digital-downloads' ); ?></p>
-						<form id="edd-export-download-history" class="edd-export-form edd-import-export-form" method="post">
-							<label for="edd_file_download_export_download" class="screen-reader-text"><?php esc_html_e( 'Select Download', 'easy-digital-downloads' ); ?></label>
-								<?php echo EDD()->html->product_dropdown(
-									array(
-										'name'        => 'download_id',
-										'id'          => 'edd_file_download_export_download',
-										'chosen'      => true,
-										/* translators: the plural post type label */
-										'placeholder' => sprintf( __( 'All %s', 'easy-digital-downloads' ), edd_get_label_plural() ),
-									)
-								);
-							?>
-							<fieldset class="edd-from-to-wrapper">
-							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Export File Download Log Dates', 'easy-digital-downloads' ); ?>
-							</legend>
-								<label for="edd-file-download-export-start" class="screen-reader-text"><?php esc_html_e( 'Set start date', 'easy-digital-downloads' ); ?></label>
-								<?php
-								echo EDD()->html->date_field(
-									array(
-										'id'          => 'edd-file-download-export-start',
-										'class'       => 'edd-export-start',
-										'name'        => 'file-download-export-start',
-										'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' )
-									)
-								);
-								?>
-								<label for="edd-file-download-export-end" class="screen-reader-text"><?php esc_html_e( 'Set end date', 'easy-digital-downloads' ); ?></label>
-									<?php
-									echo EDD()->html->date_field(
-										array(
-											'id'          => 'edd-file-download-export-end',
-											'class'       => 'edd-export-end',
-											'name'        => 'file-download-export-end',
-											'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' )
-										)
-									);
-
-									?>
-							</fieldset>
-							<?php
-							wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-
-							?>
-							<input type="hidden" name="edd-export-class" value="EDD_Batch_File_Downloads_Export"/>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'easy-digital-downloads' ); ?></button>
-						</form>
-					</div>
-				</div>
-
-				<?php do_action( 'edd_reports_tab_export_content_bottom' ); ?>
+					<?php
+					do_action( 'edd_reports_tab_export_content_top' );
+					$views = array(
+						'earnings-report',
+						'sales-earnings',
+						'sales',
+						'orders',
+						'taxed-orders',
+						'customers',
+						'taxed-customers',
+						'downloads',
+						'api-requests',
+						'download-history',
+					);
+					foreach ( $views as $view ) {
+						include "views/export-{$view}.php";
+					}
+					do_action( 'edd_reports_tab_export_content_bottom' );
+					?>
 				</div>
 			</div>
 		</div>
@@ -3046,3 +2800,53 @@ function edd_tax_report_notice( $report ) {
 	}
 }
 add_action( 'edd_reports_page_bottom', 'edd_tax_report_notice', 10, 1 );
+
+/**
+ * Will return HTML for relative date ranges dropdown.
+ *
+ * @since 3.1
+ */
+function edd_reports_get_relative_date_ranges() {
+	require_once EDD_PLUGIN_DIR . 'includes/reports/reports-functions.php';
+	$range = isset( $_REQUEST['range'] )
+		? sanitize_text_field( $_REQUEST['range'] )
+		: '';
+
+	$relative_range = isset( $_REQUEST['relative_range'] )
+		? sanitize_text_field( $_REQUEST['relative_range'] )
+		: '';
+
+	if ( empty( $range ) || empty( $relative_range ) ) {
+		return;
+	}
+
+	echo Reports\display_relative_dates_dropdown_options( $range, $relative_range );
+
+	edd_die();
+}
+add_action( 'wp_ajax_edd_reports_get_relative_date_ranges', 'edd_reports_get_relative_date_ranges' );
+
+/**
+ * Sets a transient to show the earnings by taxonomy report.
+ *
+ * @since 3.2.7
+ * @return void
+ */
+function edd_show_earnings_by_taxonomy_report( $data ) {
+	if ( empty( $data['edd-action'] ) || 'show_downloads_taxonomy_report' !== $data['edd-action'] ) {
+		return;
+	}
+	if ( ! current_user_can( 'view_shop_reports' ) ) {
+		return;
+	}
+	set_transient( 'edd_earnings_by_taxonomy_show_report', true, 7 * DAY_IN_SECONDS );
+	edd_redirect(
+		edd_get_admin_url(
+			array(
+				'page' => 'edd-reports',
+				'view' => 'downloads_taxonomy',
+			)
+		)
+	);
+}
+add_action( 'edd_show_downloads_taxonomy_report', 'edd_show_earnings_by_taxonomy_report' );

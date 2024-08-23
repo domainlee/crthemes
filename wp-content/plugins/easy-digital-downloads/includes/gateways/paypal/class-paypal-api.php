@@ -21,6 +21,7 @@ use EDD\Gateways\PayPal\Exceptions\Authentication_Exception;
  * @property string $api_url
  * @property string $client_id
  * @property string $client_secret
+ * @property string $cache_key
  * @property string $token_cache_key
  * @property int    $last_response_code
  *
@@ -58,6 +59,13 @@ class API {
 	 * @var string
 	 */
 	private $client_secret;
+
+	/**
+	 * Cache key
+	 *
+	 * @var string
+	 */
+	private $cache_key;
 
 	/**
 	 * Cache key to use for the token.
@@ -146,7 +154,7 @@ class API {
 		foreach ( $required_creds as $cred_id ) {
 			if ( empty( $creds[ $cred_id ] ) ) {
 				throw new Authentication_Exception( sprintf(
-				/* Translators: %s - The ID of the PayPal credential */
+				/* translators: %s: The ID of the PayPal credential */
 					__( 'Missing PayPal credential: %s', 'easy-digital-downloads' ),
 					$cred_id
 				) );
@@ -194,7 +202,8 @@ class API {
 			),
 			'body'    => array(
 				'grant_type' => 'client_credentials'
-			)
+			),
+			'user-agent' => 'Easy Digital Downloads/' . EDD_VERSION . '; ' . get_bloginfo( 'name' ),
 		) );
 
 		$body = json_decode( wp_remote_retrieve_body( $response ) );
@@ -210,7 +219,7 @@ class API {
 
 		if ( 200 !== $code ) {
 			throw new API_Exception( sprintf(
-			/* Translators: %d - HTTP response code. */
+			/* translators: %d: HTTP response code. */
 				__( 'Unexpected response code: %d', 'easy-digital-downloads' ),
 				$code
 			), $code );
@@ -243,9 +252,10 @@ class API {
 		) );
 
 		$request_args = array(
-			'method'  => $method,
-			'timeout' => 15,
-			'headers' => $headers
+			'method'     => $method,
+			'timeout'    => 15,
+			'headers'    => $headers,
+			'user-agent' => 'Easy Digital Downloads/' . EDD_VERSION . '; ' . get_bloginfo( 'name' ),
 		);
 
 		if ( ! empty( $body ) ) {

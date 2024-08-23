@@ -21,6 +21,10 @@ function edds_prb_is_enabled( $context = array() ) {
 		return false;
 	}
 
+	if ( 'payment-elements' === edds_get_elements_mode() ) {
+		return false;
+	}
+
 	// Gather allowed and enabled contexts.
 	$allowed_contexts = array( 'single', 'archive', 'checkout' );
 	$enabled_contexts = array_keys(
@@ -158,6 +162,7 @@ function edds_prb_get_download_data( $download_id, $price_id = false, $quantity 
 		'label'  => sprintf(
 			'%s%s',
 			strip_tags( $name ),
+			/* translators: %d: Quantity.*/
 			( $quantity > 1 ? sprintf( __( ' × %d', 'easy-digital-downloads' ), $quantity ) : '' )
 		),
 		'amount' => $price,

@@ -22,8 +22,8 @@ function edds_auto_register_login_user( $maybe_login ) {
 	if ( false === edd_is_gateway_active( 'stripe' ) ) {
 		return $maybe_login;
 	}
-	// If the request originated from the Stripe gateway on the Checkout log inthe registered user.
-	if ( isset( $_POST['action'] ) && 'edds_create_payment' === $_POST['action'] ) {
+	// If the request originated from the Stripe gateway on the Checkout, log in the registered user.
+	if ( isset( $_POST['action'] ) && in_array( $_POST['action'], array( 'edds_create_payment', 'edds_complete_payment', 'edds_create_and_complete_order' ), true ) ) {
 		return true;
 	}
 

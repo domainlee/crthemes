@@ -134,9 +134,9 @@ function edd_process_purchase_form() {
 	$existing_payment = EDD()->session->get( 'edd_resume_payment' );
 
 	if ( ! empty( $existing_payment ) ) {
-		$payment = new EDD_Payment( $existing_payment );
-		if ( $payment->is_recoverable() && ! empty( $payment->key ) ) {
-			$purchase_key = $payment->key;
+		$order = edd_get_order( $existing_payment );
+		if ( $order->is_recoverable() && ! empty( $order->payment_key ) ) {
+			$purchase_key = $order->payment_key;
 		}
 	}
 
@@ -208,20 +208,46 @@ add_action( 'wp_ajax_nopriv_edd_process_checkout', 'edd_process_purchase_form' )
  */
 function edd_checkout_check_existing_email( $valid_data, $post ) {
 
-	// Verify that the email address belongs to this customer
-	if ( is_user_logged_in() ) {
+	if ( ! is_user_logged_in() ) {
+		return;
+	}
 
-		$email    = strtolower( $valid_data['logged_in_user']['user_email'] );
-		$customer = new EDD_Customer( get_current_user_id(), true );
+	// If the logged in user was validated.
+	if ( isset( $valid_data['logged_in_user']['user_email'] ) ) {
+		$email = strtolower( $valid_data['logged_in_user']['user_email'] );
+	} elseif ( isset( $valid_data['login_user_data']['user_email'] ) ) {
+		// If the user is logging in.
+		$email = strtolower( $valid_data['login_user_data']['user_email'] );
+	} else {
+		// The user is already logged in and EDD didn't validate the email.
+		$user  = wp_get_current_user();
+		$email = strtolower( $user->user_email );
+	}
 
-		// If this email address is not registered with this customer, see if it belongs to any other customer
-		if ( $email != strtolower( $customer->email ) && ( is_array( $customer->emails ) && ! in_array( $email, array_map( 'strtolower', $customer->emails ) ) ) ) {
-			$found_customer = new EDD_Customer( $email );
+	$customer = edd_get_customer_by( 'user_id', get_current_user_id() );
 
-			if ( $found_customer->id > 0 ) {
-				edd_set_error( 'edd-customer-email-exists', sprintf( __( 'The email address %s is already in use.', 'easy-digital-downloads' ), $email ) );
-			}
-		}
+	// If the current user has a customer record and the email address matches, we're good to go.
+	if ( ! empty( $customer->email ) && strtolower( $customer->email ) === $email ) {
+		return;
+	}
+
+	// If the current user has a customer record and the email address is in the list of emails, we're good to go.
+	if (
+		! empty( $customer->emails ) && // If the customer has emails.
+		is_array( $customer->emails ) && // ...and if the customer emails are an array.
+		in_array( $email, array_map( 'strtolower', $customer->emails ), true ) // ...and the email is in the array.
+	) {
+		return; // ...we're good to go here.
+	}
+
+	// Now we are checking to see if any other customers have this email address.
+	$found_email = edd_get_customer_email_address_by( 'email', $email );
+	if ( ! empty( $found_email->customer_id ) ) {
+		edd_set_error(
+			'edd-customer-email-exists',
+			/* translators: %s: email address */
+			sprintf( __( 'The email address %s is already in use.', 'easy-digital-downloads' ), $email )
+		);
 	}
 }
 add_action( 'edd_checkout_error_checks', 'edd_checkout_check_existing_email', 10, 2 );
@@ -293,15 +319,15 @@ function edd_purchase_form_validate_fields() {
 
 	// Start an array to collect valid data.
 	$valid_data = array(
-		'gateway'          => edd_purchase_form_validate_gateway(),   // Gateway fallback.
-		'discount'         => edd_purchase_form_validate_discounts(), // Set default discount.
-		'need_new_user'    => false,     // New user flag.
-		'need_user_login'  => false,     // Login user flag.
-		'logged_user_data' => array(),   // Logged user collected data.
-		'new_user_data'    => array(),   // New user collected data.
-		'login_user_data'  => array(),   // Login user collected data.
-		'guest_user_data'  => array(),   // Guest user collected data.
-		'cc_info'          => edd_purchase_form_validate_cc(),    // Credit card info.
+		'gateway'         => edd_purchase_form_validate_gateway(),   // Gateway fallback.
+		'discount'        => edd_purchase_form_validate_discounts(), // Set default discount.
+		'need_new_user'   => false,     // New user flag.
+		'need_user_login' => false,     // Login user flag.
+		'logged_in_user'  => array(),   // Logged user collected data.
+		'new_user_data'   => array(),   // New user collected data.
+		'login_user_data' => array(),   // Login user collected data.
+		'guest_user_data' => array(),   // Guest user collected data.
+		'cc_info'         => edd_purchase_form_validate_cc(),    // Credit card info.
 	);
 
 	// Validate agree to terms.
@@ -596,9 +622,9 @@ function edd_purchase_form_validate_new_user() {
 		? sanitize_text_field( $_POST['edd_last'] )
 		: '';
 
-	// Sanitize user login (not strict-mode for back-compat)
-	$user_login   = isset( $_POST['edd_user_login'] )
-		? preg_replace( '/\s+/', '', sanitize_user( $_POST['edd_user_login'], false ) )
+	// Sanitize user login.
+	$user_login = isset( $_POST['edd_user_login'] )
+		? sanitize_user( $_POST['edd_user_login'] )
 		: false;
 
 	// Sanitize email address (allowed formatting only)
@@ -676,13 +702,21 @@ function edd_purchase_form_validate_new_user() {
 		// Email address is unsafe (multisite only)
 		} elseif ( is_multisite() && is_email_address_unsafe( $user_email ) ) {
 			edd_set_error( 'email_unsafe', __( 'You cannot use that email address to signup at this time.', 'easy-digital-downloads' ) );
-
-		// Check if email exists
-		} elseif ( ( true === $registering_new_user ) && email_exists( $user_email ) ) {
-			edd_set_error( 'email_used', __( 'Email already used. Login or use a different email to complete your purchase.', 'easy-digital-downloads' ) );
-
-		// Add email to valid user data
+		} elseif ( true === $registering_new_user ) {
+			// Check if email exists.
+			$customers = edd_get_customers(
+				array(
+					'email'           => $user_email,
+					'user_id__not_in' => array( null ),
+				)
+			);
+			if ( email_exists( $user_email ) || ! empty( $customers ) ) {
+				edd_set_error( 'email_used', __( 'Email already used. Login or use a different email to complete your purchase.', 'easy-digital-downloads' ) );
+			} else {
+				$valid_user_data['user_email'] = $user_email;
+			}
 		} else {
+			// Add email to valid user data.
 			$valid_user_data['user_email'] = $user_email;
 		}
 
@@ -731,11 +765,11 @@ function edd_purchase_form_validate_user_login() {
 
 	// Start an array to collect valid user data.
 	$valid_user_data = array(
-		'user_id' => 0
+		'user_id' => 0,
 	);
 
 	$user_login = ! empty( $_POST['edd_user_login'] ) ? sanitize_text_field( $_POST['edd_user_login'] ) : '';
-	$user_pass  = ! empty( $_POST['edd_user_pass'] ) ? sanitize_text_field( $_POST['edd_user_pass'] ) : '';
+	$user_pass  = ! empty( $_POST['edd_user_pass'] ) ? $_POST['edd_user_pass'] : '';
 
 	// Username.
 	if ( empty( $user_login ) && edd_no_guest_checkout() ) {
@@ -747,19 +781,17 @@ function edd_purchase_form_validate_user_login() {
 
 	if ( ! $user instanceof WP_User ) {
 		return $valid_user_data;
-	} else {
-		// Re-populate the valid user data array.
-		$valid_user_data = array(
-			'user_id' => $user->ID,
-			'user_login' => $user->user_login,
-			'user_email' => $user->user_email,
-			'user_first' => $user->first_name,
-			'user_last' => $user->last_name,
-			'user_pass' => $user_pass,
-		);
 	}
 
-	return (array) $valid_user_data;
+	// Populate the valid user data array.
+	return array(
+		'user_id'    => $user->ID,
+		'user_login' => $user->user_login,
+		'user_email' => $user->user_email,
+		'user_first' => $user->first_name,
+		'user_last'  => $user->last_name,
+		'user_pass'  => $user_pass,
+	);
 }
 
 /**
@@ -835,22 +867,23 @@ function edd_register_and_login_new_user( $user_data = array() ) {
 		return -1;
 	}
 
-	// Bail if errors
+	// Bail if errors.
 	if ( edd_get_errors() ) {
 		return -1;
 	}
 
+	$defaults  = array(
+		'user_login' => '',
+		'user_pass'  => '',
+		'user_email' => '',
+		'first_name' => '',
+		'last_name'  => '',
+		'role'       => get_option( 'default_role' ),
+	);
+	$user_args = wp_parse_args( $user_data, $defaults );
 	$user_args = apply_filters(
 		'edd_insert_user_args',
-		array(
-			'user_login'      => isset( $user_data['user_login'] ) ? $user_data['user_login'] : '',
-			'user_pass'       => isset( $user_data['user_pass'] ) ? $user_data['user_pass'] : '',
-			'user_email'      => isset( $user_data['user_email'] ) ? $user_data['user_email'] : '',
-			'first_name'      => isset( $user_data['user_first'] ) ? $user_data['user_first'] : '',
-			'last_name'       => isset( $user_data['user_last'] ) ? $user_data['user_last'] : '',
-			'user_registered' => date( 'Y-m-d H:i:s' ),
-			'role'            => get_option( 'default_role' ),
-		),
+		$user_args,
 		$user_data
 	);
 
@@ -1246,39 +1279,55 @@ function edd_purchase_form_validate_cc_zip( $zip = 0, $country_code = '' ) {
 function edd_check_purchase_email( $valid_data, $posted ) {
 
 	$banned = edd_get_banned_emails();
-
 	if ( empty( $banned ) ) {
 		return;
 	}
 
-	$user_emails = array( $posted['edd_email'] );
+	$user_emails = array();
+	if ( ! empty( $posted['edd_email'] ) ) {
+		$user_emails[] = $posted['edd_email'];
+	}
 	if ( is_user_logged_in() ) {
 
-		// The user is logged in, check that their account email is not banned
+		// The user is logged in, check that their account email is not banned.
 		$user_data     = get_userdata( get_current_user_id() );
 		$user_emails[] = $user_data->user_email;
 
-	} elseif ( isset( $posted['edd-purchase-var'] ) && $posted['edd-purchase-var'] == 'needs-to-login' ) {
+	} elseif ( isset( $posted['edd-purchase-var'] ) && 'needs-to-login' === $posted['edd-purchase-var'] ) {
 
-		// The user is logging in, check that their email is not banned
-		if ( $user_data = get_user_by( 'login', $posted['edd_user_login'] ) ) {
+		// The user is logging in, check that their email is not banned.
+		$user_data = get_user_by( 'login', $posted['edd_user_login'] );
+		if ( $user_data ) {
 			$user_emails[] = $user_data->user_email;
 		}
-
 	}
 
 	foreach ( $user_emails as $email ) {
 
-		// Set an error and give the customer a general error (don't alert
-		// them that they were banned)
+		// Set an error and give the customer a general error (don't alert them that they were banned).
 		if ( edd_is_email_banned( $email ) ) {
 			edd_set_error( 'email_banned', __( 'An internal error has occurred, please try again or contact support.', 'easy-digital-downloads' ) );
 			break;
 		}
 	}
-
 }
 add_action( 'edd_checkout_error_checks', 'edd_check_purchase_email', 10, 2 );
+
+/**
+ * Checks the length of the user's email address.
+ *
+ * @since 3.1.0.5
+ * @param array $valid_data  The array of validated data.
+ * @param array $posted_data The array of posted data.
+ * @return void
+ */
+function edd_check_purchase_email_length( $valid_data, $posted_data ) {
+	// Customer emails are limited to 100 characters.
+	if ( ! empty( $posted_data['edd_email'] ) && strlen( $posted_data['edd_email'] ) > 100 ) {
+		edd_set_error( 'email_length', __( 'Your email address must be shorter than 100 characters.', 'easy-digital-downloads' ) );
+	}
+}
+add_action( 'edd_checkout_error_checks', 'edd_check_purchase_email_length', 10, 2 );
 
 /**
  * Process a straight-to-gateway purchase

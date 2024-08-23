@@ -20,8 +20,6 @@ add_action( 'edd_after_cc_fields', 'edds_add_stripe_errors', 999 );
  */
 function edds_credit_card_form( $echo = true ) {
 
-	global $edd_options;
-
 	if ( edd_stripe()->rate_limiting->has_hit_card_error_limit() ) {
 		edd_set_error( 'edd_stripe_error_limit', __( 'We are unable to process your payment at this time, please try again later or contact support.', 'easy-digital-downloads' ) );
 		return;
@@ -29,37 +27,34 @@ function edds_credit_card_form( $echo = true ) {
 
 	ob_start(); ?>
 
-	<?php if ( ! wp_script_is ( 'edd-stripe-js' ) ) : ?>
+	<?php if ( ! wp_script_is( 'edd-stripe-js' ) ) : ?>
 		<?php edd_stripe_js( true ); ?>
 	<?php endif; ?>
 
 	<?php do_action( 'edd_before_cc_fields' ); ?>
 
 	<fieldset id="edd_cc_fields" class="edd-do-validate">
-		<legend><?php _e( 'Credit Card Info', 'easy-digital-downloads' ); ?></legend>
-		<?php if( is_ssl() ) : ?>
+		<?php $elements_mode = edds_get_elements_mode(); ?>
+		<?php if ( 'card-elements' === $elements_mode ) : ?>
+			<legend><?php esc_html_e( 'Credit Card Info', 'easy-digital-downloads' ); ?></legend>
+		<?php else: ?>
+			<legend><?php esc_html_e( 'Payment Info', 'easy-digital-downloads' ); ?></legend>
+		<?php endif; ?>
+		<?php if ( is_ssl() ) : ?>
 			<div id="edd_secure_site_wrapper">
 				<span class="padlock">
 				<?php
-				if ( function_exists( 'edd_get_payment_icon' ) ) {
-					echo edd_get_payment_icon(
-						array(
-							'icon'    => 'lock',
-							'width'   => 18,
-							'height'  => 28,
-							'classes' => array(
-								'edd-icon',
-								'edd-icon-lock',
-							),
-						)
-					);
-				} else {
-					?>
-					<svg class="edd-icon edd-icon-lock" xmlns="http://www.w3.org/2000/svg" width="18" height="28" viewBox="0 0 18 28" aria-hidden="true">
-						<path d="M5 12h8V9c0-2.203-1.797-4-4-4S5 6.797 5 9v3zm13 1.5v9c0 .828-.672 1.5-1.5 1.5h-15C.672 24 0 23.328 0 22.5v-9c0-.828.672-1.5 1.5-1.5H2V9c0-3.844 3.156-7 7-7s7 3.156 7 7v3h.5c.828 0 1.5.672 1.5 1.5z"/>
-					</svg>
-					<?php
-				}
+				echo edd_get_payment_icon(
+					array(
+						'icon'    => 'lock',
+						'width'   => 18,
+						'height'  => 28,
+						'classes' => array(
+							'edd-icon',
+							'edd-icon-lock',
+						),
+					)
+				);
 				?>
 				</span>
 				<span><?php _e( 'This is a secure SSL encrypted payment.', 'easy-digital-downloads' ); ?></span>
@@ -67,9 +62,11 @@ function edds_credit_card_form( $echo = true ) {
 		<?php endif; ?>
 
 		<?php
-		$existing_cards = edd_stripe_get_existing_cards( get_current_user_id() );
-		?>
-		<?php if ( ! empty( $existing_cards ) ) { edd_stripe_existing_card_field_radio( get_current_user_id() ); } ?>
+		if ( 'card-elements' === $elements_mode ) {
+			$existing_cards = edd_stripe_get_existing_cards( get_current_user_id() );
+			?>
+			<?php if ( ! empty( $existing_cards ) ) { edd_stripe_existing_card_field_radio( get_current_user_id() ); } ?>
+		<?php } ?>
 
 		<div class="edd-stripe-new-card" <?php if ( ! empty( $existing_cards ) ) { echo 'style="display: none;"'; } ?>>
 			<?php do_action( 'edd_stripe_new_card_form' ); ?>
@@ -78,6 +75,7 @@ function edds_credit_card_form( $echo = true ) {
 
 	</fieldset>
 	<?php
+	echo edds_get_tokenizer_input();
 
 	do_action( 'edd_after_cc_fields' );
 
@@ -104,19 +102,71 @@ function edd_stripe_new_card_form() {
 		return;
 	}
 
+	$elements_mode = edds_get_elements_mode();
+	if ( 'payment-elements' === $elements_mode ) {
+		edds_output_payment_elements_form();
+	} else {
+		edds_output_legacy_new_card_form();
+	}
+}
+add_action( 'edd_stripe_new_card_form', 'edd_stripe_new_card_form' );
+
+/**
+ * Add the element for the Stripe Payment Elements to attach to.
+ *
+ * @since 2.9.0
+ */
+function edds_output_payment_elements_form() {
+	// Payment Elements needs to not allow checking out with mixed carts or multiple subscriptions.
+	if ( ! edd_gateway_supports_cart_contents( 'stripe' ) ) {
+		add_filter( 'edd_checkout_button_purchase', '__return_empty_string', 999 );
+		?>
+		<div class="edd_errors edd-alert edd-alert-info">
+			<p class="edd_error" id="edd_error_edd-stripe-incompatible-cart"><?php echo edds_get_single_subscription_cart_error(); ?></p>
+		</div>
+		<?php
+		return;
+	}
+
+	// Clear any errors that might be sitting from a previous AJAX loading of errors.
+	edd_clear_errors();
+
+	?>
+
+	<div id="edd-card-wrap">
+		<?php if ( edd_stripe()->has_regional_support() && edd_stripe()->regional_support->requires_card_name ) : ?>
+		<p id="edd-card-name-wrap">
+			<label for="card_name" class="edd-label">
+				<?php esc_html_e( 'Name on the Card', 'easy-digital-downloads' ); ?>
+				<span class="edd-required-indicator">*</span>
+			</label>
+			<input type="text" name="card_name" id="card_name" class="card-name edd-input required" placeholder="<?php esc_attr_e( 'Card name', 'easy-digital-downloads' ); ?>" autocomplete="cc-name" required/>
+		</p>
+		<?php endif; ?>
+		<div id="edd-stripe-payment-element"></div>
+		<p class="edds-field-spacer-shim"></p><!-- Extra spacing -->
+	</div>
+	<?php
+}
+
+/**
+ * Add the legacy Card Element fields for users who are still on Card Elements.
+ *
+ * @since 2.9.0
+ */
+function edds_output_legacy_new_card_form() {
 	$split = edd_get_option( 'stripe_split_payment_fields', false );
-?>
+	?>
+	<p id="edd-card-name-wrap">
+		<label for="card_name" class="edd-label">
+			<?php esc_html_e( 'Name on the Card', 'easy-digital-downloads' ); ?>
+			<span class="edd-required-indicator">*</span>
+		</label>
+		<span class="edd-description"><?php esc_html_e( 'The name printed on the front of your credit card.', 'easy-digital-downloads' ); ?></span>
+		<input type="text" name="card_name" id="card_name" class="card-name edd-input required" placeholder="<?php esc_attr_e( 'Card name', 'easy-digital-downloads' ); ?>" autocomplete="cc-name" />
+	</p>
 
-<p id="edd-card-name-wrap">
-	<label for="card_name" class="edd-label">
-		<?php esc_html_e( 'Name on the Card', 'easy-digital-downloads' ); ?>
-		<span class="edd-required-indicator">*</span>
-	</label>
-	<span class="edd-description"><?php esc_html_e( 'The name printed on the front of your credit card.', 'easy-digital-downloads' ); ?></span>
-	<input type="text" name="card_name" id="card_name" class="card-name edd-input required" placeholder="<?php esc_attr_e( 'Card name', 'easy-digital-downloads' ); ?>" autocomplete="cc-name" />
-</p>
-
-<div id="edd-card-wrap">
+	<div id="edd-card-wrap">
 	<label for="edd-card-element" class="edd-label">
 		<?php
 		if ( '1' === $split ) :
@@ -137,11 +187,11 @@ function edd_stripe_new_card_form() {
 	</div>
 
 	<p class="edds-field-spacer-shim"></p><!-- Extra spacing -->
-</div>
+	</div>
 
-<?php if ( '1' === $split ) : ?>
+	<?php if ( '1' === $split ) : ?>
 
-<div id="edd-card-details-wrap">
+	<div id="edd-card-details-wrap">
 	<p class="edds-field-spacer-shim"></p><!-- Extra spacing -->
 
 	<div id="edd-card-exp-wrap">
@@ -161,13 +211,13 @@ function edd_stripe_new_card_form() {
 
 		<div id="edd-stripe-card-cvc-element" class="edd-stripe-card-cvc-element"></div>
 	</div>
-</div>
+	</div>
 
-<?php endif; ?>
+	<?php endif; ?>
 
-<div id="edd-stripe-card-errors" role="alert"></div>
+	<div id="edd-stripe-card-errors" role="alert"></div>
 
-<?php
+	<?php
 	/**
 	 * Allow output of extra content before the credit card expiration field.
 	 *
@@ -179,7 +229,6 @@ function edd_stripe_new_card_form() {
 	 */
 	do_action( 'edd_before_cc_expiration' );
 }
-add_action( 'edd_stripe_new_card_form', 'edd_stripe_new_card_form' );
 
 /**
  * Show the checkbox for updating the billing information on an existing Stripe card
@@ -522,7 +571,10 @@ function edd_stripe_manage_cards() {
 									'options'          => $countries,
 									'selected'         => $country,
 									'class'            => 'card-update-field address_country',
-									'data'             => array( 'key' => 'address_country' ),
+									'data'             => array(
+										'key'   => 'address_country',
+										'nonce' => wp_create_nonce( 'edd-country-field-nonce' ),
+									),
 									'show_option_all'  => false,
 									'show_option_none' => false,
 								) );
@@ -599,7 +651,10 @@ function edd_stripe_manage_cards() {
 							<a href="#" class="edd-stripe-cancel-update" data-source="<?php echo esc_attr( $source->id ); ?>"><?php _e( 'Cancel', 'easy-digital-downloads' ); ?></a>
 
 							<input type="hidden" name="card_id" data-key="id" value="<?php echo esc_attr( $source->id ); ?>" />
-							<?php wp_nonce_field( $source->id . '_update', 'card_update_nonce_' . $source->id, true ); ?>
+							<?php
+							wp_nonce_field( $source->id . '_update', 'card_update_nonce_' . $source->id, true );
+							echo edds_get_tokenizer_input( $source->id );
+							?>
 						</p>
 					</form>
 				</div>
@@ -637,7 +692,10 @@ function edd_stripe_manage_cards() {
 						value="<?php echo esc_attr__( 'Add new card', 'easy-digital-downloads' ); ?>"
 					/>
 					<a href="#" id="edd-stripe-add-new-cancel" style="display: none;"><?php _e( 'Cancel', 'easy-digital-downloads' ); ?></a>
-					<?php wp_nonce_field( 'edd-stripe-add-card', 'edd-stripe-add-card-nonce', false, true ); ?>
+					<?php
+					wp_nonce_field( 'edd-stripe-add-card', 'edd-stripe-add-card-nonce', false, true );
+					echo edds_get_tokenizer_input();
+					?>
 				</div>
 			</form>
 		</fieldset>
@@ -793,46 +851,46 @@ function edd_stripe_zip_and_country() {
  * @return      void
  */
 function edd_stripe_setup_billing_address_fields() {
-
-	if( ! function_exists( 'edd_use_taxes' ) ) {
+	if ( 'stripe' !== edd_get_chosen_gateway() || ! edd_get_cart_total() > 0 ) {
 		return;
 	}
 
-	if( edd_use_taxes() || 'stripe' !== edd_get_chosen_gateway() || ! edd_get_cart_total() > 0 ) {
+	$hook = 'payment-elements' === edds_get_elements_mode() || apply_filters( 'edds_address_before_payment', false ) ? 'edd_before_cc_fields' : 'edd_after_cc_fields';
+
+	if ( edd_use_taxes() ) {
+		remove_action( 'edd_after_cc_fields', 'edd_default_cc_address_fields' );
+		add_action( $hook, 'edd_default_cc_address_fields' );
 		return;
 	}
 
 	$display = edd_get_option( 'stripe_billing_fields', 'full' );
 
-	switch( $display ) {
+	switch ( $display ) {
 
-		case 'full' :
-
-			// Make address fields required
+		case 'full':
+			// Make address fields required.
 			add_filter( 'edd_require_billing_address', '__return_true' );
+			remove_action( 'edd_after_cc_fields', 'edd_default_cc_address_fields' );
+			add_action( $hook, 'edd_default_cc_address_fields' );
 
 			break;
 
-		case 'zip_country' :
-
+		case 'zip_country':
 			remove_action( 'edd_after_cc_fields', 'edd_default_cc_address_fields', 10 );
-			add_action( 'edd_after_cc_fields', 'edd_stripe_zip_and_country', 9 );
+			add_action( $hook, 'edd_stripe_zip_and_country', 9 );
 
-			// Make Zip required
+			// Make Zip required.
 			add_filter( 'edd_purchase_form_required_fields', 'edd_stripe_require_zip_and_country' );
 
 			break;
 
-		case 'none' :
-
+		case 'none':
 			remove_action( 'edd_after_cc_fields', 'edd_default_cc_address_fields', 10 );
 
 			break;
-
 	}
-
 }
-add_action( 'init', 'edd_stripe_setup_billing_address_fields', 9 );
+add_action( 'edd_purchase_form_before_cc_form', 'edd_stripe_setup_billing_address_fields', 9 );
 
 /**
  * Force zip code and country to be required when billing address display is zip only

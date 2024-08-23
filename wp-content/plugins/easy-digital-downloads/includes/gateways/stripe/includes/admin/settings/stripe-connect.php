@@ -1,5 +1,5 @@
 <?php
-/*
+/**
  * Admin Settings: Stripe Connect
  *
  * @package EDD_Stripe\Admin\Settings\Stripe_Connect
@@ -11,21 +11,6 @@
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-/**
- * Determines if the Stripe API keys can be managed manually.
- *
- * @since 2.8.0
- *
- * @return bool
- */
-function edds_stripe_connect_can_manage_keys() {
-
-	$stripe_connect_account_id = edd_get_option( 'stripe_connect_account_id', false );
-	$secret                    = edd_is_test_mode() ? edd_get_option( 'test_secret_key' ) : edd_get_option( 'live_secret_key' );
-
-	return empty( $stripe_connect_account_id ) && $secret;
 }
 
 /**
@@ -71,9 +56,7 @@ function edds_stripe_connect_url() {
 	 *
 	 * @param $stripe_connect_url URL to oAuth proxy.
 	 */
-	$stripe_connect_url = apply_filters( 'edds_stripe_connect_url', $stripe_connect_url );
-
-	return $stripe_connect_url;
+	return apply_filters( 'edds_stripe_connect_url', $stripe_connect_url );
 }
 
 /**
@@ -83,27 +66,61 @@ function edds_stripe_connect_url() {
  */
 function edds_process_gateway_connect_completion() {
 
-	if( ! isset( $_GET['edd_gateway_connect_completion'] ) || 'stripe_connect' !== $_GET['edd_gateway_connect_completion'] || ! isset( $_GET['state'] ) ) {
+	$redirect_screen = ! empty( $_GET['redirect_screen'] ) ? sanitize_text_field( $_GET['redirect_screen'] ) : '';
+
+	// A cancelled connection doesn't contain the completion or state values, but we do need to listen for the redirect_screen for the wizard.
+	if (
+		isset( $_GET['edd_gateway_connect_error'] ) &&
+		filter_var( $_GET['edd_gateway_connect_error'], FILTER_VALIDATE_BOOLEAN ) &&
+		! empty( $redirect_screen )
+	) {
+		$error_redirect = '';
+
+		switch ( $redirect_screen ) {
+			case 'onboarding-wizard':
+				$error_redirect = edd_get_admin_url(
+					array(
+						'page'         => 'edd-onboarding-wizard',
+						'current_step' => 'payment_methods',
+					)
+				);
+				break;
+		}
+
+		if ( ! empty( $error_redirect ) ) {
+			edd_redirect( $error_redirect );
+		}
+	}
+
+	if ( ! isset( $_GET['edd_gateway_connect_completion'] ) || 'stripe_connect' !== $_GET['edd_gateway_connect_completion'] || ! isset( $_GET['state'] ) ) {
 		return;
 	}
 
-	if( ! current_user_can( 'manage_shop_settings' ) ) {
+	if ( ! current_user_can( 'manage_shop_settings' ) ) {
 		return;
 	}
 
-	if( headers_sent() ) {
+	if ( headers_sent() ) {
 		return;
 	}
 
-	$edd_credentials_url = add_query_arg( array(
-		'live_mode' => (int) ! edd_is_test_mode(),
-		'state' => sanitize_text_field( $_GET['state'] ),
-		'customer_site_url' => admin_url( 'edit.php?post_type=download' ),
-	), 'https://easydigitaldownloads.com/?edd_gateway_connect_credentials=stripe_connect' );
+	$customer_site_url = edd_get_admin_url();
+	if ( ! empty( $redirect_screen ) ) {
+		$customer_site_url = add_query_arg( 'redirect_screen', $redirect_screen, $customer_site_url );
+	}
+
+	$edd_credentials_url = add_query_arg(
+		array(
+			'live_mode'         => (int) ! edd_is_test_mode(),
+			'state'             => sanitize_text_field( $_GET['state'] ),
+			'customer_site_url' => urlencode( $customer_site_url ),
+		),
+		'https://easydigitaldownloads.com/?edd_gateway_connect_credentials=stripe_connect'
+	);
 
 	$response = wp_remote_get( esc_url_raw( $edd_credentials_url ) );
 
-	if( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+	if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 		$message = '<p>' . sprintf(
 			/* translators: %1$s Opening anchor tag, do not translate. %2$s Closing anchor tag, do not translate. */
 			__( 'There was an error getting your Stripe credentials. Please %1$stry again%2$s. If you continue to have this problem, please contact support.', 'easy-digital-downloads' ),
@@ -116,18 +133,41 @@ function edds_process_gateway_connect_completion() {
 	$data = json_decode( $response['body'], true );
 	$data = $data['data'];
 
-	if( edd_is_test_mode() ) {
+	if ( edd_is_test_mode() ) {
 		edd_update_option( 'test_publishable_key', sanitize_text_field( $data['publishable_key'] ) );
 		edd_update_option( 'test_secret_key', sanitize_text_field( $data['secret_key'] ) );
 	} else {
+		$previously_connected = (bool) edd_get_option( 'live_publishable_key', false );
+		if ( ! $previously_connected && ( edd_is_pro() || edds_is_pro() ) ) {
+			set_transient( 'edd_stripe_new_install', time(), HOUR_IN_SECONDS * 72 );
+		}
 		edd_update_option( 'live_publishable_key', sanitize_text_field( $data['publishable_key'] ) );
 		edd_update_option( 'live_secret_key', sanitize_text_field( $data['secret_key'] ) );
 	}
 
 	edd_update_option( 'stripe_connect_account_id', sanitize_text_field( $data['stripe_user_id'] ) );
-	wp_redirect( esc_url_raw( admin_url( 'edit.php?post_type=download&page=edd-settings&tab=gateways&section=edd-stripe' ) ) );
-	exit;
 
+	$redirect_url = edd_get_admin_url(
+		array(
+			'page'    => 'edd-settings',
+			'tab'     => 'gateways',
+			'section' => 'edd-stripe',
+		)
+	);
+
+	if ( ! empty( $redirect_screen ) && 'onboarding-wizard' === $redirect_screen ) {
+		$redirect_url       = edd_get_admin_url(
+			array(
+				'page'         => 'edd-onboarding-wizard',
+				'current_step' => 'payment_methods',
+			)
+		);
+		$gateways           = edd_get_option( 'gateways', array() );
+		$gateways['stripe'] = true;
+		edd_update_option( 'gateways', $gateways );
+	}
+
+	edd_redirect( $redirect_url );
 }
 add_action( 'admin_init', 'edds_process_gateway_connect_completion' );
 
@@ -141,11 +181,12 @@ add_action( 'admin_init', 'edds_process_gateway_connect_completion' );
 function edds_stripe_connect_disconnect_url() {
 	$stripe_connect_disconnect_url = add_query_arg(
 		array(
-			'post_type'             => 'download',
-			'page'                  => 'edd-settings',
-			'tab'                   => 'gateways',
-			'section'               => 'edd-stripe',
+			'post_type'              => 'download',
+			'page'                   => 'edd-settings',
+			'tab'                    => 'gateways',
+			'section'                => 'edd-stripe',
 			'edds-stripe-disconnect' => true,
+			'edd-action'             => 'disconnect_stripe_connect',
 		),
 		admin_url( 'edit.php' )
 	);
@@ -162,9 +203,7 @@ function edds_stripe_connect_disconnect_url() {
 		$stripe_connect_disconnect_url
 	);
 
-	$stripe_connect_disconnect_url = wp_nonce_url( $stripe_connect_disconnect_url, 'edds-stripe-connect-disconnect' );
-
-	return $stripe_connect_disconnect_url;
+	return wp_nonce_url( $stripe_connect_disconnect_url, 'edds-stripe-connect-disconnect' );
 }
 
 /**
@@ -178,7 +217,7 @@ function edds_stripe_connect_disconnect_url() {
 function edds_stripe_connect_process_disconnect() {
 	// Do not need to handle this request, bail.
 	if (
-		! ( isset( $_GET['page'] ) && 'edd-settings' === $_GET['page'] ) ||
+		! ( isset( $_GET['page'] ) && ( 'edd-settings' === $_GET['page'] || 'edd-onboarding-wizard' === $_GET['page'] ) ) ||
 		! isset( $_GET['edds-stripe-disconnect'] )
 	) {
 		return;
@@ -206,11 +245,17 @@ function edds_stripe_connect_process_disconnect() {
 		'test_secret_key',
 		'live_publishable_key',
 		'live_secret_key',
+		'stripe_statement_descriptor_prefix',
 	);
 
 	foreach ( $options as $option ) {
 		edd_delete_option( $option );
 	}
+
+	// Remove Stripe from the enabled gateways.
+	$gateways = edd_get_option( 'gateways', array() );
+	unset( $gateways['stripe'] );
+	edd_update_option( 'gateways', $gateways );
 
 	$redirect = remove_query_arg(
 		array(
@@ -221,7 +266,7 @@ function edds_stripe_connect_process_disconnect() {
 
 	return wp_redirect( esc_url_raw( $redirect ) );
 }
-add_action( 'admin_init', 'edds_stripe_connect_process_disconnect' );
+add_action( 'edd_disconnect_stripe_connect', 'edds_stripe_connect_process_disconnect' );
 
 /**
  * Updates the `stripe_connect_account_country` setting if using Stripe Connect
@@ -235,9 +280,9 @@ function edds_stripe_connect_maybe_refresh_account_country() {
 		return;
 	}
 
-	// Stripe Connect has not been used, bail.
-	$account_id = edd_get_option( 'stripe_connect_account_id', '' );
+	$account_id = edd_stripe()->connect()->get_connect_id();
 
+	// Stripe Connect has not been used, bail.
 	if ( empty( $account_id ) ) {
 		return;
 	}
@@ -277,44 +322,32 @@ add_action( 'admin_init', 'edds_stripe_connect_maybe_refresh_account_country' );
  * @since 2.8.0
  */
 function edds_stripe_connect_setting_field() {
-	$stripe_connect_url        = edds_stripe_connect_url();
-	$stripe_disconnect_url     = edds_stripe_connect_disconnect_url();
+	$stripe_connect_url    = edds_stripe_connect_url();
+	$stripe_disconnect_url = edds_stripe_connect_disconnect_url();
 
-	$stripe_connect_account_id = edd_get_option( 'stripe_connect_account_id' );
+	$stripe_connect_account_id = edd_stripe()->connect()->get_connect_id();
 
 	$api_key = edd_is_test_mode()
 		? edd_get_option( 'test_publishable_key' )
 		: edd_get_option( 'live_publishable_key' );
 
 	ob_start();
-?>
+	?>
 
-<?php if ( empty( $api_key ) ) : ?>
+	<?php if ( empty( $api_key ) ) : ?>
 
 	<a href="<?php echo esc_url( $stripe_connect_url ); ?>" class="edd-stripe-connect">
 		<span><?php esc_html_e( 'Connect with Stripe', 'easy-digital-downloads' ); ?></span>
 	</a>
 
 	<p>
-	<?php
-		/** This filter is documented in includes/admin/settings/stripe-connect.php */
-		$show_fee_message = apply_filters( 'edds_show_stripe_connect_fee_message', true );
-
-		$fee_message = true === $show_fee_message
-			? (
-				__(
-					'Connect with Stripe for pay as you go pricing: 2% per-transaction fee + Stripe fees.',
-					'easy-digital-downloads'
-				) . ' '
-			)
-			: '';
-
-		echo esc_html( $fee_message );
+		<?php
+		echo wp_kses_post( edd_stripe()->application_fee->get_fee_message() );
 		echo wp_kses(
 			sprintf(
 				/* translators: %1$s Opening anchor tag, do not translate. %2$s Closing anchor tag, do not translate. */
 				__( 'Have questions about connecting with Stripe? See the %1$sdocumentation%2$s.', 'easy-digital-downloads' ),
-				'<a href="' . esc_url( edds_documentation_route( 'stripe-connect' ) ) . '" target="_blank" rel="noopener noreferrer">',
+				'<a href="' . esc_url( edds_documentation_route( 'stripe' ) ) . '" target="_blank" rel="noopener noreferrer">',
 				'</a>'
 			),
 			array(
@@ -322,31 +355,33 @@ function edds_stripe_connect_setting_field() {
 					'href'   => true,
 					'target' => true,
 					'rel'    => true,
-				)
+				),
 			)
 		);
-	?>
+		?>
 	</p>
 
-<?php endif; ?>
+	<?php endif; ?>
 
-<?php if ( ! empty( $api_key ) ) : ?>
+	<?php if ( ! empty( $api_key ) ) : ?>
 
 	<div
 		id="edds-stripe-connect-account"
-		class="edds-stripe-connect-acount-info notice inline"
+		class="edds-stripe-connect-acount-info notice inline loading"
 		data-account-id="<?php echo esc_attr( $stripe_connect_account_id ); ?>"
 		data-nonce="<?php echo wp_create_nonce( 'edds-stripe-connect-account-information' ); ?>"
-	>
-		<p><span class="spinner is-active"></span>
-		<em><?php esc_html_e( 'Retrieving account information...', 'easy-digital-downloads' ); ?></em>
+		<?php echo ( ! empty( $_GET['page'] ) && 'edd-onboarding-wizard' === $_GET['page'] ) ? ' data-onboarding-wizard="true"' : ''; ?>>
+		<p>
+			<span class="account-name"></span>
+			<span class="info"></span>
+		</p>
 	</div>
-	<div id="edds-stripe-disconnect-reconnect">
+	<div id="edds-stripe-disconnect-reconnect" class="loading">
 	</div>
 
-<?php endif; ?>
+	<?php endif; ?>
 
-<?php if ( true === edds_stripe_connect_can_manage_keys() ) : ?>
+	<?php if ( true === edds_stripe_connect_can_manage_keys() ) : ?>
 
 	<div class="edds-api-key-toggle">
 		<p>
@@ -372,9 +407,9 @@ function edds_stripe_connect_setting_field() {
 		</div>
 	</div>
 
-<?php endif; ?>
+	<?php endif; ?>
 
-<?php
+	<?php
 	return ob_get_clean();
 }
 
@@ -422,7 +457,7 @@ function edds_stripe_connect_account_info_ajax_response() {
 			'a'      => array(
 				'href' => true,
 				'rel'  => true,
-			)
+			),
 		)
 	);
 
@@ -433,11 +468,8 @@ function edds_stripe_connect_account_info_ajax_response() {
 		'message' => wp_kses(
 			wpautop(
 				sprintf(
-					__(
-						/* translators: %1$s Opening bold tag, do not translate. %2$s Closing bold tag, do not translate. */
-						'You are currently connected to a %1$stemporary%2$s Stripe test account, which can only be used for testing purposes. You cannot manage this account in Stripe.',
-						'easy-digital-downloads'
-					),
+					/* translators: %1$s Opening bold tag, do not translate. %2$s Closing bold tag, do not translate. */
+					__( 'You are currently connected to a %1$stemporary%2$s Stripe test account, which can only be used for testing purposes. You cannot manage this account in Stripe.', 'easy-digital-downloads' ),
 					'<strong>',
 					'</strong>'
 				) . ' ' .
@@ -450,17 +482,14 @@ function edds_stripe_connect_account_info_ajax_response() {
 						: ''
 				) . ' ' .
 				sprintf(
-					__(
-						/* translators: %1$s Opening link tag, do not translate. %2$s Closing link tag, do not translate. */
-						'%1$sRegister a Stripe account%2$s for full access.',
-						'easy-digital-downloads'
-					),
+					/* translators: %1$s Opening link tag, do not translate. %2$s Closing link tag, do not translate. */
+					__( '%1$sRegister a Stripe account%2$s for full access.', 'easy-digital-downloads' ),
 					'<a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener noreferrer">',
 					'</a>'
 				) . ' ' .
 				'<br /><br />' .
 				sprintf(
-					/* translators: %1$s Opening anchor tag for disconnecting Stripe, do not translate. %2$s Closing anchor tag, do not translate. */
+					/* translators: 1: Opening anchor tag for disconnecting Stripe, do not translate. 2: Closing anchor tag, do not translate. */
 					__( '%1$sDisconnect this account%2$s.', 'easy-digital-downloads' ),
 					'<a href="' . esc_url( edds_stripe_connect_disconnect_url() ) . '">',
 					'</a>'
@@ -473,10 +502,10 @@ function edds_stripe_connect_account_info_ajax_response() {
 					'href'   => true,
 					'rel'    => true,
 					'target' => true,
-				)
+				),
 			)
 		),
-		'status' => 'warning',
+		'status'  => 'warning',
 	);
 
 	// Attempt to show account information from Stripe Connect account.
@@ -509,7 +538,7 @@ function edds_stripe_connect_account_info_ajax_response() {
 			}
 
 			if ( ! empty( $display_name ) ) {
-				$display_name = '<strong>' . $display_name . '</strong><br/ >';
+				$display_name = '<span class="display-name">' . $display_name . '</span>';
 			}
 
 			if ( ! empty( $email ) ) {
@@ -523,29 +552,41 @@ function edds_stripe_connect_account_info_ajax_response() {
 			 *
 			 * @param bool $show_fee_message Show fee message, or not.
 			 */
-			$show_fee_message = apply_filters( 'edds_show_stripe_connect_fee_message', true );
+			$show_fee_message = edd_stripe()->application_fee->get_fee_message();
 
-			$fee_message = true === $show_fee_message
-				? wpautop(
-					esc_html__(
-						'Pay as you go pricing: 2% per-transaction fee + Stripe fees.',
-						'easy-digital-downloads'
-					)
-				)
+			$fee_message = ! empty( $show_fee_message )
+				? wpautop( $show_fee_message )
 				: '';
+
+			$message = sprintf(
+				'<span class="display-name">%1$s</span><span class="info">%2$s %3$s %4$s</span>',
+				$display_name,
+				$email,
+				esc_html__( 'Administrator (Owner)', 'easy-digital-downloads' ),
+				$fee_message
+			);
+
+			/**
+			 * If we have a statement descriptor prefix in the account settings, save it so we can use it later.
+			 *
+			 * Saving it now ensures that if someone visits the Stripe settings page, it is updated.
+			 */
+			if ( isset( $account->settings->card_payments->statement_descriptor_prefix ) ) {
+				edd_update_option( 'stripe_statement_descriptor_prefix', sanitize_text_field( $account->settings->card_payments->statement_descriptor_prefix ) );
+			}
 
 			// Return a message with name, email, and reconnect/disconnect actions.
 			return wp_send_json_success(
 				array(
 					'message' => wpautop(
-						// $display_name is already escaped
-						$display_name . esc_html( $email ) . esc_html__( 'Administrator (Owner)', 'easy-digital-downloads' ) . $fee_message
+						$message
 					),
 					'actions' => $reconnect_disconnect_actions,
-					'status'  => 'success',
+					'status'  => ! empty( $show_fee_message ) ? 'warning' : 'success',
+					'account' => $account,
 				)
 			);
-		} catch ( \Stripe\Exception\AuthenticationException $e ) {
+		} catch ( \EDD\Vendor\Stripe\Exception\AuthenticationException $e ) {
 			// API keys were changed after using Stripe Connect.
 			return wp_send_json_error(
 				array(
@@ -566,9 +607,18 @@ function edds_stripe_connect_account_info_ajax_response() {
 			);
 		} catch ( \Exception $e ) {
 			// General error.
+			$unknown_error['message'] .= ' ' . wpautop(
+				sprintf(
+					/* translators: 1: Opening anchor tag for disconnecting Stripe, do not translate. 2: Closing anchor tag, do not translate. */
+					__( '%1$sDisconnect this account%2$s.', 'easy-digital-downloads' ),
+					'<a href="' . esc_url( edds_stripe_connect_disconnect_url() ) . '">',
+					'</a>'
+				)
+			);
+
 			return wp_send_json_error( $unknown_error );
 		}
-	// Manual API key management.
+		// Manual API key management.
 	} else {
 		$connect_button = sprintf(
 			'<a href="%s" class="edd-stripe-connect"><span>%s</span></a>',
@@ -595,10 +645,10 @@ function edds_stripe_connect_account_info_ajax_response() {
 						'<br /><br />' .
 						$connect . '<br /><br />' . $connect_button
 					),
-					'status' => 'success',
+					'status'  => 'success',
 				)
 			);
-		// Show invalid keys.
+			// Show invalid keys.
 		} catch ( \Exception $e ) {
 			return wp_send_json_error(
 				array(
@@ -654,7 +704,7 @@ function edds_stripe_connect_admin_notices_register() {
 		);
 
 		// Stripe Connect reconnect.
-		/** translators: %s Test mode status. */
+		/* translators: %s Test mode status. */
 		$test_mode_status = edd_is_test_mode()
 			? _x( 'enabled', 'gateway test mode status', 'easy-digital-downloads' )
 			: _x( 'disabled', 'gateway test mode status', 'easy-digital-downloads' );
@@ -675,9 +725,10 @@ function edds_stripe_connect_admin_notices_register() {
 				'dismissible' => true,
 			)
 		);
-	} catch( Exception $e ) {
-		return new WP_Error( 'edds-invalid-notices-registration', esc_html__( $e->getMessage() ) );
-	};
+
+	} catch ( Exception $e ) {
+		return new WP_Error( 'edds-invalid-notices-registration', $e->getMessage() );
+	}
 
 	return true;
 }
@@ -694,6 +745,11 @@ function edds_stripe_connect_admin_notices_print() {
 		return;
 	}
 
+	$screen  = get_current_screen();
+	$section = filter_input( INPUT_GET, 'section', FILTER_SANITIZE_SPECIAL_CHARS );
+	if ( $screen && 'download_page_edd-settings' === $screen->id && 'edd-stripe' === $section ) {
+		return;
+	}
 	$registry = edds_get_registry( 'admin-notices' );
 
 	if ( ! $registry ) {
@@ -714,21 +770,18 @@ function edds_stripe_connect_admin_notices_print() {
 		$mode_toggle = isset( $_GET['edd-message'] ) && 'connect-to-stripe' === $_GET['edd-message'];
 
 		if ( array_key_exists( 'stripe', $enabled_gateways ) && empty( $api_key ) ) {
-			wp_enqueue_style(
-				'edd-stripe-admin-styles',
-				EDDSTRIPE_PLUGIN_URL . 'assets/css/build/admin.min.css',
-				array(),
-				EDD_STRIPE_VERSION
-			);
+			edd_stripe_connect_admin_style();
 
 			// Stripe Connect.
 			if ( false === $mode_toggle ) {
 				$notices->output( 'stripe-connect' );
-			// Stripe Connect reconnect.
+				// Stripe Connect reconnect.
 			} else {
 				$notices->output( 'stripe-connect-reconnect' );
 			}
 		}
-	} catch( Exception $e ) {}
+	} catch ( Exception $e ) {
+		// Do nothing.
+	}
 }
 add_action( 'admin_notices', 'edds_stripe_connect_admin_notices_print' );

@@ -12,7 +12,7 @@
 	id="edd-notifications"
 	class="edd-hidden"
 	x-data
-	x-init="function() { $el.classList.remove( 'edd-hidden' ) }"
+	x-init="function() { if ( 'undefined' !== typeof $store.eddNotifications ) { $el.classList.remove( 'edd-hidden' ); } }"
 >
 	<div
 		class="edd-overlay"
@@ -31,7 +31,7 @@
 				<?php
 				echo wp_kses(
 					sprintf(
-					/* Translators: %s - number of notifications */
+					/* translators: %s: number of notifications */
 						__( '(%s) New Notifications', 'easy-digital-downloads' ),
 						'<span x-text="$store.eddNotifications.numberActiveNotifications"></span>'
 					),

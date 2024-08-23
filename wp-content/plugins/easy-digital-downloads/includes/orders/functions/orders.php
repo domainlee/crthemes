@@ -127,12 +127,6 @@ function edd_trash_order( $order_id ) {
 
 			}
 		}
-
-		// Update the customer records when an order is trashed.
-		if ( ! empty( $order->customer_id ) ) {
-			$customer = new EDD_Customer( $order->customer_id );
-			$customer->recalculate_stats();
-		}
 	}
 
 	return filter_var( $trashed, FILTER_VALIDATE_BOOLEAN );
@@ -362,14 +356,8 @@ function edd_destroy_order( $order_id = 0 ) {
  */
 function edd_update_order( $order_id = 0, $data = array() ) {
 	$orders = new EDD\Database\Queries\Order();
-	$update = $orders->update_item( $order_id, $data );
 
-	if ( ! empty( $data['customer_id'] ) ) {
-		$customer = new EDD_Customer( $data['customer_id'] );
-		$customer->recalculate_stats();
-	}
-
-	return $update;
+	return $orders->update_item( $order_id, $data );
 }
 
 /**
@@ -646,6 +634,7 @@ function edd_build_order( $order_data = array() ) {
 
 	// Bail if no order data passed.
 	if ( empty( $order_data ) ) {
+		edd_debug_log( 'No order data passed to edd_build_order' );
 		return false;
 	}
 
@@ -663,44 +652,53 @@ function edd_build_order( $order_data = array() ) {
 			$transaction_id = $order->get_transaction_id();
 
 			if ( in_array( $order->status, $recoverable_statuses, true ) && empty( $transaction_id ) ) {
-				$payment      = edd_get_payment( $existing_order );
 				$resume_order = true;
 			}
 		}
 	}
 
 	if ( $resume_order ) {
-		$payment->date = date( 'Y-m-d G:i:s', current_time( 'timestamp' ) );
-
-		$payment->add_note( __( 'Payment recovery processed', 'easy-digital-downloads' ) );
+		edd_add_note(
+			array(
+				'object_id'   => $order->id,
+				'object_type' => 'order',
+				'user_id'     => is_admin() ? get_current_user_id() : 0,
+				'content'     => __( 'Payment recovery processed', 'easy-digital-downloads' ),
+			)
+		);
 
 		// Since things could have been added/removed since we first crated this...rebuild the cart details.
-		foreach ( $payment->fees as $fee_index => $fee ) {
-			$payment->remove_fee_by( 'index', $fee_index, true );
+		foreach ( $order->get_items() as $item ) {
+			$adjustments = $item->adjustments;
+			if ( ! empty( $adjustments ) ) {
+				foreach ( $adjustments as $adjustment ) {
+					edd_delete_order_adjustment( $adjustment->id );
+				}
+			}
+			edd_delete_order_item( $item->id );
 		}
 
-		foreach ( $payment->downloads as $cart_index => $download ) {
-			$item_args = array(
-				'quantity'   => isset( $download['quantity'] ) ? $download['quantity'] : 1,
-				'cart_index' => $cart_index,
-			);
-			$payment->remove_download( $download['id'], $item_args );
+		// Remove any remainders of possible fees and discounts from the order.
+		foreach ( $order->get_adjustments() as $adjustment ) {
+			edd_delete_order_adjustment( $adjustment->id );
 		}
 
-		if ( strtolower( $payment->email ) !== strtolower( $order_data['user_info']['email'] ) ) {
+		if ( strtolower( $order->email ) !== strtolower( $order_data['user_info']['email'] ) ) {
 
 			// Remove the payment from the previous customer.
-			$previous_customer = new EDD_Customer( $payment->customer_id );
-			$previous_customer->remove_payment( $payment->ID, false );
+			$previous_customer = new EDD_Customer( $order->customer_id );
+			$previous_customer->remove_payment( $order->id, false );
 
 			// Redefine the email first and last names.
-			$payment->email      = $order_data['user_info']['email'];
-			$payment->first_name = $order_data['user_info']['first_name'];
-			$payment->last_name  = $order_data['user_info']['last_name'];
+			edd_update_order(
+				$order->id,
+				array(
+					'email'      => $order_data['user_info']['email'],
+					'first_name' => $order_data['user_info']['first_name'],
+					'last_name'  => $order_data['user_info']['last_name'],
+				)
+			);
 		}
-
-		// Remove any remainders of possible fees from items.
-		$payment->save();
 	}
 
 	/** Setup order information ***********************************************/
@@ -722,15 +720,14 @@ function edd_build_order( $order_data = array() ) {
 	// Build order information based on data passed from the gateway.
 	$order_args = array(
 		'parent'       => ! empty( $order_data['parent'] ) ? absint( $order_data['parent'] ) : '',
-		'order_number' => '',
 		'status'       => ! empty( $order_data['status'] ) ? $order_data['status'] : 'pending',
-		'user_id'      => $order_data['user_info']['id'],
+		'user_id'      => ! empty( $order_data['user_info']['id'] ) ? $order_data['user_info']['id'] : 0,
 		'email'        => $order_data['user_info']['email'],
 		'ip'           => edd_get_ip(),
 		'gateway'      => $gateway,
 		'mode'         => edd_is_test_mode() ? 'test' : 'live',
 		'currency'     => ! empty( $order_data['currency'] ) ? $order_data['currency'] : edd_get_currency(),
-		'payment_key'  => $order_data['purchase_key'],
+		'payment_key'  => ! empty( $order_data['purchase_key'] ) ? $order_data['purchase_key'] : edd_generate_order_payment_key( $order_data['user_info']['email'] ),
 		'date_created' => ! empty( $order_data['date_created'] ) ? $order_data['date_created'] : '',
 	);
 
@@ -800,9 +797,21 @@ function edd_build_order( $order_data = array() ) {
 	/** Insert order **********************************************************/
 
 	// Add order into the edd_orders table.
-	$order_id = true === $resume_order
-		? $payment->ID
-		: edd_add_order( $order_args );
+	if ( true === $resume_order ) {
+		$order_id = $order->id;
+		unset( $order_args['date_created'] );
+		edd_update_order( $order_id, $order_args );
+	} else {
+		$order_args['order_number'] = edd_set_order_number();
+		$order_id                   = edd_add_order( $order_args );
+	}
+
+	// If there is no order ID at this point, something went wrong.
+	if ( empty( $order_id ) ) {
+		edd_debug_log( 'Failed to create order. Order data: ' . var_export( $order_args, true ) );
+		return false;
+	}
+	EDD()->session->set( 'edd_resume_payment', $order_id );
 
 	// Attach order to the customer record.
 	$customer->attach_payment( $order_id, false );
@@ -829,9 +838,17 @@ function edd_build_order( $order_data = array() ) {
 		'state'   => '',
 	) );
 
+	$name = '';
+	if ( ! empty( $order_data['user_info']['first_name'] ) ) {
+		$name = $order_data['user_info']['first_name'];
+	}
+	if ( ! empty( $order_data['user_info']['last_name'] ) ) {
+		$name .= ' ' . $order_data['user_info']['last_name'];
+	}
+
 	$order_address_data = array(
 		'order_id'    => $order_id,
-		'name'        => $order_data['user_info']['first_name'] . ' ' . $order_data['user_info']['last_name'],
+		'name'        => $name,
 		'address'     => $order_data['user_info']['address']['line1'],
 		'address2'    => $order_data['user_info']['address']['line2'],
 		'city'        => $order_data['user_info']['address']['city'],
@@ -860,7 +877,7 @@ function edd_build_order( $order_data = array() ) {
 
 	$decimal_filter = edd_currency_decimal_filter();
 
-	if ( is_array( $order_data['cart_details'] ) && ! empty( $order_data['cart_details'] ) ) {
+	if ( ! empty( $order_data['cart_details'] ) && is_array( $order_data['cart_details'] ) ) {
 
 		foreach ( $order_data['cart_details'] as $key => $item ) {
 
@@ -1003,17 +1020,20 @@ function edd_build_order( $order_data = array() ) {
 				foreach ( $item['fees'] as $fee_id => $fee ) {
 
 					$adjustment_subtotal = floatval( $fee['amount'] );
-					$tax_rate_amount     = empty( $tax_rate->amount ) ? false : $tax_rate->amount;
-					$tax                 = EDD()->fees->get_calculated_tax( $fee, $tax_rate_amount );
-					$adjustment_total    = floatval( $fee['amount'] ) + $tax;
-					$adjustment_data     = array(
+					$adjustment_total    = floatval( $fee['amount'] );
+					$adjustment_tax      = 0;
+					if ( ! empty( $tax_rate->amount ) && empty( $fee['no_tax'] ) ) {
+						$adjustment_tax   = EDD()->fees->get_calculated_tax( $fee, $tax_rate->amount );
+						$adjustment_total = floatval( $fee['amount'] ) + $adjustment_tax;
+					}
+					$adjustment_data = array(
 						'object_id'   => $order_item_id,
 						'object_type' => 'order_item',
 						'type_key'    => $fee_id,
 						'type'        => 'fee',
 						'description' => $fee['label'],
 						'subtotal'    => $adjustment_subtotal,
-						'tax'         => $tax,
+						'tax'         => $adjustment_tax,
 						'total'       => $adjustment_total,
 					);
 
@@ -1022,6 +1042,8 @@ function edd_build_order( $order_data = array() ) {
 
 					$total_fees += $adjustment_data['subtotal'];
 					$total_tax  += $adjustment_data['tax'];
+
+					edd_add_extra_fee_order_adjustment_meta( $adjustment_id, $fee );
 				}
 			}
 
@@ -1050,10 +1072,13 @@ function edd_build_order( $order_data = array() ) {
 
 			add_filter( 'edd_prices_include_tax', '__return_false' );
 
-			$fee_subtotal    = floatval( $fee['amount'] );
-			$tax_rate_amount = empty( $tax_rate->amount ) ? false : $tax_rate->amount;
-			$tax             = EDD()->fees->get_calculated_tax( $fee, $tax_rate_amount );
-			$fee_total       = floatval( $fee['amount'] ) + $tax;
+			$fee_subtotal = floatval( $fee['amount'] );
+			$fee_total    = floatval( $fee['amount'] );
+			$fee_tax      = 0;
+			if ( ! empty( $tax_rate->amount ) && empty( $fee['no_tax'] ) ) {
+				$fee_tax   = EDD()->fees->get_calculated_tax( $fee, $tax_rate->amount );
+				$fee_total = floatval( $fee['amount'] ) + $fee_tax;
+			}
 
 			remove_filter( 'edd_prices_include_tax', '__return_false' );
 
@@ -1064,7 +1089,7 @@ function edd_build_order( $order_data = array() ) {
 				'type'        => 'fee',
 				'description' => $fee['label'],
 				'subtotal'    => $fee_subtotal,
-				'tax'         => $tax,
+				'tax'         => $fee_tax,
 				'total'       => $fee_total,
 			);
 
@@ -1072,7 +1097,9 @@ function edd_build_order( $order_data = array() ) {
 			$adjustment_id = edd_add_order_adjustment( $args );
 
 			$total_fees += (float) $fee['amount'];
-			$total_tax  += $tax;
+			$total_tax  += $fee_tax;
+
+			edd_add_extra_fee_order_adjustment_meta( $adjustment_id, $fee );
 		}
 	}
 
@@ -1138,18 +1165,8 @@ function edd_build_order( $order_data = array() ) {
 		}
 	}
 
-	// Setup order number.
-	if ( edd_get_option( 'enable_sequential' ) ) {
-		$number = edd_get_next_payment_number();
-
-		$order_args['order_number'] = edd_format_payment_number( $number );
-
-		update_option( 'edd_last_payment_number', $number );
-	}
-
 	// Update the order with all of the newly computed values.
 	edd_update_order( $order_id, array(
-		'order_number' => $order_args['order_number'],
 		'subtotal'     => $subtotal,
 		'tax'          => $total_tax,
 		'discount'     => $total_discount,
@@ -1369,4 +1386,16 @@ function edd_generate_order_payment_key( $key ) {
 	 * @return string
 	 */
 	return apply_filters( 'edd_generate_order_payment_key', $payment_key, $key );
+}
+
+/**
+ * Helper function to get and maybe update the order number.
+ *
+ * @since 3.1.1.2
+ * @return string
+ */
+function edd_set_order_number() {
+	$order_number = new EDD\Orders\Number();
+
+	return $order_number->apply();
 }

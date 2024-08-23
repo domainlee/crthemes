@@ -52,21 +52,8 @@ function edd_add_customer( $data = array() ) {
 	}
 
 	$customers  = new EDD\Database\Queries\Customer();
-	$customer_id = $customers->add_item( $data );
 
-	if ( ! empty( $customer_id ) ) {
-		/**
-		 * Action that runs when a customer is added with the edd_add_customer function.
-		 *
-		 * @since 3.0.4
-		 *
-		 * @param int          $customer_id Customer ID added.
-		 * @param array        $data        Array of arguments sent to create the customer with.
-		 */
-		do_action( 'edd_customer_added', $customer_id, $data );
-	}
-
-	return $customer_id;
+	return $customers->add_item( $data );
 }
 
 /**
@@ -80,20 +67,7 @@ function edd_add_customer( $data = array() ) {
 function edd_delete_customer( $customer_id = 0 ) {
 	$customers = new EDD\Database\Queries\Customer();
 
-	$customer_deleted = $customers->delete_item( $customer_id );
-
-	if ( ! empty( $customer_deleted ) ) {
-		/**
-		 * Action that runs when a customer is deleted with the edd_delete_customer function.
-		 *
-		 * @since 3.0.4
-		 *
-		 * @param int          $customer_id Customer ID being deleted.
-		 */
-		do_action( 'edd_customer_deleted', $customer_id );
-	}
-
-	return $customer_deleted;
+	return $customers->delete_item( $customer_id );
 }
 
 /**
@@ -187,25 +161,13 @@ function edd_destroy_customer( $customer_id = 0 ) {
  * @return int|false Number of rows updated if successful, false otherwise.
  */
 function edd_update_customer( $customer_id = 0, $data = array() ) {
-	$customers = new EDD\Database\Queries\Customer();
-
-	$previous_customer_data = edd_get_customer( $customer_id );
-	$customer_updated       = $customers->update_item( $customer_id, $data );
-
-	if ( ! empty( $customer_updated ) ) {
-		/**
-		 * Action that runs when a customer is updated with the edd_update_customer function.
-		 *
-		 * @since 3.0.4
-		 *
-		 * @param int          $customer_id            Customer ID updated.
-		 * @param array        $data                   Array of arguments sent to create the customer with.
-		 * @param EDD_Customer $previous_customer_data The customer row before it was updated.
-		 */
-		do_action( 'edd_customer_updated', $customer_id, $data, $previous_customer_data );
+	if ( isset( $data['email'] ) && empty( $data['email'] ) ) {
+		return false;
 	}
 
-	return $customer_updated;
+	$customers = new EDD\Database\Queries\Customer();
+
+	return $customers->update_item( $customer_id, $data );
 }
 
 /**
@@ -260,12 +222,33 @@ function edd_get_customer_by( $field = '', $value = '' ) {
 		$customer_emails = new EDD\Database\Queries\Customer_Email_Address();
 		$customer_email  = $customer_emails->get_item_by( 'email', $value );
 
+		if ( empty( $customer_email ) ) {
+			$customer = $customers->get_item_by( 'email', $value );
+
+			if ( ! empty( $customer ) ) {
+				$customer_has_primary = edd_count_customer_email_addresses(
+					array(
+						'customer_id' => $customer->id,
+						'type'        => 'primary',
+					)
+				);
+				$email_address_id     = edd_add_customer_email_address(
+					array(
+						'customer_id' => $customer->id,
+						'email'       => $value,
+						'type'        => $customer_has_primary ? 'secondary' : 'primary',
+					)
+				);
+				$customer_email       = $customer_emails->get_item( $email_address_id );
+			}
+		}
+
 		$customer = false;
 		if ( ! empty( $customer_email->customer_id ) ) {
-			$customer  = $customers->get_item_by( 'id', $customer_email->customer_id );
+			$customer = $customers->get_item_by( 'id', $customer_email->customer_id );
 		}
 	} else {
-		$customer  = $customers->get_item_by( $field, $value );
+		$customer = $customers->get_item_by( $field, $value );
 	}
 
 	/**

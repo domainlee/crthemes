@@ -78,6 +78,14 @@ class EDD_Batch_Import {
 	public $field_mapping = array();
 
 	/**
+	 * Is the import done?
+	 *
+	 * @since 2.6
+	 * @var bool
+	 */
+	public $done = false;
+
+	/**
 	 * Get things started
 	 *
 	 * @param $_step int The step to process
@@ -85,13 +93,22 @@ class EDD_Batch_Import {
 	 */
 	public function __construct( $_file = '', $_step = 1 ) {
 
-		$this->step  = $_step;
-		$this->file  = $_file;
-		$this->done  = false;
-		$this->csv   = $this->get_csv_file( $this->file );
+		$this->step = $_step;
+		if ( ! empty( $_file ) ) {
+			$this->set_up_csv( $_file );
+		}
+	}
+
+	/**
+	 * Sets up the CSV file for importing.
+	 *
+	 * @param [type] $file
+	 * @return void
+	 */
+	public function set_up_csv( $file ) {
+		$this->csv   = $this->get_csv_file( $file );
 		$this->total = count( $this->csv );
 		$this->init();
-
 	}
 
 	/**
@@ -121,7 +138,8 @@ class EDD_Batch_Import {
 	 * @return array
 	 */
 	public function get_csv_file( $file ) {
-		$csv = array_map( 'str_getcsv', file( $this->file ) );
+		$this->file = $file;
+		$csv        = array_map( 'str_getcsv', file( $file ) );
 		array_walk(
 			$csv,
 			function ( &$a ) use ( $csv ) {

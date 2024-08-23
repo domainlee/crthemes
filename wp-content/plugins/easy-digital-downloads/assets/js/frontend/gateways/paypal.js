@@ -102,8 +102,59 @@ var EDD_PayPal = {
 		var nonceEl = form.querySelector( 'input[name="edd_process_paypal_nonce"]' );
 		var tokenEl = form.querySelector( 'input[name="edd-process-paypal-token"]' );
 		var createFunc = ( 'subscription' === eddPayPalVars.intent ) ? 'createSubscription' : 'createOrder';
+		var requiredInputs = form.querySelectorAll( '[required]' );
 
 		var buttonArgs = {
+			onInit: function ( data, actions ) {
+				actions.disable();
+				if ( form.checkValidity() ) {
+					actions.enable();
+				}
+				requiredInputs.forEach( function ( element ) {
+					element.addEventListener( 'change', function ( e ) {
+						if ( form.checkValidity() ) {
+							actions.enable();
+						} else {
+							actions.disable();
+						}
+					} );
+				} );
+			},
+			onClick: function ( data, actions ) {
+				if ( ! form.reportValidity() ) {
+					return false;
+				}
+
+				spinner.style.display = 'block';
+
+				// Clear errors at the start of each attempt.
+				if ( errorWrapper ) {
+					errorWrapper.innerHTML = '';
+				}
+
+				// Submit the form via AJAX.
+				return fetch( edd_scripts.ajaxurl, {
+					method: 'POST',
+					body: new FormData( form )
+				} ).then( function ( response ) {
+					return response.json();
+				} ).then( function ( response ) {
+					if ( ! response.success ) {
+						// Error message.
+						var errorHtml = eddPayPalVars.defaultError;
+						if ( response.data && 'string' === typeof response.data ) {
+							errorHtml = response.data;
+						} else if ( 'string' === typeof response ) {
+							errorHtml = response;
+						}
+
+						spinner.style.display = 'none';
+						EDD_PayPal.setErrorHtml( errorWrapper, context, errorHtml );
+
+						return false;
+					}
+				} );
+			},
 			onApprove: function( data, actions ) {
 				var formData = new FormData();
 				formData.append( 'action', eddPayPalVars.approvalAction );
@@ -145,7 +196,6 @@ var EDD_PayPal = {
 				// Hide spinner.
 				spinner.style.display = 'none';
 
-				error.name = '';
 				EDD_PayPal.setErrorHtml( container, context, error );
 			},
 			onCancel: function( data ) {
@@ -251,6 +301,10 @@ jQuery( document.body ).on( 'edd_gateway_loaded', function( e, gateway ) {
  * Initialize Buy Now buttons.
  */
 jQuery( document ).ready( function( $ ) {
+	EDDPayPalBuyNowbuttons();
+} );
+
+export function EDDPayPalBuyNowbuttons() {
 	var buyButtons = document.querySelectorAll( '.edd-paypal-checkout-buy-now' );
 	for ( var i = 0; i < buyButtons.length; i++ ) {
 		var element = buyButtons[ i ];
@@ -261,6 +315,12 @@ jQuery( document ).ready( function( $ ) {
 
 		var wrapper = element.closest( '.edd_purchase_submit_wrapper' );
 		if ( ! wrapper ) {
+			continue;
+		}
+
+		// Find the closest input with a class of edd_action_input and get it's value.
+		var edd_input_action = element.closest( 'form' ).querySelector( '.edd_action_input' ).value;
+		if ( 'add_to_cart' === edd_input_action ) {
 			continue;
 		}
 
@@ -281,4 +341,4 @@ jQuery( document ).ready( function( $ ) {
 		// Initialize button.
 		EDD_PayPal.initButtons( wrapper, 'buy_now' );
 	}
-} );
+}

@@ -191,9 +191,21 @@ function get_reports() {
  * @return string The active report, or the 'overview' report if no view defined
  */
 function get_current_report() {
+	/**
+	 * Filters the default report view.
+	 *
+	 * Due to the reports being registered later on, we cannot validate this, however, the reports do gracefully fail
+	 * and redirect the user back to the `overview` report if someone supplies a bad value in the filter.
+	 *
+	 * @since 3.3.0
+	 *
+	 * @param string $default_report_view The default report view.
+	 */
+	$default_report_view = apply_filters( 'edd_default_report_view', 'overview' );
+
 	return isset( $_REQUEST['view'] )
 		? sanitize_key( $_REQUEST['view'] )
-		: 'overview'; // Hardcoded default
+		: $default_report_view;
 }
 
 /** Endpoints *****************************************************************/
@@ -391,22 +403,55 @@ function get_filter_value( $filter ) {
 	switch ( $filter ) {
 		// Handle dates.
 		case 'dates':
+			/**
+			 * Default date range.
+			 *
+			 * @since 3.3.0
+			 *
+			 * @param string $default_range Default date range.
+			 */
+			$default_range = apply_filters( 'edd_reports_default_date_range', 'this_month' );
+
+			// If the default range is not valid, default to 'this_month'.
+			if ( ! array_key_exists( $default_range, get_dates_filter_options() ) ) {
+				$default_range = 'this_month';
+			}
+
+			/**
+			 * Default relative date range.
+			 *
+			 * @since 3.3.0
+			 *
+			 * @param string $default_relative_range Default relative date range.
+			 */
+			$default_relative_range = apply_filters( 'edd_reports_default_relative_date_range', 'previous_period' );
+
+			// If the default relative range is not valid, default to 'previous_period'.
+			if ( ! array_key_exists( $default_relative_range, get_relative_dates_filter_options() ) ) {
+				$default_relative_range = 'previous_period';
+			}
+
 			if ( ! isset( $_GET['range'] ) ) {
-				$default = 'this_month';
-				$dates   = parse_dates_for_range( $default );
+				$dates   = parse_dates_for_range( $default_range );
 				$value   = array(
-					'range' => $default,
-					'from'  => $dates['start']->format( 'Y-m-d' ),
-					'to'    => $dates['end']->format( 'Y-m-d' ),
+					'range'          => $default_range,
+					'relative_range' => $default_relative_range,
+					'from'           => $dates['start']->format( 'Y-m-d' ),
+					'to'             => $dates['end']->format( 'Y-m-d' ),
 				);
 			} else {
 				$value = array(
-					'range' => sanitize_text_field( $_GET[ 'range' ] ),
-					'from'  => isset( $_GET['filter_from'] )
-						? sanitize_text_field( $_GET[ 'filter_from'] )
+					'range' => isset( $_GET['range'] )
+						? sanitize_text_field( $_GET['range'] )
+						: $default_range,
+					'relative_range' => isset( $_GET['relative_range'] )
+						? sanitize_text_field( $_GET['relative_range'] )
+						: $default_relative_range,
+					'from' => isset( $_GET['filter_from'] )
+						? sanitize_text_field( $_GET['filter_from'] )
 						: '',
-					'to'    => isset( $_GET['filter_to'] )
-						? sanitize_text_field( $_GET[ 'filter_to'] )
+					'to'   => isset( $_GET['filter_to'] )
+						? sanitize_text_field( $_GET['filter_to'] )
 						: ''
 				);
 			}
@@ -453,6 +498,7 @@ function get_filter_value( $filter ) {
 function get_persisted_filters() {
 	$filters = array(
 		'range',
+		'relative_range',
 		'filter_from',
 		'filter_to',
 		'exclude_taxes',
@@ -488,11 +534,11 @@ function get_dates_filter_options() {
 			'this_week'    => __( 'This Week', 'easy-digital-downloads' ),
 			'last_week'    => __( 'Last Week', 'easy-digital-downloads' ),
 			'last_30_days' => __( 'Last 30 Days', 'easy-digital-downloads' ),
-			'this_month'   => __( 'This Month', 'easy-digital-downloads' ),
+			'this_month'   => __( 'Month to Date', 'easy-digital-downloads' ),
 			'last_month'   => __( 'Last Month', 'easy-digital-downloads' ),
-			'this_quarter' => __( 'This Quarter', 'easy-digital-downloads' ),
+			'this_quarter' => __( 'Quarter to Date', 'easy-digital-downloads' ),
 			'last_quarter' => __( 'Last Quarter', 'easy-digital-downloads' ),
-			'this_year'    => __( 'This Year', 'easy-digital-downloads' ),
+			'this_year'    => __( 'Year to Date', 'easy-digital-downloads' ),
 			'last_year'    => __( 'Last Year', 'easy-digital-downloads' ),
 		);
 	}
@@ -505,6 +551,63 @@ function get_dates_filter_options() {
 	 * @param array $date_options Date filter options.
 	 */
 	return apply_filters( 'edd_report_date_options', $options );
+}
+
+
+/**
+ * Retrieves the default relative range key for a specific range.
+ *
+ * @since 3.1
+ *
+ * @return string Relative date range key.
+ */
+function get_default_relative_range( $range ) {
+
+	switch ( $range ) {
+		case 'this_month':
+		case 'last_month':
+			$relative_range = 'previous_month';
+			break;
+
+		case 'this_quarter':
+		case 'last_quarter':
+			$relative_range = 'previous_quarter';
+			break;
+
+		case 'this_year':
+		case 'last_year':
+			$relative_range = 'previous_year';
+			break;
+
+		default:
+			$relative_range = 'previous_period';
+			break;
+	}
+
+	return $relative_range;
+}
+
+
+/**
+ * Retrieves key/label pairs of relative date filter options for use in a drop-down.
+ *
+ * @since 3.1
+ *
+ * @return array Key/label pairs of relative date filter options.
+ */
+function get_relative_dates_filter_options() {
+	static $options = null;
+
+	if ( is_null( $options ) ) {
+		$options = array(
+			'previous_period'  => __( 'Previous period', 'easy-digital-downloads' ),
+			'previous_month'   => __( 'Previous month', 'easy-digital-downloads' ),
+			'previous_quarter' => __( 'Previous quarter', 'easy-digital-downloads' ),
+			'previous_year'    => __( 'Previous year', 'easy-digital-downloads' ),
+		);
+	}
+
+	return $options;
 }
 
 /**
@@ -570,7 +673,7 @@ function get_dates_filter( $values = 'strings', $timezone = null ) {
 function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = true ) {
 
 	// Set the time ranges in the user's timezone, so they ultimately see them in their own timezone.
-	$date = EDD()->utils->date( $date, edd_get_timezone_id(), false );
+	$date = EDD()->utils->date( $date, null, true );
 
 	if ( null === $range || ! array_key_exists( $range, get_dates_filter_options() ) ) {
 		$range = get_dates_filter_range();
@@ -581,7 +684,7 @@ function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = 
 		case 'this_month':
 			$dates = array(
 				'start' => $date->copy()->startOfMonth(),
-				'end'   => $date->copy()->endOfMonth(),
+				'end'   => $date->copy()->endOfDay(),
 			);
 			break;
 
@@ -609,7 +712,7 @@ function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = 
 		case 'this_week':
 			$dates = array(
 				'start' => $date->copy()->startOfWeek(),
-				'end'   => $date->copy()->endOfWeek(),
+				'end'   => $date->copy()->endOfDay(),
 			);
 			break;
 
@@ -630,7 +733,7 @@ function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = 
 		case 'this_quarter':
 			$dates = array(
 				'start' => $date->copy()->startOfQuarter(),
-				'end'   => $date->copy()->endOfQuarter(),
+				'end'   => $date->copy()->endOfDay(),
 			);
 			break;
 
@@ -644,7 +747,7 @@ function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = 
 		case 'this_year':
 			$dates = array(
 				'start' => $date->copy()->startOfYear(),
-				'end'   => $date->copy()->endOfYear(),
+				'end'   => $date->copy()->endOfDay(),
 			);
 			break;
 
@@ -667,8 +770,72 @@ function parse_dates_for_range( $range = null, $date = 'now', $convert_to_utc = 
 			}
 
 			$dates = array(
-				'start' => EDD()->utils->date( $start, edd_get_timezone_id(), false )->startOfDay(),
-				'end'   => EDD()->utils->date( $end, edd_get_timezone_id(), false )->endOfDay(),
+				'start' => EDD()->utils->date( $start )->startOfDay(),
+				'end'   => EDD()->utils->date( $end )->endOfDay(),
+			);
+			break;
+	}
+
+	if ( $convert_to_utc ) {
+		// Convert the values to the UTC equivalent so that we can query the database using UTC.
+		$dates['start'] = edd_get_utc_equivalent_date( $dates['start'] );
+		$dates['end']   = edd_get_utc_equivalent_date( $dates['end'] );
+	}
+
+	$dates['range'] = $range;
+
+	return $dates;
+}
+
+/**
+ * Parses relative start and end dates for the given range.
+ *
+ * @since 3.1
+ *
+ * @param string          $range          Optional. Range value to generate start and end dates for against `$date`.
+ * @param string          $relative_range Optional. Range value to generate relative start and end dates for against `$date`.
+ *                                        Default is the current range as derived from the session.
+ * @param string          $date           Date string converted to `\EDD\Utils\Date` to anchor calculations to.
+ * @param bool            $convert_to_utc Optional. If we should convert the results to UTC for Database Queries
+ * @return \EDD\Utils\Date[] Array of start and end date objects.
+ */
+function parse_relative_dates_for_range( $range = null, $relative_range = null, $date = 'now', $convert_to_utc = true ) {
+
+
+	if ( null === $range || ! array_key_exists( $range, get_dates_filter_options() ) ) {
+		$range = get_dates_filter_range();
+	}
+
+	if ( null === $relative_range || ! array_key_exists( $relative_range, get_relative_dates_filter_options() ) ) {
+		$relative_range = get_relative_dates_filter_range();
+	}
+
+	$dates = parse_dates_for_range( $range, $date, false );
+
+	switch ( $relative_range ) {
+		case 'previous_period':
+			$days_diff = $dates['start']->copy()->diffInDays( $dates['end'], true ) + 1;
+			$dates     = array(
+				'start' => $dates['start']->copy()->subDays( $days_diff ),
+				'end'   => $dates['end']->copy()->subDays( $days_diff ),
+			);
+			break;
+		case 'previous_month':
+			$dates = array(
+				'start' => $dates['start']->copy()->subMonth( 1 ),
+				'end'   => $dates['end']->copy()->subMonthNoOverflow( 1 ),
+			);
+			break;
+		case 'previous_quarter':
+			$dates = array(
+				'start' => $dates['start']->copy()->subQuarter( 1 ),
+				'end'   => $dates['end']->copy()->subQuarter( 1 ),
+			);
+			break;
+		case 'previous_year':
+			$dates = array(
+				'start' => $dates['start']->copy()->subYear( 1 ),
+				'end'   => $dates['end']->copy()->subYear( 1 ),
 			);
 			break;
 	}
@@ -722,6 +889,44 @@ function get_dates_filter_range() {
 	return apply_filters( 'edd_get_dates_filter_range', $range, $dates );
 }
 
+
+/**
+ * Retrieves the date filter for relative range.
+ *
+ * @since 3.1
+ *
+ * @return string Date filter range.
+ */
+function get_relative_dates_filter_range() {
+
+	$dates = get_filter_value( 'dates' );
+
+	if ( isset( $dates['relative_range'] ) ) {
+		$relative_range = sanitize_key( $dates['relative_range'] );
+	} else {
+
+		/**
+		 * Filters the report dates default range.
+		 *
+		 * @since 3.1
+		 *
+		 * @param string $range Relative daate range as derived from the session. Default 'previous_period'
+		 * @param array  $dates Dates filter data array.
+		 */
+		$relative_range = apply_filters( 'edd_get_report_dates_default_relative_range', 'previous_period', $dates );
+	}
+
+	/**
+	 * Filters the dates filter range.
+	 *
+	 * @since 3.1
+	 *
+	 * @param string $range Dates filter relative range.
+	 * @param array  $dates Dates filter data array.
+	 */
+	return apply_filters( 'edd_get_dates_filter_relative_range', $relative_range, $dates );
+}
+
 /**
  * Determines whether results should be displayed hour by hour, or not.
  *
@@ -732,15 +937,19 @@ function get_dates_filter_range() {
 function get_dates_filter_hour_by_hour() {
 	$hour_by_hour = false;
 
-	// Retrieve the queried dates
+	// Retrieve the queried dates.
 	$dates = get_dates_filter( 'objects' );
 
-	// Determine graph options
+	// Determine graph options.
 	switch ( $dates['range'] ) {
 		case 'today':
 		case 'yesterday':
 			$hour_by_hour = true;
 			break;
+		case 'this_week':
+		case 'this_month':
+		case 'this_quarter':
+		case 'this_year':
 		case 'other':
 			$difference = ( $dates['end']->getTimestamp() - $dates['start']->getTimestamp() );
 			if ( $difference <= ( DAY_IN_SECONDS * 2 ) ) {
@@ -792,11 +1001,63 @@ function get_dates_filter_day_by_day() {
 }
 
 /**
+ * Gets the period for a graph.
+ *
+ * @since 3.1.1.4
+ * @return string
+ */
+function get_graph_period() {
+	if ( get_dates_filter_hour_by_hour() ) {
+		return 'hour';
+	}
+	if ( get_dates_filter_day_by_day() ) {
+		return 'day';
+	}
+
+	return 'month';
+}
+
+/**
+ * Gets the SQL clauses.
+ * The result of this function should be run through $wpdb->prepare().
+ *
+ * @since 3.1.1.4
+ * @param string $period The period for the query.
+ * @param string $column The column to query.
+ * @return array
+ */
+function get_sql_clauses( $period, $column = 'date_created' ) {
+
+	// Get the date for the query.
+	$converted_date = get_column_conversion( $column );
+
+	switch ( $period ) {
+		case 'hour':
+			$date_format = '%%Y-%%m-%%d %%H:00:00';
+			break;
+		case 'day':
+			$date_format = '%%Y-%%m-%%d';
+			break;
+		default:
+			$date_format = '%%Y-%%m';
+			break;
+	}
+
+	return array(
+		'select'  => "DATE_FORMAT({$converted_date}, \"{$date_format}\") AS date",
+		'where'   => '',
+		'groupby' => 'date',
+		'orderby' => 'date',
+	);
+}
+
+/**
  * Given a function and column, make a timezone converted groupby query.
  *
  * @since 3.0
  * @since 3.0.4 If MONTH is passed as the function, always add YEAR and MONTH
  *              to avoid issues with spanning multiple years.
+ * @since 3.1.1.4 This function isn't needed anymore due to using DATE_FORMAT in the select clause.
  *
  * @param string $function The function to run the value through, like DATE, HOUR, MONTH.
  * @param string $column   The column to group by.
@@ -804,35 +1065,13 @@ function get_dates_filter_day_by_day() {
  * @return string
  */
 function get_groupby_date_string( $function = 'DATE', $column = 'date_created' ) {
-	$function   = strtoupper( $function );
-	$date       = EDD()->utils->date( 'now', edd_get_timezone_id(), false );
-	$gmt_offset = $date->getOffset();
+	/**
+	 * If there is no offset, the default column will be returned.
+	 * Otherwise, the column will be converted to the timezone offset.
+	 */
+	$column_conversion = get_column_conversion( $column );
 
-	if ( empty( $gmt_offset ) ) {
-
-		switch ( $function ) {
-			case 'HOUR':
-				$group_by_string = "DAY({$column}), HOUR({$column})";
-				break;
-			case 'MONTH':
-				$group_by_string = "YEAR({$column}), MONTH({$column})";
-				break;
-			default:
-				$group_by_string = "{$function}({$column})";
-				break;
-		}
-
-		return $group_by_string;
-	}
-
-	// Output the offset in the proper format.
-	$hours   = abs( floor( $gmt_offset / HOUR_IN_SECONDS ) );
-	$minutes = abs( floor( ( $gmt_offset / MINUTE_IN_SECONDS ) % MINUTE_IN_SECONDS ) );
-	$math    = ( $gmt_offset >= 0 ) ? '+' : '-';
-
-	$formatted_offset = ! empty( $minutes ) ? "{$hours}:{$minutes}" : $hours . ':00';
-
-	$column_conversion = "CONVERT_TZ({$column}, '+0:00', '{$math}{$formatted_offset}')";
+	$function = strtoupper( $function );
 	switch ( $function ) {
 		case 'HOUR':
 			$group_by_string = "DAY({$column_conversion}), HOUR({$column_conversion})";
@@ -846,6 +1085,40 @@ function get_groupby_date_string( $function = 'DATE', $column = 'date_created' )
 	}
 
 	return $group_by_string;
+}
+
+/**
+ * Get the time zone converted dates for the query.
+ *
+ * @since 3.1.1.4
+ * @param string $column
+ * @return string
+ */
+function get_column_conversion( $column = 'date_created' ) {
+	$date       = EDD()->utils->date( 'now', edd_get_timezone_id(), false );
+	$gmt_offset = $date->getOffset();
+	if ( empty( $gmt_offset ) ) {
+		return $column;
+	}
+
+	// Output the offset in the proper format.
+	$hours   = abs( floor( $gmt_offset / HOUR_IN_SECONDS ) );
+	$minutes = abs( floor( ( $gmt_offset / MINUTE_IN_SECONDS ) % MINUTE_IN_SECONDS ) );
+	$math    = ( $gmt_offset >= 0 ) ? '+' : '-';
+
+	$formatted_offset = ! empty( $minutes ) ? "{$hours}:{$minutes}" : $hours . ':00';
+
+	/**
+	 * There is a limitation here that we cannot get past due to MySQL not having timezone information.
+	 *
+	 * When a requested date group spans the DST change. For instance, a 6 month graph will have slightly
+	 * different results for each month than if you pulled each of those 6 months individually. This is because
+	 * our 'grouping' can only convert the timezone based on the current offset and that can change if the
+	 * range spans the DST break, which would have some dates be in a +/- 1 hour state.
+	 *
+	 * @see https://github.com/awesomemotive/easy-digital-downloads/pull/9449
+	 */
+	return "CONVERT_TZ({$column}, '+00:00', '{$math}{$formatted_offset}')";
 }
 
 /**
@@ -1041,7 +1314,13 @@ function default_display_charts_group( $report ) {
 	}
 	?>
 		<div class="chart-timezone">
-			<?php printf( esc_html__( 'Chart time zone: %s', 'easy-digital-downloads' ), esc_html( edd_get_timezone_id() ) ); ?>
+			<?php
+			printf(
+				/* translators: %s: Timezone ID */
+				esc_html__( 'Chart time zone: %s', 'easy-digital-downloads' ),
+				esc_html( edd_get_timezone_id() )
+			);
+			?>
 		</div>
 	</div>
 	<?php
@@ -1053,50 +1332,137 @@ function default_display_charts_group( $report ) {
  * @since 3.0
  */
 function display_dates_filter() {
-	$options = get_dates_filter_options();
-	$dates   = get_filter_value( 'dates' );
-	$range   = isset( $dates['range'] )
+	$date_format            = get_option( 'date_format' );
+	$range_options          = get_dates_filter_options();
+	$relative_range_options = get_relative_dates_filter_options();
+	$dates                  = get_filter_value( 'dates' );
+	$selected_range         = isset( $dates['range'] )
 		? $dates['range']
 		: get_dates_filter_range();
 
-	$class = ( 'other' !== $range )
+	$selected_relative_range = isset( $dates['relative_range'] )
+		? $dates['relative_range']
+		: get_relative_dates_filter_range();
+
+	$class = ( 'other' !== $selected_range )
 		? ' screen-reader-text'
 		: '';
 
-	$range = EDD()->html->select( array(
-		'name'             => 'range',
-		'class'            => 'edd-graphs-date-options',
-		'options'          => $options,
-		'variations'       => false,
-		'show_option_all'  => false,
-		'show_option_none' => false,
-		'selected'         => $range
-	) );
+	$range_select = EDD()->html->select(
+		array(
+			'name'             => 'range',
+			'class'            => 'edd-graphs-date-options',
+			'options'          => $range_options,
+			'variations'       => false,
+			'show_option_all'  => false,
+			'show_option_none' => false,
+			'selected'         => $selected_range,
+		)
+	);
+
+	$relative_range_select = EDD()->html->select(
+		array(
+			'name'             => 'relative_range',
+			'class'            => 'edd-graphs-relative-date-options',
+			'options'          => $relative_range_options,
+			'variations'       => false,
+			'show_option_all'  => false,
+			'show_option_none' => false,
+			'selected'         => $selected_relative_range,
+		)
+	);
 
 	// From.
-	$from = EDD()->html->date_field( array(
-		'id'          => 'filter_from',
-		'name'        => 'filter_from',
-		'value'       => ( empty( $dates['from'] ) || ( 'other' !== $dates['range'] ) ) ? '' : $dates['from'],
-		'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' ),
-	) );
+	$from = EDD()->html->date_field(
+		array(
+			'id'          => 'filter_from',
+			'name'        => 'filter_from',
+			'value'       => ( empty( $dates['from'] ) || ( 'other' !== $dates['range'] ) ) ? '' : $dates['from'],
+			'placeholder' => _x( 'From', 'date filter', 'easy-digital-downloads' ),
+		)
+	);
 
 	// To.
-	$to = EDD()->html->date_field( array(
-		'id'          => 'filter_to',
-		'name'        => 'filter_to',
-		'value'       => ( empty( $dates['to'] ) || ( 'other' !== $dates['range'] ) ) ? '' : $dates['to'],
-		'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' ),
-	) );
+	$to = EDD()->html->date_field(
+		array(
+			'id'          => 'filter_to',
+			'name'        => 'filter_to',
+			'value'       => ( empty( $dates['to'] ) || ( 'other' !== $dates['range'] ) ) ? '' : $dates['to'],
+			'placeholder' => _x( 'To', 'date filter', 'easy-digital-downloads' ),
+		)
+	);
 
 	// Output fields
-	?><span class="edd-date-range-picker graph-option-section"><?php
-		echo $range;
-	?></span>
+	?>
+	<div class="edd-date-range-picker graph-option-section" data-range="<?php echo esc_attr( $selected_range ); ?>">
+		<?php echo $range_select; ?>
+		<!-- DATE RANGES -->
+		<div class="edd-date-range-dates">
+			<span class="dashicons dashicons-calendar edd-date-main-icon"></span>
+			<div class="edd-date-range-selected-date">
+				<?php
+				foreach ( $range_options as $range_key => $range_name ) :
+					$range_dates          = \EDD\Reports\parse_dates_for_range( $range_key );
+					$selected_range_class = ( $selected_range !== $range_key ) ? 'hidden' : '';
+					$start_date           = edd_get_edd_timezone_equivalent_date_from_utc( $range_dates['start'] )->format( $date_format );
+					$end_date             = edd_get_edd_timezone_equivalent_date_from_utc( $range_dates['end'] )->format( $date_format );
+					$label                = $start_date;
+					if ( $start_date !== $end_date ) {
+						$label = $start_date . ' - ' . $end_date;
+					}
+					?>
+					<span class="<?php echo esc_attr( $selected_range_class ); ?>" data-range="<?php echo esc_attr( $range_key ); ?>" data-default-relative-range="<?php echo \EDD\Reports\get_default_relative_range( $range_key ); ?>"><?php echo esc_html( $label ); ?></span>
+					<?php
+				endforeach;
+				?>
+			</div>
+		</div>
+		<!-- RELATIVE DATE RANGES -->
+		<div class="edd-date-range-relative-dates">
+			<div class="hidden"><?php echo $relative_range_select; ?></div>
 
+			<?php echo esc_html__( 'compared to', 'easy-digital-downloads' ); ?>
+
+			<div class="edd-date-range-selected-relative-date">
+				<span class="edd-date-range-selected-relative-range-name"><?php echo esc_html( $relative_range_options[ $selected_relative_range ] ); ?></span>
+				<img src="<?php echo esc_url( EDD_PLUGIN_URL . '/assets/images/icons/icon-chevron-down.svg' ); ?>" class="arrow-down">
+
+				<!-- RELATIVE DATE RANGES DROPDOWN -->
+				<div class="edd-date-range-relative-dropdown">
+					<?php echo \EDD\Reports\display_relative_dates_dropdown_options( $selected_range, $selected_relative_range ); ?>
+				</div>
+			</div>
+		</div>
+	</div>
 	<span class="edd-date-range-options graph-option-section edd-from-to-wrapper<?php echo esc_attr( $class ); ?>">
 		<?php echo $from . $to; ?>
-	</span><?php
+	</span>
+	<?php
+}
+/**
+ * Handles display of the relative dates dropdown options.
+ *
+ * @since 3.1
+ */
+function display_relative_dates_dropdown_options( $range, $selected_relative_range ) {
+	$date_format            = get_option( 'date_format' );
+	$relative_range_options = get_relative_dates_filter_options();
+	?>
+	<ul data-range="<?php echo esc_attr( $range ); ?>">
+		<?php
+		foreach ( $relative_range_options as $relative_range_key => $relative_range_name ) :
+			$relative_range_dates = \EDD\Reports\parse_relative_dates_for_range( $range, $relative_range_key );
+			$selected_range_class = ( $selected_relative_range === $relative_range_key ) ? 'active' : '';
+			?>
+			<li class="<?php echo esc_attr( $selected_range_class ); ?>" data-range="<?php echo esc_attr( $relative_range_key ); ?>">
+				<span class="date-range-name"><?php echo esc_html( $relative_range_options[ $relative_range_key ] ); ?></span>
+				<span class="date-range-dates"><?php echo esc_html( edd_get_edd_timezone_equivalent_date_from_utc( $relative_range_dates['start'] )->format( $date_format ) ); ?> - <?php echo esc_html( edd_get_edd_timezone_equivalent_date_from_utc( $relative_range_dates['end'] )->format( $date_format ) ); ?></span>
+			</li>
+			<?php
+		endforeach;
+		?>
+	</ul>
+	<?php
 }
 
 /**
@@ -1166,6 +1532,7 @@ function display_discounts_filter() {
 	$d = edd_get_discounts( array(
 		'fields' => array( 'code', 'name' ),
 		'number' => 100,
+		'status' => array( 'active', 'inactive', 'expired', 'archived' ),
 	) );
 
 	$discounts = array();
@@ -1317,9 +1684,13 @@ function display_currency_filter() {
 
 	$all_currencies = array_intersect_key( edd_get_currencies(), array_flip( $order_currencies ) );
 	if ( array_key_exists( edd_get_currency(), $all_currencies ) ) {
-		$all_currencies = array_merge( array(
-			'convert' => sprintf( __( '%s - Converted', 'easy-digital-downloads' ), $all_currencies[ edd_get_currency() ] )
-		), $all_currencies );
+		$all_currencies = array_merge(
+			array(
+				/* translators: %s: Default currency of the store, in standard 3 character format (example: USD or EUR) */
+				'convert' => sprintf( __( '%s - Converted', 'easy-digital-downloads' ), $all_currencies[ edd_get_currency() ] ),
+			),
+			$all_currencies
+		);
 	}
 	?>
 	<span class="edd-graph-filter-options graph-option-section">
@@ -1445,9 +1816,16 @@ add_action( 'edd_admin_filter_bar_reports', 'EDD\Reports\filter_items' );
  * @since 3.0 Updated filter to display link next to the reports filters.
 */
 function mobile_link() {
+	$url = edd_link_helper(
+		'https://easydigitaldownloads.com/downloads/ios-app/',
+		array(
+			'utm_medium'  => 'reports',
+			'utm_content' => 'ios-app',
+		)
+	);
 	?>
 	<span class="edd-mobile-link">
-		<a href="https://easydigitaldownloads.com/downloads/ios-app/?utm_source=payments&utm_medium=mobile-link&utm_campaign=admin" target="_blank">
+		<a href="<?php echo $url; ?>" target="_blank">
 			<?php esc_html_e( 'Try the Sales/Earnings iOS App!', 'easy-digital-downloads' ); ?>
 		</a>
 	</span>
@@ -1472,4 +1850,31 @@ function compat_filter_date_range( $range ) {
 	return isset( $_REQUEST['range'] )
 		? sanitize_key( $_REQUEST['range'] )
 		: $range;
+}
+
+/**
+ * Gets a download label from a download data array.
+ *
+ * @since 3.2.8
+ * @param array $download_data
+ * @return string
+ */
+function get_download_label( $download_data = array() ) {
+	if ( empty( $download_data ) ) {
+		return '';
+	}
+	$download = edd_get_download( $download_data['download_id'] );
+	if ( ! $download ) {
+		return '';
+	}
+
+	if ( isset( $download_data['price_id'] ) && is_numeric( $download_data['price_id'] ) ) {
+		$args       = array( 'price_id' => $download_data['price_id'] );
+		$price_name = edd_get_price_name( $download->ID, $args );
+		if ( $price_name ) {
+			$download->post_title .= ': ' . $price_name;
+		}
+	}
+
+	return esc_html( ' (' . $download->post_title . ')' );
 }

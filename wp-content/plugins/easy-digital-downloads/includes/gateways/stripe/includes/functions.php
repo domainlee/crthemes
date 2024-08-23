@@ -75,17 +75,20 @@ function edds_is_gateway_active() {
 function edds_has_met_requirements( $requirement = false ) {
 	$requirements = array(
 		'php'       => (
-			version_compare( PHP_VERSION, '5.6.0', '>' )
+			version_compare( PHP_VERSION, '7.1', '>' )
 		),
 		'edd'       => (
 			defined( 'EDD_VERSION' )
-				? version_compare( EDD_VERSION, '2.8.99', '>' )
+				? version_compare( EDD_VERSION, '3.1', '>=' )
 				: true
 		),
 		'recurring' => (
 			defined( 'EDD_RECURRING_VERSION' )
 				? version_compare( EDD_RECURRING_VERSION, '2.9.99', '>' )
 				: true
+		),
+		'wp'        => (
+			version_compare( get_bloginfo( 'version' ), '5.4', '>=' )
 		),
 	);
 
@@ -108,8 +111,8 @@ function edds_has_met_requirements( $requirement = false ) {
  *
  * @param string $object Name of the Stripe object to request.
  * @param string $method Name of the API operation to perform during the request.
- * @param mixed ...$args Additional arguments to pass to the request.
- * @return \Stripe\StripeObject
+ * @param mixed  ...$args Additional arguments to pass to the request.
+ * @return \EDD\Vendor\Stripe\Stripe\StripeObject
  */
 function edds_api_request( $object, $method, $args = null ) {
 	$api = new EDD_Stripe_API();
@@ -140,10 +143,17 @@ function edds_truthy_to_bool( $truthy_value ) {
 
 /**
  * Retrieve the exsting cards setting.
+ *
  * @return bool
  */
 function edd_stripe_existing_cards_enabled() {
 	$use_existing_cards = edd_get_option( 'stripe_use_existing_cards', false );
+
+	// Payment Elements doesn't support existing cards.
+	if ( 'payment-elements' === edds_get_elements_mode() ) {
+		$use_existing_cards = false;
+	}
+
 	return ! empty( $use_existing_cards );
 }
 
@@ -184,15 +194,24 @@ function edd_stripe_get_existing_cards( $user_id = 0 ) {
 				return $customer_cards;
 			}
 
-			$payment_methods = edds_api_request( 'PaymentMethod', 'all', array(
-				'type'     => 'card',
-				'customer' => $stripe_customer->id,
-				'limit'    => 100,
-			) );
+			$payment_methods = edds_api_request(
+				'PaymentMethod',
+				'all',
+				array(
+					'type'     => 'card',
+					'customer' => $stripe_customer->id,
+					'limit'    => 100,
+				)
+			);
 
-			$cards = edds_api_request( 'Customer', 'allSources', $stripe_customer->id, array(
-				'limit' => 100,
-			)	);
+			$cards = edds_api_request(
+				'Customer',
+				'allSources',
+				$stripe_customer->id,
+				array(
+					'limit' => 100,
+				)
+			);
 
 			$sources = array_merge( $payment_methods->data, $cards->data );
 
@@ -204,7 +223,7 @@ function edd_stripe_get_existing_cards( $user_id = 0 ) {
 				$source_data     = new stdClass();
 				$source_data->id = $source->id;
 
-				switch( $source->object ) {
+				switch ( $source->object ) {
 					case 'payment_method':
 						$source_data->brand           = ucwords( $source->card->brand );
 						$source_data->last4           = $source->card->last4;
@@ -235,7 +254,7 @@ function edd_stripe_get_existing_cards( $user_id = 0 ) {
 						break;
 				}
 
-				$customer_cards[ $source->id ]['source']  = $source_data;
+				$customer_cards[ $source->id ]['source'] = $source_data;
 			}
 		} catch ( Exception $e ) {
 			return $customer_cards;
@@ -256,7 +275,7 @@ function edd_stripe_get_existing_cards( $user_id = 0 ) {
 	// Put default card first.
 	usort(
 		$customer_cards,
-		function( $a, $b ) {
+		function ( $a, $b ) {
 			return $a['default'] ? 1 : -1;
 		}
 	);
@@ -293,9 +312,9 @@ function edds_get_stripe_customer_id( $id_or_email, $by_user_id = true ) {
 		$user_id = 0;
 		if ( ! empty( $customer->user_id ) ) {
 			$user_id = $customer->user_id;
-		} else if ( $by_user_id && is_numeric( $id_or_email ) ) {
+		} elseif ( $by_user_id && is_numeric( $id_or_email ) ) {
 			$user_id = $id_or_email;
-		} else if ( is_email( $id_or_email ) ) {
+		} elseif ( is_email( $id_or_email ) ) {
 			$user = get_user_by( 'email', $id_or_email );
 			if ( $user ) {
 				$user_id = $user->ID;
@@ -316,14 +335,12 @@ function edds_get_stripe_customer_id( $id_or_email, $by_user_id = true ) {
 				// Lazy load migrating data over to the customer meta from Stripe issue #113
 				$customer->update_meta( $meta_key, $stripe_customer_id );
 			}
-
 		}
-
 	}
 
 	if ( empty( $stripe_customer_id ) && class_exists( 'EDD_Recurring_Subscriber' ) ) {
 
-		$subscriber   = new EDD_Recurring_Subscriber( $id_or_email, $by_user_id );
+		$subscriber = new EDD_Recurring_Subscriber( $id_or_email, $by_user_id );
 
 		if ( $subscriber->id > 0 ) {
 
@@ -347,13 +364,11 @@ function edds_get_stripe_customer_id( $id_or_email, $by_user_id = true ) {
 			if ( $verified ) {
 				$stripe_customer_id = $subscriber->get_recurring_customer_id( 'stripe' );
 			}
-
 		}
 
 		if ( ! empty( $stripe_customer_id ) ) {
 			$customer->update_meta( $meta_key, $stripe_customer_id );
 		}
-
 	}
 
 	return $stripe_customer_id;
@@ -369,7 +384,7 @@ function edds_get_stripe_customer_id( $id_or_email, $by_user_id = true ) {
 function edd_stripe_get_customer_key() {
 
 	$key = '_edd_stripe_customer_id';
-	if( edd_is_test_mode() ) {
+	if ( edd_is_test_mode() ) {
 		$key .= '_test';
 	}
 	return $key;
@@ -414,77 +429,15 @@ function edds_is_zero_decimal_currency( $currency = '' ) {
 }
 
 /**
- * Retrieves a sanitized statement descriptor.
- *
- * @since 2.6.19
- *
- * @return string $statement_descriptor Sanitized statement descriptor.
- */
-function edds_get_statement_descriptor() {
-	$statement_descriptor = edd_get_option( 'stripe_statement_descriptor', '' );
-	$statement_descriptor = edds_sanitize_statement_descriptor( $statement_descriptor );
-
-	return $statement_descriptor;
-}
-
-/**
- * Retrieves a list of unsupported characters for Stripe statement descriptors.
- *
- * @since 2.6.19
- *
- * @return array $unsupported_characters List of unsupported characters.
- */
-function edds_get_statement_descriptor_unsupported_characters() {
-	$unsupported_characters = array(
-		'<',
-		'>',
-		'"',
-		'\'',
-		'\\',
-		'*',
-	);
-
-	/**
-	 * Filters the list of unsupported characters for Stripe statement descriptors.
-	 *
-	 * @since 2.6.19
-	 *
-	 * @param array $unsupported_characters List of unsupported characters.
-	 */
-	$unsupported_characters = apply_filters( 'edds_get_statement_descriptor_unsupported_characters', $unsupported_characters  );
-
-	return $unsupported_characters;
-}
-
-/**
- * Sanitizes a string to be used for a statement descriptor.
- *
- * @since 2.6.19
- *
- * @link https://stripe.com/docs/connect/statement-descriptors#requirements
- *
- * @param string $statement_descriptor Statement descriptor to sanitize.
- * @return string $statement_descriptor Sanitized statement descriptor.
- */
-function edds_sanitize_statement_descriptor( $statement_descriptor ) {
-	$unsupported_characters = edds_get_statement_descriptor_unsupported_characters();
-
-	$statement_descriptor = trim( str_replace( $unsupported_characters, '', $statement_descriptor ) );
-	$statement_descriptor = substr( $statement_descriptor, 0, 22 );
-
-	return $statement_descriptor;
-}
-
-/**
  * Retrieves a given registry instance by name.
  *
  * @since 2.6.19
  *
  * @param string $name Registry name.
- * @return null|EDD_Stripe_Registry Null if the registry doesn't exist, otherwise the object instance.
+ * @return null|EDD_Stripe_Admin_Notices_Registry Null if the registry doesn't exist, otherwise the object instance.
  */
 function edds_get_registry( $name ) {
-	switch( $name ) {
+	switch ( $name ) {
 		case 'admin-notices':
 			$registry = EDD_Stripe_Admin_Notices_Registry::instance();
 			break;
@@ -508,13 +461,8 @@ function edds_get_registry( $name ) {
  * @return bool
  */
 function edds_verify_payment_form_nonce() {
-	// Checkout.
-	$nonce = isset( $_POST['edd-process-checkout-nonce'] )
-		? sanitize_text_field( $_POST['edd-process-checkout-nonce'] )
-		: '';
-
-	if ( ! empty( $nonce ) ) {
-		return wp_verify_nonce( $nonce, 'edd-process-checkout' );
+	if ( false !== edds_verify() ) {
+		return true;
 	}
 
 	// Update Payment Method.
@@ -530,6 +478,38 @@ function edds_verify_payment_form_nonce() {
 }
 
 /**
+ * Attempts to verify a given token or nonce.
+ *
+ * @since 2.8.12
+ * @param string $nonce  The nonce to check for (default is checkout).
+ * @param string $action The nonce action (default is checkout).
+ * @return bool
+ */
+function edds_verify( $nonce = 'edd-process-checkout-nonce', $action = 'edd-process-checkout' ) {
+	// Tokenizer.
+	$token     = isset( $_POST['token'] ) ? sanitize_text_field( $_POST['token'] ) : '';
+	$timestamp = isset( $_POST['timestamp'] ) ? sanitize_text_field( $_POST['timestamp'] ) : '';
+	if ( ! empty( $timestamp ) && ! empty( $token ) ) {
+		edd_debug_log( $action . ' verified by tokenizer: ' . $token );
+
+		return \EDD\Utils\Tokenizer::is_token_valid( $token, $timestamp );
+	}
+
+	edd_debug_log( 'Attempted to verify ' . $action . ' session by tokenizer but the data was missing.' );
+
+	// Checkout.
+	$nonce = isset( $_POST[ $nonce ] )
+		? sanitize_text_field( $_POST[ $nonce ] )
+		: '';
+
+	if ( empty( $nonce ) ) {
+		return false;
+	}
+
+	return wp_verify_nonce( $nonce, $action );
+}
+
+/**
  * Routes user to correct support documentation, depending on whether they are using Standard or Pro version of Stripe
  *
  * @since 2.8.1
@@ -537,7 +517,7 @@ function edds_verify_payment_form_nonce() {
  * @return string
  */
 function edds_documentation_route( $type ) {
-	$base_url = 'https://docs.easydigitaldownloads.com/standard';
+	$base_url = 'https://easydigitaldownloads.com/docs';
 
 	/**
 	 * Filter to change EDD-Stripe support url.
@@ -548,7 +528,6 @@ function edds_documentation_route( $type ) {
 	$base_url = apply_filters( 'edds_documentation_route_base', $base_url );
 
 	return trailingslashit( $base_url ) . $type;
-
 }
 
 /**
@@ -580,6 +559,8 @@ function edds_stripe_connect_account_country_supports_application_fees() {
 
 	$blocked_countries = array(
 		'br',
+		'in',
+		'mx',
 	);
 
 	return ! in_array( $account_country, $blocked_countries, true );
@@ -602,10 +583,12 @@ function edds_stripe_connect_account_country_supports_application_fees() {
 function edd_refund_stripe_purchase( $order_id_or_object, $refund_object = null ) {
 	$order_id = $order_id_or_object instanceof Order ? $order_id_or_object->id : $order_id_or_object;
 
-	edd_debug_log( sprintf(
-		'Processing Stripe refund for order #%d',
-		$order_id
-	) );
+	edd_debug_log(
+		sprintf(
+			'Processing Stripe refund for order #%d',
+			$order_id
+		)
+	);
 
 	if ( ! is_numeric( $order_id ) ) {
 		throw new \Exception( __( 'Invalid order ID.', 'easy-digital-downloads' ), 400 );
@@ -641,12 +624,14 @@ function edd_refund_stripe_purchase( $order_id_or_object, $refund_object = null 
 			$args['amount'] = round( $args['amount'] * 100, 0 );
 		}
 
-		edd_debug_log( sprintf(
-			'Processing partial Stripe refund for order #%d. Refund amount: %s; Amount sent to Stripe: %s',
-			$order_id_or_object->id,
-			edd_currency_filter( $refund_object->total, $refund_object->currency ),
-			$args['amount']
-		) );
+		edd_debug_log(
+			sprintf(
+				'Processing partial Stripe refund for order #%d. Refund amount: %s; Amount sent to Stripe: %s',
+				$order_id_or_object->id,
+				edd_currency_filter( $refund_object->total, $refund_object->currency ),
+				$args['amount']
+			)
+		);
 	} else {
 		edd_debug_log( sprintf( 'Processing full Stripe refund for order #%d.', $order_id ) );
 	}
@@ -683,23 +668,26 @@ function edd_refund_stripe_purchase( $order_id_or_object, $refund_object = null 
 
 	edd_insert_payment_note( $order_id, $order_note );
 
-	// Add a negative transaction in EDD 3.0+.
-	if ( $refund_object instanceof Order && function_exists( 'edd_add_order_transaction' ) ) {
-		edd_add_order_transaction( array(
-			'object_id'      => $refund_object->id,
-			'object_type'    => 'order',
-			'transaction_id' => sanitize_text_field( $refund->id ),
-			'gateway'        => 'stripe',
-			'status'         => 'complete',
-			'total'          => edd_negate_amount( $amount_refunded )
-		) );
+	if ( $refund_object instanceof Order ) {
+		edd_add_order_transaction(
+			array(
+				'object_id'      => $refund_object->id,
+				'object_type'    => 'order',
+				'transaction_id' => sanitize_text_field( $refund->id ),
+				'gateway'        => 'stripe',
+				'status'         => 'complete',
+				'total'          => edd_negate_amount( $amount_refunded ),
+			)
+		);
 
-		edd_add_note( array(
-			'object_id'   => $refund_object->id,
-			'object_type' => 'order',
-			'user_id'     => is_admin() ? get_current_user_id() : 0,
-			'content'     => $order_note
-		) );
+		edd_add_note(
+			array(
+				'object_id'   => $refund_object->id,
+				'object_type' => 'order',
+				'user_id'     => is_admin() ? get_current_user_id() : 0,
+				'content'     => $order_note,
+			)
+		);
 	}
 
 	/**
@@ -718,4 +706,27 @@ function edd_refund_stripe_purchase( $order_id_or_object, $refund_object = null 
  */
 function edds_is_preapprove_enabled() {
 	return edds_is_pro() && edd_get_option( 'stripe_preapprove_only' );
+}
+
+/**
+ * Gets the hidden input for adding tokenizer support to Stripe checkout.
+ *
+ * @since 2.8.12
+ * @param string $custom_id Optional: append a custom string to the ID.
+ * @return string
+ */
+function edds_get_tokenizer_input( $custom_id = '' ) {
+
+	$id = 'edd-process-stripe-token';
+	if ( $custom_id ) {
+		$id .= '-' . $custom_id;
+	}
+	$timestamp = time();
+
+	return sprintf(
+		'<input type="hidden" id="%s" data-timestamp="%s" data-token="%s" />',
+		esc_attr( $id ),
+		esc_attr( $timestamp ),
+		esc_attr( \EDD\Utils\Tokenizer::tokenize( $timestamp ) )
+	);
 }

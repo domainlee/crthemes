@@ -59,6 +59,15 @@ class Stats {
 	protected $relative_date_ranges = array();
 
 	/**
+	 * Query vars defaults.
+	 *
+	 * @since 3.0
+	 * @access protected
+	 * @var array
+	 */
+	protected $query_vars_defaults = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 3.0
@@ -147,7 +156,8 @@ class Stats {
 		$args = wp_parse_args( $args, array(
 			'column_prefix'      => '',
 			'accepted_functions' => array(),
-			'rate'               => true
+			'requested_function' => false,
+			'rate'               => true,
 		) );
 
 		$column = $this->query_vars['column'];
@@ -165,11 +175,16 @@ class Stats {
 
 		$default_function = is_array( $args['accepted_functions'] ) && isset( $args['accepted_functions'][0] ) ? $args['accepted_functions'][0] : false;
 		$function = ! empty( $this->query_vars['function'] ) ? $this->query_vars['function'] : $default_function;
+
+		if ( ! empty( $args['requested_function'] ) ) {
+			$function = $args['requested_function'];
+		}
+
 		if ( empty( $function ) ) {
 			throw new \InvalidArgumentException( 'Missing select function.' );
 		}
 
-		if ( ! empty( $args['accepted_functions'] ) && ! in_array( strtoupper( $this->query_vars['function'] ), $args['accepted_functions'], true ) ) {
+		if ( ! empty( $args['accepted_functions'] ) && ! in_array( strtoupper( $function ), $args['accepted_functions'], true ) ) {
 			if ( ! empty( $default_function ) ) {
 				$function = $default_function;
 			} else {
@@ -177,7 +192,7 @@ class Stats {
 			}
 		}
 
-		$function = $this->query_vars['function'] = strtoupper( $function );
+		$function = strtoupper( $function );
 
 		// Multiply by rate if currency conversion is enabled.
 		if (
@@ -280,6 +295,7 @@ class Stats {
 				{$this->query_vars['where_sql']}
 				{$relative_date_query_sql}";
 
+
 			$relative_result = $this->get_db()->get_row( $relative_query );
 		}
 
@@ -287,16 +303,23 @@ class Stats {
 			? 0.00
 			: (float) $initial_result->total;
 
-		if ( true === $this->query_vars['relative'] ) {
-			$total = $this->generate_relative_markup( floatval( $total ), floatval( $relative_result->total ) );
+		if ( 'array' === $this->query_vars['output'] ) {
+			$output = array(
+				'value'         => $total,
+				'relative_data' => ( true === $this->query_vars['relative'] ) ? $this->generate_relative_data( floatval( $total ), floatval( $relative_result->total ) ) : array(),
+			);
 		} else {
-			$total = $this->maybe_format( $total );
+			if ( true === $this->query_vars['relative'] ) {
+				$output = $this->generate_relative_markup( floatval( $total ), floatval( $relative_result->total ) );
+			} else {
+				$output = $this->maybe_format( $total );
+			}
 		}
 
 		// Reset query vars.
 		$this->post_query();
 
-		return $total;
+		return $output;
 	}
 
 	/**
@@ -498,6 +521,13 @@ class Stats {
 		}
 
 		$query['type'] = array( 'refund' );
+		if ( ! empty( $query['fully_refunded'] ) ) {
+			$query['where_sql'] = "AND {$this->get_db()->edd_orders}.parent IN (
+				SELECT id
+				FROM {$this->get_db()->edd_orders}
+				WHERE type = 'sale' AND status = 'refunded'
+			)";
+		}
 
 		return $this->get_order_count( $query );
 	}
@@ -543,13 +573,14 @@ class Stats {
 		// Base value for status.
 		$query['status'] = isset( $query['status'] )
 			? $query['status']
-			: array( 'refunded' );
+			: array( 'complete' );
 
-		/*
-		 * The type should be `sale` because we're querying for fully refunded order items only.
-		 * That means we look in `type` = `sale` and `status` = `refunded`.
-		 */
-		$this->query_vars['where_sql'] .= " AND {$this->get_db()->edd_orders}.type = 'sale' ";
+		// Include a query for the parent order item being refunded.
+		$query['where_sql'] = "AND {$this->get_db()->edd_order_items}.parent IN (
+			SELECT id
+			FROM {$this->get_db()->edd_order_items}
+			WHERE status = 'refunded'
+		)";
 
 		// Run pre-query checks and maybe generate SQL.
 		$this->pre_query( $query );
@@ -922,18 +953,13 @@ class Stats {
 		$this->query_vars['table']             = $this->get_db()->edd_order_items;
 		$this->query_vars['column']            = true === $this->query_vars['exclude_taxes'] ? 'total - tax' : 'total';
 		$this->query_vars['date_query_column'] = 'date_created';
-		$this->query_vars['status']            = array( 'complete' );
+		$this->query_vars['status']            = edd_get_gross_order_statuses();
 
 		// Run pre-query checks and maybe generate SQL.
 		$this->pre_query( $query );
 
-		$function = $this->get_amount_column_and_function( array(
-			'column_prefix'     => $this->query_vars['table'],
-			'accepted_functions' => array( 'SUM', 'AVG' )
-		) );
-
 		$product_id = ! empty( $this->query_vars['product_id'] )
-			? $this->get_db()->prepare( 'AND product_id = %d', absint( $this->query_vars['product_id'] ) )
+			? $this->get_db()->prepare( "AND {$this->query_vars['table']}.product_id = %d", absint( $this->query_vars['product_id'] ) )
 			: '';
 
 		$price_id = $this->generate_price_id_query_sql();
@@ -946,27 +972,119 @@ class Stats {
 			? $this->get_db()->prepare( 'AND edd_oa.country = %s', esc_sql( $this->query_vars['country'] ) )
 			: '';
 
+		$status = ! empty( $this->query_vars['status'] )
+			? " AND {$this->query_vars['table']}.status IN ('" . implode( "', '", $this->query_vars['status'] ) . "')"
+			: '';
+
 		$join = $currency = '';
 		if ( ! empty( $country ) || ! empty( $region ) ) {
 			$join .= " INNER JOIN {$this->get_db()->edd_order_addresses} edd_oa ON {$this->query_vars['table']}.order_id = edd_oa.order_id ";
 		}
+
+		$join .= " INNER JOIN {$this->get_db()->edd_orders} edd_o ON ({$this->query_vars['table']}.order_id = edd_o.id) AND edd_o.status IN ('" . implode( "', '", $this->query_vars['status'] ) . "') ";
+
 		if ( ! empty( $this->query_vars['currency'] ) && array_key_exists( strtoupper( $this->query_vars['currency'] ), edd_get_currencies() ) ) {
-			$join     .= " INNER JOIN {$this->get_db()->edd_orders} edd_o ON ({$this->query_vars['table']}.order_id = edd_o.id) ";
 			$currency = $this->get_db()->prepare( "AND edd_o.currency = %s", strtoupper( $this->query_vars['currency'] ) );
 		}
 
+		/**
+		 * The adjustments query needs a different order status check than the order items. This is due to the fact that
+		 * adjustments refunded would end up being double counted, and therefore create an inaccurate revenue report.
+		 */
+		$adjustments_join = " INNER JOIN {$this->get_db()->edd_orders} edd_o ON ({$this->query_vars['table']}.order_id = edd_o.id) AND edd_o.type = 'sale' AND edd_o.status IN ('" . implode( "', '", edd_get_net_order_statuses() ) . "') ";
+
+		/**
+		 * With the addition of including fees into the calcualtion, the order_items
+		 * and order_adjustments for the order items needs to be a SUM and then the final function
+		 * (SUM or AVG) needs to be run on the final UNION Query.
+		 */
+		$order_item_function = $this->get_amount_column_and_function( array(
+			'column_prefix'      => $this->query_vars['table'],
+			'accepted_functions' => array( 'SUM', 'AVG' ),
+			'requested_function' => 'SUM',
+		) );
+
+		$order_adjustment_function = $this->get_amount_column_and_function( array(
+			'column_prefix'      => 'oadj',
+			'accepted_functions' => array( 'SUM', 'AVG' ),
+			'requested_function' => 'SUM',
+		) );
+
+		$union_function = $this->get_amount_column_and_function( array(
+			'column_prefix'      => '',
+			'accepted_functions' => array( 'SUM', 'AVG' ),
+			'rate'               => false,
+		) );
+
 		if ( true === $this->query_vars['grouped'] ) {
-			$sql = "SELECT product_id, price_id, {$function} AS total
-					FROM {$this->query_vars['table']}
-					{$join}
-					WHERE 1=1 {$product_id} {$price_id} {$region} {$country} {$currency} {$this->query_vars['where_sql']} {$this->query_vars['date_query_sql']}
-					GROUP BY product_id, price_id
-					ORDER BY total DESC";
+			$order_items = "SELECT
+				{$this->query_vars['table']}.product_id,
+				{$this->query_vars['table']}.price_id,
+				{$order_item_function} AS total
+				FROM {$this->query_vars['table']}
+				{$join}
+				WHERE 1=1
+				{$product_id}
+				{$price_id}
+				{$region}
+				{$country}
+				{$currency}
+				{$this->query_vars['where_sql']}
+				{$this->query_vars['date_query_sql']}
+				GROUP BY {$this->query_vars['table']}.product_id, {$this->query_vars['table']}.price_id";
+
+			$order_adjustments = "SELECT
+				{$this->query_vars['table']}.product_id as product_id,
+				{$this->query_vars['table']}.price_id as price_id,
+				{$order_adjustment_function} as total
+				FROM {$this->get_db()->edd_order_adjustments} oadj
+				INNER JOIN {$this->query_vars['table']} ON
+					({$this->query_vars['table']}.id = oadj.object_id)
+					{$product_id}
+					{$price_id}
+					{$region}
+					{$country}
+					{$currency}
+				{$adjustments_join}
+				WHERE oadj.object_type = 'order_item'
+				AND oadj.type != 'discount'
+				{$this->query_vars['date_query_sql']}
+				GROUP BY {$this->query_vars['table']}.product_id, {$this->query_vars['table']}.price_id";
+
+			$sql = "SELECT product_id, price_id, {$union_function} AS total
+				FROM ({$order_items} UNION {$order_adjustments})a
+				GROUP BY product_id, price_id
+				ORDER BY total DESC";
 		} else {
-			$sql = "SELECT {$function} AS total
-					FROM {$this->query_vars['table']}
-					{$join}
-					WHERE 1=1 {$product_id} {$price_id} {$region} {$country} {$currency} {$this->query_vars['where_sql']} {$this->query_vars['date_query_sql']}";
+			$order_items = "SELECT
+				{$order_item_function} AS total
+				FROM {$this->query_vars['table']}
+				{$join}
+				WHERE 1=1
+				{$product_id}
+				{$price_id}
+				{$region}
+				{$country}
+				{$currency}
+				{$this->query_vars['where_sql']}
+				{$this->query_vars['date_query_sql']}";
+
+			$order_adjustments = "SELECT
+				{$order_adjustment_function} as total
+				FROM {$this->get_db()->edd_order_adjustments} oadj
+				INNER JOIN {$this->query_vars['table']} ON
+					({$this->query_vars['table']}.id = oadj.object_id)
+					{$product_id}
+					{$price_id}
+					{$region}
+					{$country}
+					{$currency}
+				{$adjustments_join}
+				WHERE oadj.object_type = 'order_item'
+				AND oadj.type != 'discount'
+				{$this->query_vars['date_query_sql']}";
+
+			$sql = "SELECT {$union_function} AS total FROM ({$order_items} UNION {$order_adjustments})a";
 		}
 
 		$result = $this->get_db()->get_results( $sql );
@@ -1027,14 +1145,14 @@ class Stats {
 		$this->query_vars['table']             = $this->get_db()->edd_order_items;
 		$this->query_vars['column']            = 'id';
 		$this->query_vars['date_query_column'] = 'date_created';
-		$this->query_vars['status']            = array( 'complete' );
+		$this->query_vars['status']            = array( 'complete', 'partially_refunded' );
 
 		// Run pre-query checks and maybe generate SQL.
 		$this->pre_query( $query );
 
 		$function = $this->get_amount_column_and_function( array(
 			'column_prefix'      => $this->query_vars['table'],
-			'accepted_functions' => array( 'COUNT', 'AVG' )
+			'accepted_functions' => array( 'COUNT', 'AVG' ),
 		) );
 
 		$product_id = ! empty( $this->query_vars['product_id'] )
@@ -1051,12 +1169,19 @@ class Stats {
 			? $this->get_db()->prepare( 'AND edd_oa.country = %s', esc_sql( $this->query_vars['country'] ) )
 			: '';
 
-		$join = $currency = '';
+		$statuses      = edd_get_net_order_statuses();
+		$status_string = $this->get_placeholder_string( $statuses );
+
+		$join = $this->get_db()->prepare(
+			"INNER JOIN {$this->get_db()->edd_orders} edd_o ON ({$this->query_vars['table']}.order_id = edd_o.id) AND edd_o.status IN({$status_string}) AND edd_o.type = 'sale' ",
+			...$statuses
+		);
+
+		$currency = '';
 		if ( ! empty( $country ) || ! empty( $region ) ) {
 			$join .= " INNER JOIN {$this->get_db()->edd_order_addresses} edd_oa ON {$this->query_vars['table']}.order_id = edd_oa.order_id ";
 		}
 		if ( ! empty( $this->query_vars['currency'] ) && array_key_exists( strtoupper( $this->query_vars['currency'] ), edd_get_currencies() ) ) {
-			$join     .= " INNER JOIN {$this->get_db()->edd_orders} edd_o ON ({$this->query_vars['table']}.order_id = edd_o.id) ";
 			$currency = $this->get_db()->prepare( "AND edd_o.currency = %s", strtoupper( $this->query_vars['currency'] ) );
 		}
 
@@ -1099,7 +1224,7 @@ class Stats {
 			} );
 		} else {
 			$result = null === $result[0]->total
-				? 0.00
+				? 0
 				: absint( $result[0]->total );
 		}
 
@@ -1158,7 +1283,7 @@ class Stats {
 		) );
 
 		$statuses      = edd_get_net_order_statuses();
-		$status_string = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+		$status_string = $this->get_placeholder_string( $statuses );
 
 		$where = $this->get_db()->prepare(
 			"AND {$this->get_db()->edd_order_items}.status IN('complete','partially_refunded')
@@ -2024,6 +2149,12 @@ class Stats {
 		// Run pre-query checks and maybe generate SQL.
 		$this->pre_query( $query );
 
+		$where = $this->query_vars['where_sql'];
+		// Allow `purchase_count` to be set to `true` to query only customers with orders.
+		if ( isset( $query['purchase_count'] ) && true === $query['purchase_count'] ) {
+			$where .= " AND {$this->query_vars['table']}.purchase_count > 0";
+		}
+
 		if ( true === $this->query_vars['relative'] ) {
 			$relative_date_query_sql = $this->generate_relative_date_query_sql();
 
@@ -2032,13 +2163,13 @@ class Stats {
 					CROSS JOIN (
 						SELECT IFNULL(COUNT(id), 0) AS relative
 						FROM {$this->query_vars['table']}
-						WHERE 1=1 {$this->query_vars['where_sql']} {$relative_date_query_sql}
+						WHERE 1=1 {$where} {$relative_date_query_sql}
 					) o
-					WHERE 1=1 {$this->query_vars['where_sql']} {$this->query_vars['date_query_sql']}";
+					WHERE 1=1 {$where} {$this->query_vars['date_query_sql']}";
 		} else {
 			$sql = "SELECT COUNT(id) AS total
 					FROM {$this->query_vars['table']}
-					WHERE 1=1 {$this->query_vars['date_query_sql']}";
+					WHERE 1=1 {$where} {$this->query_vars['date_query_sql']}";
 		}
 
 		$result = $this->get_db()->get_row( $sql );
@@ -2047,18 +2178,23 @@ class Stats {
 			? 0
 			: absint( $result->total );
 
-		if ( true === $this->query_vars['relative'] ) {
-			$total    = absint( $result->total );
-			$relative = absint( $result->relative );
-			$total    = $this->generate_relative_markup( $total, $relative );
+		if ( 'array' === $this->query_vars['output'] ) {
+			$output = array(
+				'value'         => $total,
+				'relative_data' => ( true === $this->query_vars['relative'] ) ? $this->generate_relative_data( absint( $result->total ), absint( $result->relative ) ) : array(),
+			);
 		} else {
-			$total = $this->maybe_format( $total );
+			if ( true === $this->query_vars['relative'] ) {
+				$output = $this->generate_relative_markup( absint( $result->total ), absint( $result->relative ) );
+			} else {
+				$output = $this->maybe_format( $total );
+			}
 		}
 
 		// Reset query vars.
 		$this->post_query();
 
-		return $total;
+		return $output;
 	}
 
 	/**
@@ -2790,7 +2926,7 @@ class Stats {
 			} else {
 				$this->query_vars['status'] = array_map( 'sanitize_text_field', $this->query_vars['status'] );
 
-				$placeholders = implode( ', ', array_fill( 0, count( $this->query_vars['status'] ), '%s' ) );
+				$placeholders = $this->get_placeholder_string( $this->query_vars['status'] );
 
 				$this->query_vars['status_sql'] = $this->get_db()->prepare( "AND {$this->query_vars['table']}.status IN ({$placeholders})", $this->query_vars['status'] );
 			}
@@ -2805,7 +2941,7 @@ class Stats {
 
 			$this->query_vars['type'] = array_map( 'sanitize_text_field', $this->query_vars['type'] );
 
-			$placeholders = implode( ', ', array_fill( 0, count( $this->query_vars['type'] ), '%s' ) );
+			$placeholders = $this->get_placeholder_string( $this->query_vars['type'] );
 
 			$this->query_vars['type_sql'] = $this->get_db()->prepare( "AND {$this->query_vars['table']}.type IN ({$placeholders})", $this->query_vars['type'] );
 		}
@@ -2936,7 +3072,7 @@ class Stats {
 	 */
 	private function generate_price_id_query_sql() {
 		return ! is_null( $this->query_vars['price_id'] ) && is_numeric( $this->query_vars['price_id'] )
-			? $this->get_db()->prepare( 'AND price_id = %d', absint( $this->query_vars['price_id'] ) )
+			? $this->get_db()->prepare( "AND {$this->query_vars['table']}.price_id = %d", absint( $this->query_vars['price_id'] ) )
 			: '';
 	}
 
@@ -2971,87 +3107,11 @@ class Stats {
 		$date = EDD()->utils->date( 'now', edd_get_timezone_id(), false );
 
 		$date_filters = Reports\get_dates_filter_options();
+		$filter       = Reports\get_filter_value( 'dates' );
 
 		foreach ( $date_filters as $range => $label ) {
-			$this->date_ranges[ $range ] = Reports\parse_dates_for_range( $range );
-
-			switch ( $range ) {
-				case 'this_month':
-					$dates = array(
-						'start' => $date->copy()->subMonth( 1 )->startOfMonth(),
-						'end'   => $date->copy()->subMonth( 1 )->endOfMonth(),
-					);
-					break;
-				case 'last_month':
-					$dates = array(
-						'start' => $date->copy()->subMonth( 2 )->startOfMonth(),
-						'end'   => $date->copy()->subMonth( 2 )->endOfMonth(),
-					);
-					break;
-				case 'today':
-					$dates = array(
-						'start' => $date->copy()->subDay( 1 )->startOfDay(),
-						'end'   => $date->copy()->subDay( 1 )->endOfDay(),
-					);
-					break;
-				case 'yesterday':
-					$dates = array(
-						'start' => $date->copy()->subDay( 2 )->startOfDay(),
-						'end'   => $date->copy()->subDay( 2 )->endOfDay(),
-					);
-					break;
-				case 'this_week':
-					$dates = array(
-						'start' => $date->copy()->subWeek( 1 )->startOfWeek(),
-						'end'   => $date->copy()->subWeek( 1 )->endOfWeek(),
-					);
-					break;
-				case 'last_week':
-					$dates = array(
-						'start' => $date->copy()->subWeek( 2 )->startOfWeek(),
-						'end'   => $date->copy()->subWeek( 2 )->endOfWeek(),
-					);
-					break;
-				case 'last_30_days':
-					$dates = array(
-						'start' => $date->copy()->subDay( 60 )->startOfDay(),
-						'end'   => $date->copy()->subDay( 30 )->endOfDay(),
-					);
-					break;
-				case 'this_quarter':
-					$dates = array(
-						'start' => $date->copy()->subQuarter( 1 )->startOfQuarter(),
-						'end'   => $date->copy()->subQuarter( 1 )->endOfQuarter(),
-					);
-					break;
-				case 'last_quarter':
-					$dates = array(
-						'start' => $date->copy()->subQuarter( 2 )->startOfQuarter(),
-						'end'   => $date->copy()->subQuarter( 2 )->endOfQuarter(),
-					);
-					break;
-				case 'this_year':
-					$dates = array(
-						'start' => $date->copy()->subYear( 1 )->startOfYear(),
-						'end'   => $date->copy()->subYear( 1 )->endOfYear(),
-					);
-					break;
-				case 'last_year':
-					$dates = array(
-						'start' => $date->copy()->subYear( 2 )->startOfYear(),
-						'end'   => $date->copy()->subYear( 2 )->endOfYear(),
-					);
-					break;
-			}
-
-			if ( ! empty( $dates ) ) {
-				// Convert the values to the UTC equivalent so that we can query the database using UTC.
-				$dates['start'] = edd_get_utc_equivalent_date( $dates['start'] );
-				$dates['end']   = edd_get_utc_equivalent_date( $dates['end'] );
-				$dates['range'] = $range;
-
-				$this->relative_date_ranges[ $range ] = $dates;
-			}
+			$this->date_ranges[ $range ]          = Reports\parse_dates_for_range( $range );
+			$this->relative_date_ranges[ $range ] = Reports\parse_relative_dates_for_range( $range );
 		}
 
 	}
@@ -3088,6 +3148,64 @@ class Stats {
 	}
 
 	/**
+	 * Calculates the relative change between two datasets
+	 * and outputs an array of details about comparison.
+	 *
+	 * @since 3.1
+	 *
+	 * @param int|float $total     The primary value result for the stat.
+	 * @param int|float $relative  The value relative to the previous date range.
+	 * @param bool      $reverse   If the stat being displayed is a 'reverse' state, where lower is better.
+	 *
+	 * @return array Details about the relative change between two datasets.
+	 */
+	public function generate_relative_data( $total = 0, $relative = 0, $reverse = false ) {
+		$output = array(
+			'comparable'                  => true,
+			'no_change'                   => false,
+			'percentage_change'           => false,
+			'formatted_percentage_change' => false,
+			'positive_change'             => false,
+			'total'                       => $total,
+			'relative'                    => $relative,
+			'reverse'                     => $reverse,
+		);
+
+		if ( ( floatval( 0 ) === floatval( $total ) && floatval( 0 ) === floatval( $relative ) ) || ( $total === $relative ) ) {
+			// There is no change between datasets.
+			$output['no_change'] = true;
+		} else if ( floatval( 0 ) !== floatval( $relative ) ) {
+			// There is a calculatable difference between datasets.
+			$percentage_change           = ( $total - $relative ) / $relative * 100;
+			$formatted_percentage_change = absint( $percentage_change );
+			$positive_change             = false;
+
+			if ( absint( $percentage_change ) < 100 ) {
+				// Format the percentage change to two decimal places.
+				$formatted_percentage_change = number_format( $percentage_change, 2 );
+
+				// If the percentage change is negative, make it positive for display purposes. We handle the visual aspect via an icon in the UI.
+				$formatted_percentage_change = $formatted_percentage_change < 0 ? $formatted_percentage_change * -1 : $formatted_percentage_change;
+			}
+
+			// Check if stat is in a 'reverse' state, where lower is better.
+			$positive_change = (bool) ! $reverse;
+			if ( 0 > $percentage_change ) {
+				$positive_change = (bool) $reverse;
+			}
+
+			$output['percentage_change']           = $percentage_change;
+			$output['formatted_percentage_change'] = $formatted_percentage_change;
+			$output['positive_change']             = $positive_change;
+		} else {
+			// There is no data to compare.
+			$output['comparable'] = false;
+		}
+
+		return $output;
+	}
+
+	/**
 	 * Generates output for the report tiles when a relative % change is requested.
 	 *
 	 * @since 3.0
@@ -3097,29 +3215,25 @@ class Stats {
 	 * @param bool      $reverse   If the stat being displayed is a 'reverse' state, where lower is better.
 	 */
 	private function generate_relative_markup( $total = 0, $relative = 0, $reverse = false ) {
-		$relative_markup  = '';
 
-		$total_output    = $this->maybe_format( $total );
-		$relative_output = '<span aria-hidden="true">&mdash;</span><span class="screen-reader-text">' . __( 'No data to compare', 'easy-digital-downloads' ) . '</span>';
+		$relative_data   = $this->generate_relative_data( $total, $relative, $reverse );
+		$total_output    = $this->maybe_format( $relative_data['total'] );
+		$relative_markup = '';
 
-		if ( ( floatval( 0 ) === floatval( $total ) && floatval( 0 ) === floatval( $relative ) ) || ( $total === $relative ) ) {
+		if ( $relative_data['no_change'] ) {
 			$relative_output = esc_html__( 'No Change', 'easy-digital-downloads' );
-		} else if ( floatval( 0 ) !== floatval( $relative ) ) {
-			$percentage_change           = ( $total - $relative ) / $relative * 100;
-			$formatted_percentage_change = absint( $percentage_change );
+		} elseif ( $relative_data['comparable'] ) {
+			// Determine the direction of the change.
+			$direction_suffix = $relative_data['reverse'] ? ' reverse' : '';
+			$direction        = $relative_data['percentage_change'] > 0 ? 'up' : 'down';
+			$direction       .= $direction_suffix;
 
-			if ( absint( $percentage_change ) < 100 ) {
-				$formatted_percentage_change = number_format( $percentage_change, 2 );
-				$formatted_percentage_change = $formatted_percentage_change < 1 ? $formatted_percentage_change * -1 : $formatted_percentage_change;
-			}
-
-			if ( 0 < $percentage_change ) {
-				$direction       = $reverse ? 'up reverse' : 'up';
-				$relative_output = '<span class="dashicons dashicons-arrow-' . esc_attr( $direction ) . '"></span> ' . $formatted_percentage_change . '%';
-			} else {
-				$direction       = $reverse ? 'down reverse' : 'down';
-				$relative_output = '<span class="dashicons dashicons-arrow-' . esc_attr( $direction ) . '"></span> ' . $formatted_percentage_change . '%';
-			}
+			// Prepare the output with proper escaping and formatting.
+			$icon            = '<span class="dashicons dashicons-arrow-' . esc_attr( $direction ) . '"></span>';
+			$percentage      = $relative_data['formatted_percentage_change'] . '%';
+			$relative_output = $icon . ' ' . $percentage;
+		} else {
+			$relative_output = '<span aria-hidden="true">&mdash;</span><span class="screen-reader-text">' . esc_html__( 'No data to compare', 'easy-digital-downloads' ) . '</span>';
 		}
 
 		$relative_markup = $total_output;
@@ -3128,5 +3242,16 @@ class Stats {
 		}
 
 		return $relative_markup;
+	}
+
+	/**
+	 * Gets a placeholder string from an array.
+	 *
+	 * @since 3.1
+	 * @param array $array
+	 * @return string
+	 */
+	private function get_placeholder_string( $array ) {
+		return implode( ', ', array_fill( 0, count( $array ), '%s' ) );
 	}
 }

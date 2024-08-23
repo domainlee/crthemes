@@ -60,6 +60,22 @@ function edd_process_download() {
 	$args['has_access'] = apply_filters( 'edd_file_download_has_access', $args['has_access'], $args['payment'], $args );
 
 	if ( $args['payment'] && $args['has_access'] ) {
+
+		// We've verified that the user should have access, now see if we need to require the user to be logged in.
+		$require_login = edd_get_option( 'require_login_to_download', false );
+		if ( $require_login && ! is_user_logged_in() ) {
+
+			$parts = parse_url( add_query_arg( array() ) );
+			wp_parse_str( $parts['query'], $file_download_args );
+
+			EDD()->session->set( 'edd_require_login_to_download_redirect', $file_download_args );
+			$login_page = wp_login_url( edd_get_file_download_login_redirect( $file_download_args ) );
+
+			// Redirect to the login page, and have it continue the download upon successful login.
+			wp_safe_redirect( $login_page );
+			edd_die();
+		}
+
 		do_action( 'edd_process_verified_download', $args['download'], $args['email'], $args['payment'], $args );
 
 		// Determine the download method set in settings
@@ -115,8 +131,20 @@ function edd_process_download() {
 			}
 		}
 
-		// Allow the file to be altered before any headers are sent
+		/**
+		 * Filter the requested file before it is processed
+		 *
+		 * @param string $requested_file The requested file.
+		 * @param array  $download_files The download files.
+		 * @param int    $file_key       The file key.
+		 * @param array  $args           The download arguments.
+		 */
 		$requested_file = apply_filters( 'edd_requested_file', $requested_file, $download_files, $args['file_key'], $args );
+
+		// Validate the file, since we just filtered it, we need to make sure it is still a local file.
+		if ( edd_is_local_file( $requested_file ) && ! EDD\Downloads\Process::validate( $requested_file ) ) {
+			wp_die( __( 'Error 104: Sorry, this file could not be downloaded.', 'easy-digital-downloads' ), __( 'Error Downloading File', 'easy-digital-downloads' ), 403 );
+		}
 
 		if ( 'x_sendfile' == $method && ( ! function_exists( 'apache_get_modules' ) || ! in_array( 'mod_xsendfile', apache_get_modules() ) ) ) {
 			// If X-Sendfile is selected but is not supported, fallback to Direct
@@ -147,26 +175,12 @@ function edd_process_download() {
 		 */
 		do_action( 'edd_process_download_pre_record_log', $requested_file, $args, $method );
 
-		// Record this file download in the log
-		$user_info = array();
-		$user_info['email'] = $args['email'];
-
-		if ( is_user_logged_in() ) {
-			$user_data         = get_userdata( get_current_user_id() );
-			$user_info['id']   = get_current_user_id();
-			$user_info['name'] = $user_data->display_name;
-		}
-
-		edd_record_download_in_log( $args['download'], $args['file_key'], $user_info, edd_get_ip(), $args['payment'], $args['price_id'] );
+		edd_record_download_in_log( $args['download'], $args['file_key'], array(), edd_get_ip(), $args['payment'], $args['price_id'] );
 
 		$file_extension = edd_get_file_extension( $requested_file );
 		$ctype          = edd_get_file_ctype( $file_extension );
 
 		edd_set_time_limit( false );
-
-		if ( version_compare( phpversion(), '5.4', '<' ) && function_exists( 'get_magic_quotes_runtime' ) && get_magic_quotes_runtime() ) {
-			set_magic_quotes_runtime( 0 );
-		}
 
 		// If we're using an attachment ID to get the file, even by path, we can ignore this check.
 		if ( false === $from_attachment_id ) {
@@ -316,10 +330,11 @@ function edd_deliver_download( $file = '', $redirect = false ) {
 		// Set a transient to ensure this symlink is not deleted before it can be used
 		set_transient( md5( $file_name ), '1', 30 );
 
-		// Schedule deletion of the symlink
-		if ( ! wp_next_scheduled( 'edd_cleanup_file_symlinks' ) ) {
-			wp_schedule_single_event( current_time( 'timestamp' ) + 60, 'edd_cleanup_file_symlinks' );
-		}
+		// Schedule deletion of the symlink.
+		\EDD\Cron\Events\SingleEvent::add(
+			time() + ( 60 * 60 ),
+			'edd_cleanup_file_symlinks'
+		);
 
 		// Make sure the symlink doesn't already exist before we create it
 		if( ! file_exists( $path ) ) {
@@ -349,17 +364,51 @@ function edd_deliver_download( $file = '', $redirect = false ) {
  * Determine if the file being requested is hosted locally or not
  *
  * @since  2.5.10
+ * @since  3.1.0.3 - Updated to also check home_url (which is what previous versions of EDD were using).
+ *
  * @param  string $requested_file The file being requested
  * @return bool                   If the file is hosted locally or not
  */
 function edd_is_local_file( $requested_file ) {
-	$site_url       = preg_replace('#^https?://#', '', site_url() );
+	// By default, we assume the file is not locally hosted.
+	$is_local_file = false;
+
+	// Grab the home_url and site_url values, so we can use them to test file location.
+	$site_url = preg_replace('#^https?://#', '', site_url() );
+	$home_url = preg_replace('#^https?://#', '', home_url() );
+
+	// Sanitize the requested file.
 	$requested_file = preg_replace('#^(https?|file)://#', '', $requested_file );
 
-	$is_local_url  = strpos( $requested_file, $site_url ) === 0;
-	$is_local_path = strpos( $requested_file, '/' ) === 0;
+	// First, check the Site URL.
+	$is_local_url_site_url  = strpos( $requested_file, $site_url ) === 0;
+	$is_local_path_site_url = strpos( $requested_file, '/' ) === 0;
 
-	return ( $is_local_url || $is_local_path );
+	$is_local_file = ( $is_local_url_site_url || $is_local_path_site_url );
+
+	/**
+	 * If the site_url and home_url are different, and we still didn't detect a local file, try
+	 * again with the home_url value.
+	 */
+	if ( $home_url !== $site_url && false === $is_local_file ) {
+		$is_local_url_home_url  = strpos( $requested_file, $home_url ) === 0;
+		$is_local_path_home_url = strpos( $requested_file, '/' ) === 0;
+
+		$is_local_file = ( $is_local_url_home_url || $is_local_path_home_url );
+	}
+
+	/**
+	 * Allow filtering the edd_is_local_file detection.
+	 *
+	 * EDD tries to identify if a file is hosted locally, so that we can use the proper file delivery method.
+	 * By default we check the site_url, and then the home_url (in the event that those settings are different).
+	 *
+	 * @since 3.1.0.3
+	 *
+	 * @param boolean $is_local_file  If the file is hosted locally, on the server and within the site's contents.
+	 * @param string  $requested_file The file that is being requested to download.
+	 */
+	return apply_filters( 'edd_is_local_file', $is_local_file, $requested_file );
 }
 
 /**
@@ -726,6 +775,11 @@ function edd_get_file_ctype( $extension ) {
  * @return   bool|string        If string, $status || $cnt
  */
 function edd_readfile_chunked( $file, $retbytes = true ) {
+
+	if ( ! \EDD\Downloads\Process::validate( $file ) ) {
+		return false;
+	}
+
 	while ( ob_get_level() > 0 ) {
 		ob_end_clean();
 	}
@@ -883,12 +937,18 @@ function edd_process_signed_download_url( $args ) {
 	$args['email']    = $order->email;
 	$args['key']      = $order->payment_key;
 
-	// Access is granted if there's at least one `complete` order item that matches the order + download + price ID.
-	$args['has_access'] = edd_order_grants_access_to_download_files( array(
-		'order_id'   => $order->id,
-		'product_id' => $args['download'],
-		'price_id'   => $args['price_id'],
-	) );
+	if ( 'refund' === $order->type ) {
+		$args['has_access'] = false;
+	} else {
+		// Access is granted if there's at least one `complete` order item that matches the order + download + price ID.
+		$args['has_access'] = edd_order_grants_access_to_download_files(
+			array(
+				'order_id'   => $order->id,
+				'product_id' => $args['download'],
+				'price_id'   => $args['price_id'],
+			)
+		);
+	}
 
 	return $args;
 }
@@ -905,9 +965,13 @@ function edd_process_signed_download_url( $args ) {
  */
 function edd_order_grants_access_to_download_files( $args ) {
 	$args = wp_parse_args( $args, array(
-		'order_id'   => 0,
-		'product_id' => 0,
-		'price_id'   => null,
+		'order_id'          => 0,
+		'product_id'        => 0,
+		'price_id'          => null,
+		'quantity__compare' => array(
+			'value'   => 0,
+			'compare' => '>',
+		),
 	) );
 
 	// Order and product IDs are required.
@@ -1075,6 +1139,59 @@ function edd_local_file_location_is_allowed( $file_details, $schemas, $requested
 
 	return apply_filters( 'edd_local_file_location_is_allowed', $should_allow, $file_details, $schemas, $requested_file );
 }
+
+/**
+ * Detect downloading a file immediately after a forced login.
+ *
+ * When the store requires being logged in to download files, this handles the file download after logging in.
+ * We need this otherwise the file is downloaded immediately after successfully logging in, but the page never changes.
+ *
+ * @since 3.1
+ */
+function edd_redirect_file_download_after_login() {
+	$token = isset( $_GET['_token'] ) ? sanitize_text_field( $_GET['_token'] ) : false;
+
+	// No nonce provided, redirect to the homepage.
+	if ( empty( $token ) ) {
+		wp_safe_redirect( home_url() );
+	}
+
+	$redirect_session_data = EDD()->session->get( 'edd_require_login_to_download_redirect' );
+
+	// Nonce verification failed, redirect to the homepage.
+	if ( ! \EDD\Utils\Tokenizer::is_token_valid( $token, $redirect_session_data ) ) {
+		wp_safe_redirect( home_url() );
+	}
+
+	EDD()->session->set( 'edd_require_login_to_download_redirect', '' );
+
+	// No file download session data, redirect to the homepage.
+	if ( empty( $redirect_session_data ) ) {
+		wp_safe_redirect( home_url() );
+	}
+
+	// Add some Javascript to download the file and then clear the query args from the page.
+	add_action( 'wp_footer', function() use ($redirect_session_data) {
+		printf('
+			<script type="text/javascript">
+			(function(){
+				var download_link = document.createElement("a");
+				download_link.href = "' . add_query_arg( $redirect_session_data, home_url( 'index.php' ) ) . '";
+				download_link.setAttribute("download", "");
+				document.body.appendChild(download_link);
+				download_link.click();
+
+				setTimeout(
+					() => {
+						window.location.replace( window.location.href.split(/[?#]/)[0] );
+					}, 250
+				);
+			})();
+			</script>
+		');
+	} );
+}
+add_action( 'edd_process_file_download_after_login', 'edd_redirect_file_download_after_login', 10, 2 );
 
 /**
  * Filter removed in EDD 2.7

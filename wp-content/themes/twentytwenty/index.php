@@ -20,7 +20,6 @@ get_header();
 <main id="site-content">
 
 	<?php
-
 	$archive_title    = '';
 	$archive_subtitle = '';
 
@@ -29,7 +28,7 @@ get_header();
 
 		$archive_title = sprintf(
 			'%1$s %2$s',
-			'<span class="color-accent">' . __( 'Search:', 'twentytwenty' ) . '</span>',
+			'<span class="color-accent 123">' . __( 'Search:', 'twentytwenty' ) . '</span>',
 			'&ldquo;' . get_search_query() . '&rdquo;'
 		);
 
@@ -50,8 +49,8 @@ get_header();
 	} elseif ( is_archive() && ! have_posts() ) {
 		$archive_title = __( 'Nothing Found', 'twentytwenty' );
 	} elseif ( ! is_home() ) {
-		$archive_title    = get_the_archive_title();
-		$archive_subtitle = get_the_archive_description();
+        $archive_title  = single_cat_title( '', false );
+        $archive_subtitle = get_the_archive_description();
 	}
 
 	if ( $archive_title || $archive_subtitle ) {
@@ -81,13 +80,11 @@ get_header();
 		$i = 0;
 
 		while ( have_posts() ) {
-			$i++;
-			if ( $i > 1 ) {
-				echo '<hr class="post-separator styled-separator is-style-wide section-inner" aria-hidden="true" />';
-			}
+			
 			the_post();
 
 			get_template_part( 'template-parts/content', get_post_type() );
+			echo '<hr class="post-separator styled-separator is-style-wide section-inner" aria-hidden="true" />';
 
 		}
 	} elseif ( is_search() ) {
@@ -112,8 +109,6 @@ get_header();
 	<?php get_template_part( 'template-parts/pagination' ); ?>
 
 </main><!-- #site-content -->
-
-<?php get_template_part( 'template-parts/footer-menus-widgets' ); ?>
 
 <?php
 get_footer();

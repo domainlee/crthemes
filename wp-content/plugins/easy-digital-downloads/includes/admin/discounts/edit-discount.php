@@ -37,22 +37,22 @@ $type                 = $discount->get_type();
 $notes                = edd_get_discount_notes( $discount->id );
 
 // Show/Hide
-$flat_display         = ( 'flat'    === $type          ) ? '' : ' style="display:none;"';
-$percent_display      = ( 'percent' === $type          ) ? '' : ' style="display:none;"';
-$no_notes_display     =   empty( $notes                ) ? '' : ' style="display:none;"';
-$condition_display    = ! empty( $product_requirements ) ? '' : ' style="display:none;"';
+$flat_display      = ( 'flat' === $type ) ? '' : ' style="display:none;"';
+$percent_display   = ( 'percent' === $type ) ? '' : ' style="display:none;"';
+$no_notes_display  = empty( $notes ) ? '' : ' style="display:none;"';
+$condition_display = ! empty( $product_requirements ) ? '' : ' style="display:none;"';
 
 // Dates & times
-$discount_start_date  = edd_get_edd_timezone_equivalent_date_from_utc( EDD()->utils->date( $discount->start_date, 'utc' ) );
-$discount_end_date    = edd_get_edd_timezone_equivalent_date_from_utc( EDD()->utils->date( $discount->end_date, 'utc' ) );
-$start_date           = $discount_start_date->format( 'Y-m-d' );
-$start_hour           = $discount_start_date->format( 'H' );
-$start_minute         = $discount_start_date->format( 'i' );
-$end_date             = $discount_end_date->format( 'Y-m-d' );
-$end_hour             = $discount_end_date->format( 'H' );
-$end_minute           = $discount_end_date->format( 'i' );
-$hours                = edd_get_hour_values();
-$minutes              = edd_get_minute_values();
+$discount_start_date = edd_get_edd_timezone_equivalent_date_from_utc( EDD()->utils->date( $discount->start_date, 'utc' ) );
+$discount_end_date   = edd_get_edd_timezone_equivalent_date_from_utc( EDD()->utils->date( $discount->end_date, 'utc' ) );
+$start_date          = $discount_start_date->format( 'Y-m-d' );
+$start_hour          = $discount_start_date->format( 'H' );
+$start_minute        = $discount_start_date->format( 'i' );
+$end_date            = $discount_end_date->format( 'Y-m-d' );
+$end_hour            = $discount_end_date->format( 'H' );
+$end_minute          = $discount_end_date->format( 'i' );
+$hours               = edd_get_hour_values();
+$minutes             = edd_get_minute_values();
 ?>
 <div class="wrap">
 	<h1><?php _e( 'Edit Discount', 'easy-digital-downloads' ); ?></h1>
@@ -117,14 +117,20 @@ $minutes              = edd_get_minute_values();
 						<label for="edd_products"><?php printf( __( '%s Requirements', 'easy-digital-downloads' ), edd_get_label_singular() ); ?></label>
 					</th>
 					<td>
-						<?php echo EDD()->html->product_dropdown( array(
-							'name'        => 'product_reqs[]',
-							'id'          => 'edd_products',
-							'selected'    => $product_requirements,
-							'multiple'    => true,
-							'chosen'      => true,
-							'placeholder' => sprintf( __( 'Select %s', 'easy-digital-downloads' ), edd_get_label_plural() )
-						) ); ?>
+						<?php
+						echo EDD()->html->product_dropdown(
+							array(
+								'name'        => 'product_reqs[]',
+								'id'          => 'edd_products',
+								'selected'    => $product_requirements,
+								'multiple'    => true,
+								'chosen'      => true,
+								/* translators: %s: Downloads plural label */
+								'placeholder' => sprintf( _x( 'Select %s', 'Noun: The plural label for the download post type as a placeholder for a dropdown', 'easy-digital-downloads' ), edd_get_label_plural() ),
+								'variations'  => true,
+							)
+						);
+						?>
 						<div id="edd-discount-product-conditions"<?php echo $condition_display; ?>>
 							<p>
 								<select id="edd-product-condition" name="product_condition">
@@ -151,20 +157,42 @@ $minutes              = edd_get_minute_values();
 
 				<tr>
 					<th scope="row" valign="top">
-						<label for="edd-excluded-products"><?php printf( __( 'Excluded %s', 'easy-digital-downloads' ), edd_get_label_plural() ); ?></label>
+						<label for="edd-excluded-products">
+							<?php
+							/* translators: %s: Downloads plural label */
+							printf( _x( 'Excluded %s', 'Noun: Downloads plural label', 'easy-digital-downloads' ), edd_get_label_plural() );
+							?>
+						</label>
 					</th>
 					<td>
-						<?php echo EDD()->html->product_dropdown( array(
-							'name'        => 'excluded_products[]',
-							'id'          => 'excluded_products',
-							'selected'    => $excluded_products,
-							'multiple'    => true,
-							'chosen'      => true,
-							'placeholder' => sprintf( __( 'Select %s', 'easy-digital-downloads' ), edd_get_label_plural() )
-						) ); ?>
-						<p class="description"><?php printf( __( '%s this discount cannot be applied to. Leave blank for none.', 'easy-digital-downloads' ), edd_get_label_plural() ); ?></p>
+						<?php
+						echo EDD()->html->product_dropdown(
+							array(
+								'name'        => 'excluded_products[]',
+								'id'          => 'excluded_products',
+								'selected'    => $excluded_products,
+								'multiple'    => true,
+								'chosen'      => true,
+								/* translators: %s: Downloads plural label */
+								'placeholder' => sprintf( _x( 'Select %s', 'Noun: The plural label for the download post type as a placeholder for a dropdown', 'easy-digital-downloads' ), edd_get_label_plural() ),
+							)
+						);
+						?>
+						<p class="description">
+							<?php
+							/* translators: %s: Downloads plural label */
+							printf( __( '%s this discount cannot be applied to. Leave blank for none.', 'easy-digital-downloads' ), edd_get_label_plural() );
+							?>
+						</p>
 					</td>
 				</tr>
+
+				<?php
+				$categories     = edd_get_adjustment_meta( $discount->id, 'categories', true );
+				$term_condition = edd_get_adjustment_meta( $discount->id, 'term_condition', true );
+				$term_condition = $term_condition ?: '';
+				require_once 'views/categories.php';
+				?>
 
 				<?php do_action( 'edd_edit_discount_form_before_start', $discount->id, $discount ); ?>
 
@@ -244,11 +272,19 @@ $minutes              = edd_get_minute_values();
 
 				<tr>
 					<th scope="row" valign="top">
-						<label for="edd-use-once"><?php _e( 'Use Once Per Customer', 'easy-digital-downloads' ); ?></label>
+						<label for="once_per_customer"><?php esc_html_e( 'Use Once Per Customer', 'easy-digital-downloads' ); ?></label>
 					</th>
 					<td>
-						<input type="checkbox" id="edd-use-once" name="once_per_customer" value="1"<?php checked( true, $single_use ); ?>/>
-						<span class="description"><?php _e( 'Prevent customers from using this discount more than once.', 'easy-digital-downloads' ); ?></span>
+						<?php
+						$toggle = new EDD\HTML\CheckboxToggle(
+							array(
+								'name'    => 'once_per_customer',
+								'current' => $single_use,
+								'label'   => __( 'Prevent customers from using this discount more than once.', 'easy-digital-downloads' ),
+							)
+						);
+						$toggle->output();
+						?>
 					</td>
 				</tr>
 
@@ -260,8 +296,9 @@ $minutes              = edd_get_minute_values();
 					</th>
 					<td>
 						<select name="status" id="edd-status">
-						<option value="active" <?php selected( $discount->status, 'active' ); ?>><?php _e( 'Active', 'easy-digital-downloads' ); ?></option>
-						<option value="inactive"<?php selected( $discount->status, 'inactive' ); ?>><?php _e( 'Inactive', 'easy-digital-downloads' ); ?></option>
+							<option value="active" <?php selected( $discount->status, 'active' ); ?>><?php esc_html_e( 'Active', 'easy-digital-downloads' ); ?></option>
+							<option value="inactive"<?php selected( $discount->status, 'inactive' ); ?>><?php esc_html_e( 'Inactive', 'easy-digital-downloads' ); ?></option>
+							<option value="archived"<?php selected( $discount->status, 'archived' ); ?>><?php esc_html_e( 'Archived', 'easy-digital-downloads' ); ?></option>
 						</select>
 						<p class="description"><?php _e( 'The status of this discount code.', 'easy-digital-downloads' ); ?></p>
 					</td>
@@ -289,7 +326,17 @@ $minutes              = edd_get_minute_values();
 			<input type="hidden" name="type" value="discount" />
 			<input type="hidden" name="edd-action" value="edit_discount" />
 			<input type="hidden" name="discount-id" value="<?php echo esc_attr( $discount->id ); ?>" />
-			<input type="hidden" name="edd-redirect" value="<?php echo esc_url( edd_get_admin_url( array( 'page' => 'edd-discounts', 'edd-action' => 'edit_discount', 'discount' => absint( $discount->id ) ) ) ); ?>" />
+			<?php $redirect_url = esc_url(
+				edd_get_admin_url(
+					array(
+						'page'       => 'edd-discounts',
+						'edd-action' => 'edit_discount',
+						'discount'   => absint( $discount->id ),
+					)
+				)
+			);
+			?>
+			<input type="hidden" name="edd-redirect" value="<?php echo $redirect_url; ?>" />
 			<input type="hidden" name="edd-discount-nonce" value="<?php echo esc_attr( wp_create_nonce( 'edd_discount_nonce' ) ); ?>" />
 			<input type="submit" value="<?php esc_html_e( 'Update Discount Code', 'easy-digital-downloads' ); ?>" class="button-primary" />
 		</p>

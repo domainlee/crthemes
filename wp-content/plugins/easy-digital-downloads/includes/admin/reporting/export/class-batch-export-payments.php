@@ -38,8 +38,8 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 	 */
 	public function csv_cols() {
 		$cols = array(
-			'id'           => __( 'Payment ID', 'easy-digital-downloads' ), // unaltered payment ID (use for querying)
-			'seq_id'       => __( 'Payment Number', 'easy-digital-downloads' ), // sequential payment ID
+			'id'           => __( 'Order ID', 'easy-digital-downloads' ), // unaltered payment ID (use for querying)
+			'seq_id'       => __( 'Order Number', 'easy-digital-downloads' ), // sequential payment ID
 			'email'        => __( 'Email', 'easy-digital-downloads' ),
 			'customer_id'  => __( 'Customer ID', 'easy-digital-downloads' ),
 			'name'         => __( 'Customer Name', 'easy-digital-downloads' ),
@@ -103,8 +103,9 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 			$args['date_query'] = $this->get_date_query();
 		}
 
-		if ( 'all' === $args['status'] ) {
+		if ( in_array( $args['status'], array( 'any', 'all' ), true ) ) {
 			unset( $args['status'] );
+			$args['status__not_in'] = array( 'trash' );
 		}
 
 		$orders = edd_get_orders( $args );
@@ -115,7 +116,7 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 			$items        = $order->get_items();
 			$address      = $order->get_address();
 			$total        = $order->total;
-			$user_id      = $order->id && $order->id != - 1 ? $order->id : $order->email;
+			$user_id      = ! empty( $order->user_id ) ? $order->user_id : $order->email;
 			$customer     = edd_get_customer( $order->customer_id );
 			$products     = '';
 			$products_raw = '';
@@ -184,12 +185,17 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 				? get_userdata( $user_id )
 				: false;
 
+			$name = ! empty( $customer->name ) ? $customer->name : '';
+			if ( preg_match( '~^[+\-=@]~m', $name ) ) {
+				$name = "'{$name}";
+			}
+
 			$data[] = array(
 				'id'           => $order->id,
 				'seq_id'       => $order->get_number(),
 				'email'        => $order->email,
 				'customer_id'  => $order->customer_id,
-				'name'         => ! empty( $customer->name ) ? $customer->name : '',
+				'name'         => $name,
 				'address1'     => isset( $address->address ) ? $address->address : '',
 				'address2'     => isset( $address->address2 ) ? $address->address2 : '',
 				'city'         => isset( $address->city ) ? $address->city : '',
@@ -200,7 +206,7 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 				'products_raw' => $products_raw,
 				'skus'         => $skus,
 				'currency'     => $order->currency,
-				'amount'       => html_entity_decode( edd_format_amount( $total ) ), // The non-discounted item price
+				'amount'       => html_entity_decode( edd_format_amount( $total ) ), // The non-discounted item price.
 				'tax'          => html_entity_decode( edd_format_amount( $order->tax ) ),
 				'discount'     => $discounts,
 				'gateway'      => edd_get_gateway_admin_label( $order->gateway ),
@@ -235,14 +241,15 @@ class EDD_Batch_Payments_Export extends EDD_Batch_Export {
 	public function get_percentage_complete() {
 		$args = array(
 			'fields' => 'ids',
+			'status' => $this->status,
 		);
 
 		if ( ! empty( $this->start ) || ! empty( $this->end ) ) {
 			$args['date_query'] = $this->get_date_query();
 		}
 
-		if ( 'any' !== $this->status ) {
-			$args['status'] = $this->status;
+		if ( in_array( $args['status'], array( 'any', 'all' ), true ) ) {
+			unset( $args['status'] );
 		}
 
 		$total = edd_count_orders( $args );

@@ -24,14 +24,16 @@ $view_url = edd_get_admin_url(
 		<# if ( true === data.state.isAdding ) { #>
 		<button class="button-link delete">
 			<span class="dashicons dashicons-no"></span>
-			<span class="screen-reader-text"><?php printf( __( 'Remove %s', 'easy-digital-downloads' ), '{{{ data.type }}}' ); ?></span>
+			<span class="screen-reader-text">
+				<?php
+				/* translators: %s: Adjustment type (discount, fee, etc) */
+				printf( __( 'Remove %s', 'easy-digital-downloads' ), '{{{ data.type }}}' );
+				?>
+			</span>
 		</button>
 		<# } #>
 
 		<div>
-			<# if ( false !== data.orderItem ) { #>
-				{{ data.orderItem.productName }}:&nbsp;
-			<# } #>
 			<# if ( '' !== data.description ) { #>
 				{{ data.description }}
 			<# } #>
@@ -40,7 +42,9 @@ $view_url = edd_get_admin_url(
 				<br />
 				<small>
 			<# } #>
-				<# if ( 'credit' === data.type ) { #>
+				<# if ( false !== data.orderItem ) { #>
+					<?php esc_html_e( 'Fee', 'easy-digital-downloads' ); ?>: {{ data.orderItem.productName }}
+				<# } else if ( 'credit' === data.type ) { #>
 					<?php esc_html_e( 'Order Credit', 'easy-digital-downloads' ); ?>
 				<# } else { #>
 					<?php esc_html_e( 'Order Fee', 'easy-digital-downloads' ); ?>

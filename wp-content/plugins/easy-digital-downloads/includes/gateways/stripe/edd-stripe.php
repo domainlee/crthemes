@@ -1,16 +1,5 @@
 <?php
 /**
- * Plugin Name: Easy Digital Downloads - Stripe Pro Payment Gateway
- * Plugin URI: https://easydigitaldownloads.com/downloads/stripe-gateway/
- * Description: Adds a payment gateway for Stripe.com
- * Version: 2.8.11
- * Author: Easy Digital Downloads
- * Author URI: https://easydigitaldownloads.com
- * Text Domain: edds
- * Domain Path: languages
- */
-
-/**
  * Returns the one true instance of EDD_Stripe
  *
  * @since 2.8.1
@@ -19,10 +8,6 @@
  *                          Downloads is not active.
  */
 function edd_stripe_core_bootstrap() {
-	// Easy Digital Downloads is not active, do nothing.
-	if ( ! function_exists( 'EDD' ) ) {
-		return;
-	}
 
 	// Stripe is already active, do nothing.
 	if ( class_exists( 'EDD_Stripe' ) ) {
@@ -42,7 +27,7 @@ function edd_stripe_core_bootstrap() {
 	}
 
 	if ( ! defined( 'EDD_STRIPE_VERSION' ) ) {
-		define( 'EDD_STRIPE_VERSION', '2.8.11' );
+		define( 'EDD_STRIPE_VERSION', '2.9.6' );
 	}
 
 	if ( ! defined( 'EDD_STRIPE_API_VERSION' ) ) {
@@ -59,4 +44,3 @@ function edd_stripe_core_bootstrap() {
 	EDD_Stripe::instance();
 }
 add_action( 'plugins_loaded', 'edd_stripe_core_bootstrap' );
-

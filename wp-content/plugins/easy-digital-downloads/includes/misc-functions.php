@@ -58,6 +58,13 @@ function edd_get_admin_url( $args = array() ) {
  */
 function edd_is_test_mode() {
 	$ret = edd_get_option( 'test_mode', false );
+
+	// Override any setting with the constant.
+	if ( edd_is_test_mode_forced() ) {
+		$ret = true;
+	}
+
+	// At the end of the day, the filter still has the final say.
 	return (bool) apply_filters( 'edd_is_test_mode', $ret );
 }
 
@@ -83,63 +90,25 @@ function edd_is_debug_mode() {
  * @return bool $is_dev_environment True if development environment; otherwise false.
  */
 function edd_is_dev_environment() {
-
-	// wp_get_environment_type was added in WordPress 5.5.
-	if ( function_exists( 'wp_get_environment_type' ) ) {
-		$environment = wp_get_environment_type();
-
-		return apply_filters( 'edd_is_dev_environment', in_array( $environment, array( 'local', 'development' ), true ) );
-	}
-
-	// Assume not a development environment
-	$is_dev_environment = false;
-
-	// Get this one time and use it below
-	$network_url = network_site_url( '/' );
-
-	// Possible strings
-	$strings = array(
-
-		// Popular port suffixes
-		':8888',      // This is common with MAMP on OS X
-
-		// Popular development TLDs
-		'.dev',       // VVV
-		'.local',     // Local
-		'.test',      // IETF
-		'.example',   // IETF
-		'.invalid',   // IETF
-		'.localhost', // IETF
-
-		// Popular development subdomains
-		'dev.',
-
-		// Popular development domains
-		'localhost',
-		'example.com',
-	);
-
-	// Loop through all strings
-	foreach ( $strings as $string ) {
-		if ( stristr( $network_url, $string ) ) {
-			$is_dev_environment = true;
-			break;
-		}
-	}
-
-	// Filter & return
-	return apply_filters( 'edd_is_dev_environment', $is_dev_environment );
+	return apply_filters( 'edd_is_dev_environment', in_array( wp_get_environment_type(), array( 'local', 'development' ), true ) );
 }
 
 /**
- * Checks if Guest checkout is enabled
+ * Checks if Guest checkout is enabled.
+ * This actually returns false if guest checkout is enabled.
  *
  * @since 1.0
- * @return bool $ret True if guest checkout is enabled, false otherwise
+ * @return bool $allow_guest_checkout False if guest checkout is enabled, true otherwise.
  */
 function edd_no_guest_checkout() {
-	$ret = edd_get_option( 'logged_in_only', false );
-	return (bool) apply_filters( 'edd_no_guest_checkout', $ret );
+	$guest_checkout = edd_get_option( 'logged_in_only', false );
+	// Selecting `auto` bypasses the filters.
+	if ( 'auto' === $guest_checkout ) {
+		return false;
+	}
+	$allow_guest_checkout = 'required' === $guest_checkout;
+
+	return (bool) apply_filters( 'edd_no_guest_checkout', $allow_guest_checkout );
 }
 
 /**
@@ -149,9 +118,32 @@ function edd_no_guest_checkout() {
  * @return bool $ret Whether or not the logged_in_only setting is set
  */
 function edd_logged_in_only() {
-	$ret = edd_get_option( 'logged_in_only', false );
-	return (bool) apply_filters( 'edd_logged_in_only', $ret );
+	$logged_in_only = edd_get_option( 'logged_in_only', false );
+	// Selecting `auto` bypasses the filters.
+	if ( 'auto' === $logged_in_only ) {
+		return false;
+	}
+	$require_login = 'required' === $logged_in_only;
+
+	return (bool) apply_filters( 'edd_logged_in_only', $require_login );
 }
+
+/**
+ * Update the logged_in_only setting to be `required` if it was formerly true.
+ * This is to ensure that the auto-register feature works as expected,
+ * because the `logged_in_only` setting used to be a checkbox.
+ *
+ * @param mixed $value The value for the logged_in_only setting.
+ * @return string The value for the logged_in_only setting.
+ */
+function edd_update_logged_in_only_for_auto_register( $value ) {
+	if ( in_array( $value, array( true, '1', 1, 'yes' ), true ) ) {
+		return 'required';
+	}
+
+	return $value;
+}
+add_filter( 'edd_get_option_logged_in_only', 'edd_update_logged_in_only_for_auto_register' );
 
 /**
  * Redirect to checkout immediately after adding items to the cart?
@@ -516,12 +508,10 @@ function edd_add_cache_busting( $url = '' ) {
 function _edd_deprecated_function( $function, $version, $replacement = null, $backtrace = null ) {
 	do_action( 'edd_deprecated_function_run', $function, $replacement, $version );
 
-	$show_errors = current_user_can( 'manage_options' );
-
-	// Allow plugin to filter the output error trigger
-	if ( WP_DEBUG && apply_filters( 'edd_deprecated_function_trigger_error', $show_errors ) ) {
+	if ( _edd_maybe_trigger_deprecation() ) {
 		if ( ! is_null( $replacement ) ) {
-			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s! Use %3$s instead.', 'easy-digital-downloads' ), $function, $version, $replacement ) );
+			/* translators: 1: function, 2: version, 3: replacement */
+			trigger_error( sprintf( _x( '%1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s! Use %3$s instead.', 'deprecated function error logging with replacement function', 'easy-digital-downloads' ), $function, $version, $replacement ) );
 
 			if ( ! empty( $backtrace ) ) {
 				trigger_error(  print_r( $backtrace, 1 ) ); // Limited to previous 1028 characters, but since we only need to move back 1 in stack that should be fine.
@@ -529,7 +519,8 @@ function _edd_deprecated_function( $function, $version, $replacement = null, $ba
 
 			// Alternatively we could dump this to a file.
 		} else {
-			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s with no alternative available.', 'easy-digital-downloads' ), $function, $version ) );
+			/* translators: 1: function, 2: version */
+			trigger_error( sprintf( _x( '%1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s with no alternative available.', 'deprecated function error logging with no replacement', 'easy-digital-downloads' ), $function, $version ) );
 
 			if ( ! empty( $backtrace ) ) {
 				trigger_error( print_r( $backtrace, 1 ) );// Limited to previous 1028 characters, but since we only need to move back 1 in stack that should be fine.
@@ -565,12 +556,10 @@ function _edd_deprecated_function( $function, $version, $replacement = null, $ba
 function _edd_deprected_argument( $argument, $function, $version, $replacement = null, $backtrace = null ) {
 	do_action( 'edd_deprecated_argument_run', $argument, $function, $replacement, $version );
 
-	$show_errors = current_user_can( 'manage_options' );
-
-	// Allow plugin to filter the output error trigger
-	if ( WP_DEBUG && apply_filters( 'edd_deprecated_argument_trigger_error', $show_errors ) ) {
+	if ( _edd_maybe_trigger_deprecation() ) {
 		if ( ! is_null( $replacement ) ) {
-			trigger_error( sprintf( __( 'The %1$s argument of %2$s is <strong>deprecated</strong> since Easy Digital Downloads version %3$s! Please use %4$s instead.', 'easy-digital-downloads' ), $argument, $function, $version, $replacement ) );
+			/* translators: 1: argument, 2: function, 3: version, 4: replacement */
+			trigger_error( sprintf( _x( 'The %1$s argument of %2$s is <strong>deprecated</strong> since Easy Digital Downloads version %3$s! Please use %4$s instead.', 'deprecated function argument error logging with replacement', 'easy-digital-downloads' ), $argument, $function, $version, $replacement ) );
 
 			if ( ! empty( $backtrace ) ) {
 				trigger_error(  print_r( $backtrace, 1 ) ); // Limited to previous 1028 characters, but since we only need to move back 1 in stack that should be fine.
@@ -578,7 +567,8 @@ function _edd_deprected_argument( $argument, $function, $version, $replacement =
 
 			// Alternatively we could dump this to a file.
 		} else {
-			trigger_error( sprintf( __( 'The %1$s argument of %2$s is <strong>deprecated</strong> since Easy Digital Downloads version %3$s with no alternative available.', 'easy-digital-downloads' ), $argument, $function, $version ) );
+			/* translators: 1: argument, 2: function, 3: version */
+			trigger_error( sprintf( _x( 'The %1$s argument of %2$s is <strong>deprecated</strong> since Easy Digital Downloads version %3$s with no alternative available.', 'deprecated function argument error logging with no replacement', 'easy-digital-downloads' ), $argument, $function, $version ) );
 
 			if ( ! empty( $backtrace ) ) {
 				trigger_error( print_r( $backtrace, 1 ) );// Limited to previous 1028 characters, but since we only need to move back 1 in stack that should be fine.
@@ -622,8 +612,6 @@ function _edd_deprecated_file( $file, $version, $replacement = null, $message = 
 	 */
 	do_action( 'edd_deprecated_file_run', $file, $replacement, $version );
 
-	$show_errors = current_user_can( 'manage_options' );
-
 	/**
 	 * Filters whether to trigger the error output for deprecated EDD files.
 	 *
@@ -631,7 +619,7 @@ function _edd_deprecated_file( $file, $version, $replacement = null, $message = 
 	 *
 	 * @param bool $show_errors Whether to trigger errors for deprecated files.
 	 */
-	if ( WP_DEBUG && apply_filters( 'edd_deprecated_file_trigger_error', $show_errors ) ) {
+	if ( _edd_maybe_trigger_deprecation() ) {
 		$message = empty( $message ) ? '' : ' ' . $message;
 
 		if ( ! is_null( $replacement ) ) {
@@ -656,8 +644,6 @@ function _edd_generic_deprecated( $function, $version, $message ) {
 	 */
 	do_action( 'edd_generic_deprecated', $function, $version, $message );
 
-	$show_errors = current_user_can( 'manage_options' );
-
 	/**
 	 * Filters whether to trigger the error output for the deprecation.
 	 *
@@ -665,12 +651,85 @@ function _edd_generic_deprecated( $function, $version, $message ) {
 	 *
 	 * @param bool $show_errors Whether to trigger errors for deprecated calls..
 	 */
-	if ( WP_DEBUG && apply_filters( 'edd_generic_deprecated_trigger_error', $show_errors ) ) {
+	if ( _edd_maybe_trigger_deprecation() ) {
 		$message = empty( $message ) ? '' : ' ' . $message;
 
 		/* translators: 1: PHP file name, 2: EDD version number */
 		trigger_error( sprintf( __( 'Code within %1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s. See message for further details.', 'easy-digital-downloads' ), $function, $version ) . $message );
 	}
+}
+
+/**
+ * Marks a class as deprecated and informs when it has been used.
+ *
+ * When deprecating a class you will need to stub out the class and call this function in the __construct method.
+ *
+ * There is a hook edd_deprecated_class_run that will be called that can be used.
+ *
+ * @since 3.3.0
+ *
+ * @param string $class_name The class that was called.
+ * @param string $version    The version of EDD that deprecated the class.
+ * @param string $message    The message to supply for the deprecation.
+ *
+ * @return void
+ */
+function _edd_deprecated_class( $class_name, $version, $message = '' ) {
+	/**
+	 * Fires immediately before a deprecated class notice is output.
+	 *
+	 * @since 3.3.0
+	 *
+	 * @param string $class_name The class that was called.
+	 * @param string $version    The version of EDD that deprecated the class.
+	 * @param string $message    The message to supply for the deprecation.
+	 */
+	do_action( 'edd_deprecated_class_run', $class_name, $version, $message );
+
+	/**
+	 * Filters whether to trigger the error output for deprecated EDD classes.
+	 *
+	 * @since 3.3.0
+	 *
+	 * @param bool $show_errors Whether to trigger errors for deprecated classes.
+	 */
+	if ( _edd_maybe_trigger_deprecation() ) {
+		$message = empty( $message ) ? '' : ' ' . $message;
+
+		/* translators: 1: PHP file name, 2: EDD version number */
+		trigger_error( sprintf( __( 'The class %1$s is <strong>deprecated</strong> since Easy Digital Downloads version %2$s. See message for further details.', 'easy-digital-downloads' ), $class_name, $version ) . $message );
+	}
+}
+
+/**
+ * Determines if we are in an environment which should allow triggering deprecation notices.
+ *
+ * @since 3.2.0
+ *
+ * @return bool True if we should trigger deprecation notices, false otherwise.
+ */
+function _edd_maybe_trigger_deprecation() {
+	$env                  = wp_get_environment_type();
+	$trigger_environments = array( 'development', 'local' );
+	$should_trigger       = in_array( $env, $trigger_environments, true );
+
+	/**
+	 * If we are not in an environment that should trigger, but WP_DEBUG is set to true, we'll
+	 * check if the user has the permission to manage options. If they do, we'll trigger the
+	 * deprecation notice only for those users.
+	 */
+	if ( ! $should_trigger && ( defined( 'WP_DEBUG' ) && WP_DEBUG ) && current_user_can( 'manage_options' ) ) {
+		$should_trigger = true;
+	}
+
+	/**
+	 * Filters whether to trigger deprecation notices.
+	 *
+	 * @since 3.2.0
+	 *
+	 * @param bool $should_trigger Whether to trigger deprecation notices.
+	 */
+	return apply_filters( 'edd_should_trigger_deprecation_notices', $should_trigger );
 }
 
 /**
@@ -876,6 +935,26 @@ function edd_get_upload_dir() {
 }
 
 /**
+ * Retrieve the absolute path to the file export directory without the trailing slash.
+ *
+ * @since 3.2.12
+ *
+ * @return string $path Absolute path to the EDD export directory
+ */
+function edd_get_exports_dir() {
+	$wp_upload_dir = wp_upload_dir();
+	$edd_dir       = edd_get_uploads_base_dir();
+	$path          = $wp_upload_dir['basedir'] . '/' . $edd_dir . '/exports';
+	$exports_dir   = apply_filters( 'edd_get_exports_dir', $path );
+
+	// Make sure the directory exists.
+	wp_mkdir_p( $exports_dir );
+
+	// Return, possibly filtered.
+	return $exports_dir;
+}
+
+/**
  * Retrieve the URL to the file upload directory without the trailing slash
  *
  * @since  3.0
@@ -1075,40 +1154,60 @@ function edd_set_upload_dir( $upload ) {
  * @param  string $payment_key The payment key.
  * @return bool                Whether the receipt is visible or not.
  */
-function edd_can_view_receipt( $payment_key = '' ) {
+/**
+ * Determines the receipt visibility status
+ *
+ * @param string  $order_or_key The order object or payment key. Using the payment key will eventually be deprecated.
+ * @return bool   whether the receipt is visible or not.
+ */
+function edd_can_view_receipt( $order_or_key = '' ) {
 
-	$return = false;
+	$user_can_view = false;
 
-	if ( empty( $payment_key ) ) {
-		return $return;
+	if ( empty( $order_or_key ) ) {
+		return $user_can_view;
+	}
+
+	// Fetch order.
+	if ( $order_or_key instanceof EDD\Orders\Order ) {
+		$order = $order_or_key;
+		$key   = $order->payment_key;
+	} else {
+		$key   = $order_or_key;
+		$order = edd_get_order_by( 'payment_key', $key );
 	}
 
 	global $edd_receipt_args;
 
-	$order = edd_get_order_by( 'payment_key', $payment_key );
 	if ( empty( $order->id ) ) {
-		return $return;
+		return $user_can_view;
 	}
+
 	$edd_receipt_args['id'] = $order->id;
+
+	// Some capabilities can always view the receipt, skip the filter.
+	if ( current_user_can( 'edit_shop_payments' ) ) {
+		return true;
+	}
 
 	if ( is_user_logged_in() ) {
 		if ( (int) get_current_user_id() === (int) $order->user_id ) {
-			$return = true;
+			$user_can_view = true;
 		} elseif ( wp_get_current_user()->user_email === $order->email ) {
-			$return = true;
+			$user_can_view = true;
 		} elseif ( current_user_can( 'view_shop_sensitive_data' ) ) {
-			$return = true;
+			$user_can_view = true;
 		}
 	} else {
 		$session = edd_get_purchase_session();
 		if ( ! empty( $session ) ) {
 			if ( $session['purchase_key'] === $order->payment_key ) {
-				$return = true;
+				$user_can_view = true;
 			}
 		}
 	}
 
-	return (bool) apply_filters( 'edd_can_view_receipt', $return, $payment_key );
+	return (bool) apply_filters( 'edd_can_view_receipt', $user_can_view, $key, $order );
 }
 
 /**
@@ -1233,7 +1332,7 @@ function edd_get_bot_name() {
 function edd_redirect( $location = '', $status = 302 ) {
 
 	// Prevent redirects in unit tests.
-	if ( (bool) ( defined( 'WP_TESTS_DIR' ) && WP_TESTS_DIR ) || function_exists( '_manually_load_plugin' ) ) {
+	if ( edd_is_doing_unit_tests() ) {
 		return;
 	}
 
@@ -1472,17 +1571,15 @@ function edd_format_counts( $counts = array(), $groupby = '' ) {
 
 	// Loop through counts and shape return value
 	if ( ! empty( $counts->items ) ) {
-
 		// Loop through statuses
 		foreach ( $counts->items as $count ) {
 			$c[ $count[ $groupby ] ] = absint( $count['count'] );
 
-			// We don't want to include trashed orders in the counts.
-			if ( ! isset( $count['status'] ) || 'trash' !== $count['status'] ) {
+			// We don't want to include trashed or archived items in the counts.
+			if ( ! isset( $count['status'] ) || ! in_array( $count['status'], array( 'trash', 'archived' ), true ) ) {
 				$c['total'] += $count['count'];
 			}
 		}
-
 	}
 
 	// Return array of counts
@@ -1734,28 +1831,53 @@ function edd_print_payment_icons( $icons = array() ) {
 }
 
 /**
- * Check to see if we should be displaying promotional content
+ * Gets the supported card image for a given gateway.
  *
- * In various parts of the plugin, we may choose to promote something like a sale for a limited time only. This
- * function should be used to set the conditions under which the promotions will display.
- *
- * @since 2.9.20
- *
- * @return bool
+ * @since 3.1
+ * @param string $gateway
+ * @param string $label
+ * @return string
  */
-function edd_is_promo_active() {
-
-	// Set the date/time range based on UTC.
-	$start = strtotime( '2019-11-29 06:00:00' );
-	$end   = strtotime( '2019-12-07 05:59:59' );
-	$now   = time();
-
-	// Only display sidebar if the page is loaded within the date range.
-	if ( ( $now > $start ) && ( $now < $end ) ) {
-		return true;
+function edd_get_payment_image( $gateway, $label ) {
+	if ( edd_string_is_image_url( $gateway ) ) {
+		return '<img class="payment-icon" src="' . esc_url( $gateway ) . '" alt="' . esc_attr( $label ) . '"/>';
 	}
 
-	return false;
+	$type = '';
+	$card = strtolower( str_replace( ' ', '', $label ) );
+
+	if ( has_filter( 'edd_accepted_payment_' . $card . '_image' ) ) {
+		$image = apply_filters( 'edd_accepted_payment_' . $card . '_image', '' );
+	} elseif ( has_filter( 'edd_accepted_payment_' . $gateway . '_image' ) ) {
+		$image = apply_filters( 'edd_accepted_payment_' . $gateway . '_image', '' );
+	} else {
+		// Set the type to SVG.
+		$type = 'svg';
+
+		// Get SVG dimensions.
+		$dimensions = edd_get_payment_icon_dimensions( $gateway );
+
+		// Get SVG markup.
+		$image = edd_get_payment_icon(
+			array(
+				'icon'    => $gateway,
+				'width'   => $dimensions['width'],
+				'height'  => $dimensions['height'],
+				'title'   => $label,
+				'classes' => array( 'payment-icon' ),
+			)
+		);
+	}
+
+	if ( edd_is_ssl_enforced() || is_ssl() ) {
+		$image = edd_enforced_ssl_asset_filter( $image );
+	}
+
+	if ( 'svg' === $type ) {
+		return $image;
+	}
+
+	return '<img class="payment-icon" src="' . esc_url( $image ) . '" alt="' . esc_attr( $label ) . '"/>';
 }
 
 /**
@@ -1763,29 +1885,35 @@ function edd_is_promo_active() {
  * For existing installs, this option is added whenever the function is first used.
  *
  * @since 2.11.4
+ * @since 3.1 Checks for the table before checking if orders exist.
+ *
  * @return int The timestamp when EDD was marked as activated.
  */
 function edd_get_activation_date() {
 	$activation_date = get_option( 'edd_activation_date', '' );
 	if ( ! $activation_date ) {
 		$activation_date = time();
-		// Gets the first order placed in the store (any status).
-		$payments = edd_get_payments(
-			array(
-				'output'        => 'posts',
-				'number'        => 1,
-				'orderby'       => 'ID',
-				'order'         => 'ASC',
-				'no_found_rows' => true,
-			)
-		);
-		if ( $payments ) {
-			$first_payment = reset( $payments );
-			// Use just the post date, rather than looking for the completed date (first payment may not be complete).
-			if ( ! empty( $first_payment->post_date_gmt ) ) {
-				$activation_date = strtotime( $first_payment->post_date_gmt );
+
+		$orders_table = new EDD\Database\Tables\Orders();
+
+		if ( $orders_table->exists() ) {
+			// Gets the first order placed in the store (any status).
+			$orders = edd_get_orders(
+				array(
+					'number'  => 1,
+					'orderby' => 'id',
+					'order'   => 'ASC',
+					'fields'  => 'date_created',
+				)
+			);
+			if ( $orders ) {
+				$first_order_date = reset( $orders );
+				if ( ! empty( $first_order_date ) ) {
+					$activation_date = strtotime( $first_order_date );
+				}
 			}
 		}
+
 		update_option( 'edd_activation_date', $activation_date );
 	}
 
@@ -1793,48 +1921,134 @@ function edd_get_activation_date() {
 }
 
 /**
- * Polyfills for is_countable and is_iterable
+ * Given a URL, run it through query arg additions.
  *
- * This helps with plugin compatibility going forward. Many extensions have issues with more modern PHP versions,
- * however unless teh customer is running WP 4.9.6 or PHP 7.3, we cannot use these functions.
+ * @since 3.1
  *
+ * @param string $base_url    The base URL for the generation.
+ * @param array  $query_args  The arguments to add to the $base_url.
+ * @param bool   $run_esc_url If true, esc_url will be run
+ *
+ * @return string.
  */
-if ( ! function_exists( 'is_countable' ) ) {
-	/**
-	 * Polyfill for is_countable() function added in PHP 7.3 or WP 4.9.6.
-	 *
-	 * Verify that the content of a variable is an array or an object
-	 * implementing the Countable interface.
-	 *
-	 * @since 2.9.17
-	 *
-	 * @param mixed $var The value to check.
-	 *
-	 * @return bool True if `$var` is countable, false otherwise.
-	 */
-	function is_countable( $var ) {
-		return ( is_array( $var )
-		         || $var instanceof Countable
-		         || $var instanceof SimpleXMLElement
-		         || $var instanceof ResourceBundle
-		);
+function edd_link_helper( $base_url = 'https://easydigitaldownloads.com/', $query_args = array(), $run_esc_url = true ) {
+	$default_args = array(
+		'utm_source'   => 'WordPress',
+		'utm_medium'   => '',
+		'utm_content'  => '',
+		'utm_campaign' => edd_is_pro() ? 'edd-pro' : 'edd',
+	);
+
+	$args = wp_parse_args( $query_args, $default_args );
+
+	if ( empty( $args['utm_medium'] ) ) {
+		if ( is_admin() ) {
+			$screen = get_current_screen();
+			if ( $screen ) {
+				$args['utm_medium'] = $screen->id;
+			}
+		} else {
+
+			$template = '';
+
+			if ( is_home() ) {
+				$template = get_home_template();
+			} elseif ( is_front_page() ) {
+				$template = get_front_page_template();
+			} elseif ( is_search() ) {
+				$template = get_search_template();
+			} elseif ( is_single() ) {
+				$template = get_single_template();
+			} elseif ( is_page() ) {
+				$template = get_page_template();
+			} elseif ( is_post_type_archive() ) {
+				$template = get_post_type_archive_template();
+			} elseif ( is_archive() ) {
+				$template = get_archive_template();
+			}
+
+			$args['utm_medium'] = wp_basename( $template, 'php' );
+		}
 	}
+
+	// Ensure we sanitize the medium and content.
+	$args['utm_medium']  = str_replace( '_', '-', sanitize_title( $args['utm_medium'] ) );
+	$args['utm_content'] = str_replace( '_', '-', sanitize_title( $args['utm_content'] ) );
+
+	// If the URL has an anchor we need to preserve it and move it to the end.
+	$anchor = '';
+	if ( false !== strpos( $base_url, '#' ) ) {
+		$parts    = explode( '#', $base_url );
+		$base_url = $parts[0];
+		$anchor   = '#' . $parts[1];
+	}
+
+	$url = add_query_arg( $args, trailingslashit( $base_url ) );
+
+	// Now re-add the anchor, after it's been processed.
+	$url .= $anchor;
+
+	return $run_esc_url ? esc_url( $url ) : $url;
 }
 
-if ( ! function_exists( 'is_iterable' ) ) {
-	/**
-	 * Polyfill for is_iterable() function added in PHP 7.1  or WP 4.9.6.
-	 *
-	 * Verify that the content of a variable is an array or an object
-	 * implementing the Traversable interface.
-	 *
-	 * @since 2.9.17
-	 *
-	 * @param mixed $var The value to check.
-	 *
-	 * @return bool True if `$var` is iterable, false otherwise.
-	 */
-	function is_iterable( $var ) {
-		return ( is_array( $var ) || $var instanceof Traversable );
+/**
+ * Whether core blocks are active.
+ *
+ * @since 3.1.0.2
+ * @return bool
+ */
+function edd_has_core_blocks() {
+	return defined( 'EDD_BLOCKS_DIR' );
+}
+
+/**
+ * Gets the correct namespace for a class/function.
+ *
+ * @since 3.1.1
+ * @param string $extension The rest of the namespace (optional).
+ * @return string
+ */
+function edd_get_namespace( $extension = '' ) {
+	$prefix = edd_is_pro() ? '\\EDD\\Pro\\' : '\\EDD\\';
+
+	return $prefix . $extension;
+}
+
+/**
+ * Whether EDD (Pro) is active.
+ * This only checks if the pro code is available; it does not check the validity of a pass.
+ *
+ * @since 3.1.1
+ * @return bool
+ */
+function edd_is_pro() {
+
+	// This filter is not intended for public consumption. Forcing it to return true will likely have negative consequences.
+	return (bool) apply_filters( 'edd_is_pro', EDD()->is_pro() );
+}
+
+/**
+ * Whether EDD (Pro) is active, but without a valid license key.
+ *
+ * @since 3.1.1
+ * @return bool
+ */
+function edd_is_inactive_pro() {
+	if ( ! edd_is_pro() ) {
+		return false;
 	}
+
+	$pass_manager = new EDD\Admin\Pass_Manager();
+
+	return ! $pass_manager->isPro();
+}
+
+/**
+ * Whether unit tests are running.
+ *
+ * @since 3.1.2
+ * @return bool
+ */
+function edd_is_doing_unit_tests() {
+	return (bool) ( ( defined( 'EDD_DOING_TESTS' ) && EDD_DOING_TESTS ) || function_exists( '_manually_load_plugin' ) );
 }

@@ -24,6 +24,7 @@ class EDD_Download {
 	 * The download ID
 	 *
 	 * @since 2.2
+	 * @var int
 	 */
 	public $ID = 0;
 
@@ -31,6 +32,7 @@ class EDD_Download {
 	 * The download price
 	 *
 	 * @since 2.2
+	 * @var float
 	 */
 	private $price;
 
@@ -38,6 +40,7 @@ class EDD_Download {
 	 * The download prices, if Variable Prices are enabled
 	 *
 	 * @since 2.2
+	 * @var array
 	 */
 	private $prices;
 
@@ -45,6 +48,7 @@ class EDD_Download {
 	 * The download files
 	 *
 	 * @since 2.2
+	 * @var array
 	 */
 	private $files;
 
@@ -52,6 +56,7 @@ class EDD_Download {
 	 * The file download limit
 	 *
 	 * @since 2.2
+	 * @var int
 	 */
 	private $file_download_limit;
 
@@ -59,6 +64,7 @@ class EDD_Download {
 	 * The refund window
 	 *
 	 * @since 2.2
+	 * @var int
 	 */
 	private $refund_window;
 
@@ -66,6 +72,7 @@ class EDD_Download {
 	 * The download type, default or bundle
 	 *
 	 * @since 2.2
+	 * @var string
 	 */
 	private $type;
 
@@ -73,6 +80,7 @@ class EDD_Download {
 	 * The bundled downloads, if this is a bundle type
 	 *
 	 * @since 2.2
+	 * @var array
 	 */
 	private $bundled_downloads;
 
@@ -80,6 +88,7 @@ class EDD_Download {
 	 * The sale count
 	 *
 	 * @since 2.2
+	 * @var int
 	 */
 	private $sales;
 
@@ -87,6 +96,7 @@ class EDD_Download {
 	 * The total earnings
 	 *
 	 * @since 2.2
+	 * @var float
 	 */
 	private $earnings;
 
@@ -94,6 +104,7 @@ class EDD_Download {
 	 * The notes
 	 *
 	 * @since 2.2
+	 * @var string
 	 */
 	private $notes;
 
@@ -101,6 +112,7 @@ class EDD_Download {
 	 * The download SKU
 	 *
 	 * @since 2.2
+	 * @var string
 	 */
 	private $sku;
 
@@ -108,6 +120,7 @@ class EDD_Download {
 	 * The purchase button behavior
 	 *
 	 * @since 2.2
+	 * @var string
 	 */
 	private $button_behavior;
 
@@ -115,28 +128,203 @@ class EDD_Download {
 	 * Declare the default properties in WP_Post as we can't extend it
 	 * Anything we've declared above has been removed.
 	 */
+	/**
+	 * ID of post author.
+	 *
+	 * A numeric string, for compatibility reasons.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_author = 0;
+
+	/**
+	 * The post's local publication time.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_date = '0000-00-00 00:00:00';
+
+	/**
+	 * The post's GMT publication time.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_date_gmt = '0000-00-00 00:00:00';
+
+	/**
+	 * The post's content.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_content = '';
+
+	/**
+	 * The post's title.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_title = '';
+
+	/**
+	 * The post's excerpt.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_excerpt = '';
+
+	/**
+	 * The post's status.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_status = 'publish';
+
+	/**
+	 * Whether comments are allowed.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $comment_status = 'open';
+
+	/**
+	 * Whether pings are allowed.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $ping_status = 'open';
+
+	/**
+	 * The post's password in plain text.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_password = '';
+
+	/**
+	 * The post's slug.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_name = '';
+
+	/**
+	 * URLs queued to be pinged.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $to_ping = '';
+
+	/**
+	 * URLs that have been pinged.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $pinged = '';
+
+	/**
+	 * The post's local modified time.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_modified = '0000-00-00 00:00:00';
+
+	/**
+	 * The post's GMT modified time.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_modified_gmt = '0000-00-00 00:00:00';
+
+	/**
+	 * A utility DB field for post content.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_content_filtered = '';
+
+	/**
+	 * ID of a post's parent post.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var int
+	 */
 	public $post_parent = 0;
+
+	/**
+	 * The unique identifier for a post, not necessarily a URL, used as the feed GUID.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $guid = '';
+
+	/**
+	 * A field used for ordering posts.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var int
+	 */
 	public $menu_order = 0;
+
+	/**
+	 * The post's type, like post or page.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
+	public $post_type = 'post';
+
+	/**
+	 * An attachment's mime type.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $post_mime_type = '';
+
+	/**
+	 * Cached comment count.
+	 *
+	 * A numeric string, for compatibility reasons.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $comment_count = 0;
+
+	/**
+	 * Stores the post object's sanitization level.
+	 *
+	 * Does not correspond to a DB field.
+	 *
+	 * @since 3.5.0 - WP Version
+	 * @var string
+	 */
 	public $filter;
+
+	/**
+	 * The refundability of the download.
+	 *
+	 * @since 3.0
+	 * @var string
+	 */
+	public $refundability = '';
 
 	/**
 	 * Get things going
@@ -294,7 +482,7 @@ class EDD_Download {
 
 		if ( true === $this->has_variable_prices() ) {
 			if ( empty( $this->prices ) ) {
-				$this->prices = get_post_meta( $this->ID, 'edd_variable_prices', true );
+				$this->prices = array_filter( (array) get_post_meta( $this->ID, 'edd_variable_prices', true ) );
 			}
 		}
 
@@ -306,7 +494,38 @@ class EDD_Download {
 		 * @param array $prices The array of variables prices.
 		 * @param int|string The ID of the download.
 		 */
-		return apply_filters( 'edd_get_variable_prices', $this->prices, $this->ID );
+		return (array) apply_filters( 'edd_get_variable_prices', $this->prices, $this->ID );
+	}
+
+	/**
+	 * Get the default Price ID for variable priced products.
+	 *
+	 * Since it is possible for the value to not be set on older products, we'll set it to the first price in the array
+	 * if one is not set, as that has been the default behavior since default prices were introduced.
+	 *
+	 * Storing it as the first if found, is just more consistent and intentional.
+	 *
+	 * @since 3.1.2
+	 *
+	 * @return int|null The default price ID, or null if the product does not have variable prices.
+	 */
+	public function get_default_price_id() {
+		if ( ! $this->has_variable_prices() ) {
+			return null;
+		}
+
+		$default_price_id = get_post_meta( $this->ID, '_edd_default_price_id', true );
+
+		// If no default price ID is set, or the default price ID is not in the prices array, set the first price as the default.
+		$prices = $this->get_prices();
+		if ( is_array( $prices ) && ( ! is_numeric( $default_price_id ) || ! array_key_exists( (int) $default_price_id, $prices ) ) ) {
+			$default_price_id = key( $prices );
+
+			// Set the default price ID
+			update_post_meta( $this->ID, '_edd_default_price_id', $default_price_id );
+		}
+
+		return absint( apply_filters( 'edd_variable_default_price_id', $default_price_id, $this->ID ) );
 	}
 
 	/**
@@ -396,27 +615,17 @@ class EDD_Download {
 	public function get_file_download_limit() {
 
 		if ( ! isset( $this->file_download_limit ) ) {
-			$limit  = get_post_meta( $this->ID, '_edd_download_limit', true );
-			$global = edd_get_option( 'file_download_limit', 0 );
 
-			// Download specific limit
-			if ( is_numeric( $limit ) ) {
-				$retval = absint( $limit );
+			// Check the global limit first. The default is 0.
+			$limit = edd_get_option( 'file_download_limit', 0 );
+			$meta  = get_post_meta( $this->ID, '_edd_download_limit', true );
 
-			// Use global
-			} elseif ( '' === $limit ) {
-				$retval = '';
-
-			// Global limit
-			} elseif ( ! empty( $global ) ) {
-				$retval = absint( $global );
-
-			// Default
-			} else {
-				$retval = 0;
+			// The download specific limit will override the global limit.
+			if ( ! empty( $meta ) ) {
+				$limit = $meta;
 			}
 
-			$this->file_download_limit = $retval;
+			$this->file_download_limit = absint( $limit );
 		}
 
 		return apply_filters( 'edd_file_download_limit', $this->file_download_limit, $this->ID );
@@ -467,27 +676,21 @@ class EDD_Download {
 	public function get_refundability() {
 
 		if ( ! isset( $this->refundability ) ) {
-			$default    = 'refundable';
-			$refundable = get_post_meta( $this->ID, '_edd_refundability', true );
-			$global     = edd_get_option( 'refundability', $default );
 
-			// Download specific window
-			if ( ! empty( $refundable ) ) {
-				$retval = $refundable;
+			// Check the global value first. The default is `refundable`.
+			$refundability = edd_get_option( 'refundability', 'refundable' );
+			$meta          = get_post_meta( $this->ID, '_edd_refundability', true );
 
-			// Use global
-			} elseif ( ! empty( $global ) ) {
-				$retval = $global;
-
-			// Default
-			} else {
-				$retval = $default;
+			// The download specific value will override the global.
+			if ( ! empty( $meta ) ) {
+				$refundability = $meta;
 			}
 
-			$this->refundability = $retval;
+			$this->refundability = $refundability;
 		}
 
-		return $this->refundability; // No filter
+		// This is not filtered.
+		return $this->refundability;
 	}
 
 	/**
@@ -569,10 +772,9 @@ class EDD_Download {
 		}
 
 		$price_assignments = $price_assignments[0];
-		$price_assignments = array_values( $price_assignments );
 
 		foreach ( $price_assignments as $key => $value ) {
-			if ( $value == $price_id || $value == 'all' ) {
+			if ( isset( $bundled_downloads[ $key ] ) && ( $value == $price_id || $value == 'all' ) ) {
 				$downloads[] = $bundled_downloads[ $key ];
 			}
 		}
@@ -625,11 +827,16 @@ class EDD_Download {
 
 		if ( ! isset( $this->button_behavior ) ) {
 
-			$this->button_behavior = get_post_meta( $this->ID, '_edd_button_behavior', true );
-
-			if ( empty( $this->button_behavior ) || ! edd_shop_supports_buy_now() ) {
-				$this->button_behavior = 'add_to_cart';
+			if ( ! edd_shop_supports_buy_now() ) {
+				$button_behavior = 'add_to_cart';
+			} else {
+				$button_behavior = get_post_meta( $this->ID, '_edd_button_behavior', true );
+				if ( empty( $button_behavior ) || ( 'direct' === $button_behavior && ! $this->supports_buy_now() ) ) {
+					$button_behavior = 'add_to_cart';
+				}
 			}
+
+			$this->button_behavior = $button_behavior;
 		}
 
 		return apply_filters( 'edd_get_download_button_behavior', $this->button_behavior, $this->ID );
@@ -874,7 +1081,7 @@ class EDD_Download {
 	public function can_purchase() {
 		$can_purchase = true;
 
-		if ( ! current_user_can( 'edit_post', $this->ID ) && $this->post_status != 'publish' ) {
+		if ( 'publish' !== $this->post_status && ! current_user_can( 'edit_post', $this->ID ) ) {
 			$can_purchase = false;
 		}
 
@@ -889,5 +1096,59 @@ class EDD_Download {
 	 */
 	public function get_bundle_pricing_variations() {
 		return get_post_meta( $this->ID, '_edd_bundled_products_conditions' );
+	}
+
+	/**
+	 * Determine if the download can support the Buy Now feature.
+	 *
+	 * @since 3.2.2
+	 * @param int|null $price_id The price ID to check for.
+	 *
+	 * @return bool True if the download can support Buy Now, false otherwise.
+	 */
+	public function supports_buy_now( $price_id = null ) {
+		// We have a few addons we have to check for, that would prevent Buy Now from working.
+		$recurring_active      = function_exists( 'edd_recurring' );
+		$free_downloads_active = function_exists( 'edd_free_downloads_use_modal' );
+
+		// If Recurring and Free Downloads are not present, we can return true.
+		if ( false === $recurring_active && false === $free_downloads_active ) {
+			return true;
+		}
+
+		// Free downloads does not support Buy Now.
+		if ( $free_downloads_active && ! $this->has_variable_prices() ) {
+			$price = get_post_meta( $this->ID, 'edd_price', true );
+			// If the download is free, we can return false. This check bypasses the is_free() method, to omit the filter.
+			if ( empty( $price ) && edd_free_downloads_use_modal( $this->ID ) ) {
+				return false;
+			}
+		}
+
+		// Subscription products cannot support Buy Now.
+		if ( $recurring_active ) {
+			if ( $this->has_variable_prices() ) {
+				// Parse if we have a price ID passed in.
+				$price_id = is_numeric( $price_id ) ? intval( $price_id ) : null;
+				// If no Price ID was passed in, and the product has variable prices, return false if any of the prices are recurring.
+				if ( null === $price_id ) {
+					foreach ( $this->get_prices() as $key => $price ) {
+						if ( edd_recurring()->is_price_recurring( $this->ID, $key ) ) {
+							return false;
+						}
+					}
+				}
+
+				$is_recurring = edd_recurring()->is_price_recurring( $this->ID, $price_id );
+			} else {
+				$is_recurring = edd_recurring()->is_recurring( $this->ID );
+			}
+
+			if ( $is_recurring ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

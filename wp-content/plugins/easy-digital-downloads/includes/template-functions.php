@@ -60,6 +60,7 @@ function edd_get_purchase_link( $args = array() ) {
 		edd_set_error(
 			'set_checkout',
 			sprintf(
+				/* translators: the settings screen URL */
 				__( 'No checkout page has been configured. Visit <a href="%s">Settings</a> to set one.', 'easy-digital-downloads' ),
 				esc_url( edd_get_admin_url( array(
 					'page'    => 'edd-settings',
@@ -77,6 +78,10 @@ function edd_get_purchase_link( $args = array() ) {
 	}
 
 	$post_id = is_object( $post ) ? $post->ID : 0;
+	if ( empty( $post_id ) && isset( $args['download_id'] ) ) {
+		$post_id = $args['download_id'];
+	}
+
 	$button_behavior = edd_get_download_button_behavior( $post_id );
 
 	$defaults = apply_filters( 'edd_purchase_link_defaults', array(
@@ -87,16 +92,11 @@ function edd_get_purchase_link( $args = array() ) {
 		'text'        => $button_behavior == 'direct' ? edd_get_option( 'buy_now_text', __( 'Buy Now', 'easy-digital-downloads' ) ) : edd_get_option( 'add_to_cart_text', __( 'Purchase', 'easy-digital-downloads' ) ),
 		'checkout'    => edd_get_option( 'checkout_button_text', _x( 'Checkout', 'text shown on the Add to Cart Button when the product is already in the cart', 'easy-digital-downloads' ) ),
 		'style'       => edd_get_option( 'button_style', 'button' ),
-		'color'       => edd_get_option( 'checkout_color', 'blue' ),
-		'class'       => 'edd-submit'
+		'color'       => edd_get_button_color_class(),
+		'class'       => 'edd-submit',
 	) );
 
 	$args = wp_parse_args( $args, $defaults );
-
-	// Override the straight_to_gateway if the shop doesn't support it
-	if ( ! edd_shop_supports_buy_now() ) {
-		$args['direct'] = false;
-	}
 
 	$download = new EDD_Download( $args['download_id'] );
 
@@ -104,12 +104,15 @@ function edd_get_purchase_link( $args = array() ) {
 		return false;
 	}
 
-	if( 'publish' !== $download->post_status && ! current_user_can( 'edit_product', $download->ID ) ) {
-		return false; // Product not published or user doesn't have permission to view drafts
+	// Product not published or user doesn't have permission to view drafts.
+	if ( 'publish' !== $download->post_status && ! current_user_can( 'edit_product', $download->ID ) ) {
+		return false;
 	}
 
-	// Override color if color == inherit
-	$args['color'] = ( $args['color'] == 'inherit' ) ? '' : $args['color'];
+	// Override the straight_to_gateway if the shop doesn't support it.
+	if ( ! edd_shop_supports_buy_now() || ! $download->supports_buy_now() ) {
+		$args['direct'] = false;
+	}
 
 	$options          = array();
 	$variable_pricing = $download->has_variable_prices();
@@ -157,12 +160,11 @@ function edd_get_purchase_link( $args = array() ) {
 
 	}
 
+	$button_display   = '';
+	$checkout_display = 'style="display:none;"';
 	if ( edd_item_in_cart( $download->ID, $options ) && ( ! $variable_pricing || ! $download->is_single_price_mode() ) ) {
 		$button_display   = 'style="display:none;"';
 		$checkout_display = '';
-	} else {
-		$button_display   = '';
-		$checkout_display = 'style="display:none;"';
 	}
 
 	// Collect any form IDs we've displayed already so we can avoid duplicate IDs
@@ -179,7 +181,13 @@ function edd_get_purchase_link( $args = array() ) {
 		$form_id .= '-' . $edd_displayed_form_ids[ $download->ID ];
 	}
 
-	$args = apply_filters( 'edd_purchase_link_args', $args );
+	/**
+	 * Filter the purchase link arguments.
+	 *
+	 * @param array        $args     The purchase link arguments.
+	 * @param EDD_Download $download The download object. Added in 3.2.4.
+	 */
+	$args = apply_filters( 'edd_purchase_link_args', $args, $download );
 
 	ob_start();
 ?>
@@ -189,11 +197,11 @@ function edd_get_purchase_link( $args = array() ) {
 
 		<div class="edd_purchase_submit_wrapper">
 			<?php
-			$class = implode( ' ', array( $args['style'], $args['color'], trim( $args['class'] ) ) );
+			$class = implode( ' ', array_filter( array( $args['style'], $args['color'], trim( $args['class'] ) ) ) );
 
 			if ( ! edd_is_ajax_disabled() ) {
 				$timestamp = time();
-				echo '<a href="#" class="edd-add-to-cart ' . esc_attr( $class ) . '" data-nonce="' .  wp_create_nonce( 'edd-add-to-cart-' . $download->ID ) . '" data-timestamp="' . esc_attr( $timestamp ) . '" data-token="' . esc_attr( EDD\Utils\Tokenizer::tokenize( $timestamp ) ) . '" data-action="edd_add_to_cart" data-download-id="' . esc_attr( $download->ID ) . '" ' . $data_variable . ' ' . $type . ' ' . $data_price . ' ' . $button_display . '><span class="edd-add-to-cart-label">' . $args['text'] . '</span> <span class="edd-loading" aria-label="' . esc_attr__( 'Loading', 'easy-digital-downloads' ) . '"></span></a>';
+				echo '<button class="edd-add-to-cart ' . esc_attr( $class ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'edd-add-to-cart-' . $download->ID ) ) . '" data-timestamp="' . esc_attr( $timestamp ) . '" data-token="' . esc_attr( EDD\Utils\Tokenizer::tokenize( $timestamp ) ) . '" data-action="edd_add_to_cart" data-download-id="' . esc_attr( $download->ID ) . '" ' . $data_variable . ' ' . $type . ' ' . $data_price . ' ' . $button_display . '><span class="edd-add-to-cart-label">' . $args['text'] . '</span> <span class="edd-loading" aria-label="' . esc_attr__( 'Loading', 'easy-digital-downloads' ) . '"></span></button>';
 
 			}
 
@@ -226,14 +234,15 @@ function edd_get_purchase_link( $args = array() ) {
 		<?php if ( $variable_pricing && isset( $price_id ) && isset( $prices[$price_id] ) ): ?>
 			<input type="hidden" name="edd_options[price_id][]" id="edd_price_option_<?php echo esc_attr( $download->ID ); ?>_<?php echo esc_attr( $price_id ); ?>" class="edd_price_option_<?php echo esc_attr( $download->ID ); ?>" value="<?php echo esc_attr( $price_id ); ?>">
 		<?php endif; ?>
-		<?php if( ! empty( $args['direct'] ) && ! $download->is_free( $args['price_id'] ) ) { ?>
+		<?php if ( ! empty( $args['direct'] ) && ! $download->is_free( $args['price_id'] ) ) { ?>
 			<input type="hidden" name="edd_action" class="edd_action_input" value="straight_to_gateway">
+			<?php wp_nonce_field( 'edd_straight_to_gateway', 'edd_straight_to_gateway', false ); ?>
 		<?php } else { ?>
 			<input type="hidden" name="edd_action" class="edd_action_input" value="add_to_cart">
 		<?php } ?>
 
 		<?php if( apply_filters( 'edd_download_redirect_to_checkout', edd_straight_to_checkout(), $download->ID, $args ) ) : ?>
-			<input type="hidden" name="edd_redirect_to_checkout" id="edd_redirect_to_checkout" value="1">
+			<input type="hidden" name="edd_redirect_to_checkout" value="1">
 		<?php endif; ?>
 
 		<?php do_action( 'edd_purchase_link_end', $download->ID, $args ); ?>
@@ -566,25 +575,25 @@ add_filter( 'edd_downloads_content', 'edd_downloads_default_content' );
  */
 function edd_get_purchase_download_links( $payment_id = 0 ) {
 
-	$downloads   = edd_get_payment_meta_cart_details( $payment_id, true );
-	$payment_key = edd_get_payment_key( $payment_id );
-	$email       = edd_get_payment_user_email( $payment_id );
-	$links       = '<ul class="edd_download_links">';
+	$order     = edd_get_order( $payment_id );
+	$downloads = $order->get_items();
+	$links     = '<ul class="edd_download_links">';
 
 	foreach ( $downloads as $download ) {
 		$links .= '<li>';
-			$links .= '<h3 class="edd_download_link_title">' . esc_html( get_the_title( $download['id'] ) ) . '</h3>';
-			$price_id = isset( $download['options'] ) && isset( $download['options']['price_id'] ) ? $download['options']['price_id'] : null;
-			$files    = edd_get_download_files( $download['id'], $price_id );
-			if ( is_array( $files ) ) {
-				foreach ( $files as $filekey => $file ) {
-					$links .= '<div class="edd_download_link_file">';
-						$links .= '<a href="' . esc_url( edd_get_download_file_url( $payment_key, $email, $filekey, $download['id'], $price_id ) ) . '">';
-						$links .= edd_get_file_name( $file );
-						$links .= '</a>';
-					$links .= '</div>';
-				}
+		$links .= '<h3 class="edd_download_link_title">' . esc_html( edd_get_download_name( $download->product_id ) ) . '</h3>';
+		$files  = edd_get_download_files( $download->product_id, $download->price_id );
+		if ( is_array( $files ) ) {
+			foreach ( $files as $filekey => $file ) {
+				$links .= '<div class="edd_download_link_file">';
+				$links .= sprintf(
+					'<a href="%s">%s</a>',
+					esc_url( edd_get_download_file_url( $order, $order->email, $filekey, $download->product_id, $download->price_id ) ),
+					edd_get_file_name( $file )
+				);
+				$links .= '</div>';
 			}
+		}
 		$links .= '</li>';
 	}
 
@@ -836,6 +845,8 @@ function edd_add_body_classes( $class ) {
 	if( edd_is_test_mode() ) {
 		$classes[] = 'edd-test-mode';
 	}
+
+	$classes[] = 'edd-js-none';
 
 	return array_unique( $classes );
 }
@@ -1171,4 +1182,57 @@ function edd_pagination( $args = array() ) {
 			<?php echo $pagination; ?>
 		</div>
 	<?php endif;
+}
+
+/**
+ * Gets the CSS class for the button color.
+ *
+ * @since 3.1
+ * @param string $default The default color option to use as a fallback.
+ * @return string
+ */
+function edd_get_button_color_class( $default = 'blue' ) {
+	$color = edd_get_option( 'checkout_color', $default );
+	$class = 'inherit' !== $color ? $color : '';
+
+	return apply_filters( 'edd_button_color_class', $class );
+}
+
+/**
+ * Return a list of theme files found in both parent and child themes.
+ *
+ * This allows us to detect when a core template is being overridden by a theme.
+ *
+ * @since 3.1
+ *
+ * @return array List of files that the parent and child themes are overriding, relative.
+ */
+function edd_get_theme_edd_templates() {
+	$parent_theme_dir = trailingslashit( get_template_directory() ) . 'edd_templates/';
+	$child_theme_dir  = trailingslashit( get_stylesheet_directory() ) . 'edd_templates/';
+
+	$theme_edd_templates = array();
+
+	if ( $parent_theme_dir === $child_theme_dir ) {
+		$child_theme_dir = false;
+	}
+
+	$found_templates = array();
+	if ( is_dir( $parent_theme_dir ) ) {
+		$found_templates = list_files( $parent_theme_dir );
+	}
+
+	$found_child_templates = array();
+	if ( false !== $child_theme_dir && is_dir( $child_theme_dir ) ) {
+		$found_child_templates = list_files( $child_theme_dir );
+	}
+
+	$theme_edd_templates = array_map(
+		function( $file ) {
+			return str_replace( get_theme_root() . '/', '', $file );
+		},
+		array_merge( $found_templates, $found_child_templates )
+	);
+
+	return $theme_edd_templates;
 }

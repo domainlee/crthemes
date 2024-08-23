@@ -9,7 +9,7 @@
  * @since       1.0
  */
 
-// Exit if accessed directly
+// Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -27,14 +27,14 @@ add_action( 'init', 'edd_add_rewrite_endpoints' );
  * Process cart endpoints.
  *
  * @since 1.3.4
-*/
+ */
 function edd_process_cart_endpoints() {
 	global $wp_query;
 
 	// Adds an item to the cart with a /edd-add/# URL.
 	if ( isset( $wp_query->query_vars['edd-add'] ) ) {
 		$download_id = absint( $wp_query->query_vars['edd-add'] );
-		$cart        = edd_add_to_cart( $download_id, array() );
+		edd_add_to_cart( $download_id, array() );
 
 		edd_redirect( edd_get_checkout_uri() );
 	}
@@ -42,7 +42,7 @@ function edd_process_cart_endpoints() {
 	// Removes an item from the cart with a /edd-remove/# URL.
 	if ( isset( $wp_query->query_vars['edd-remove'] ) ) {
 		$cart_key = absint( $wp_query->query_vars['edd-remove'] );
-		$cart     = edd_remove_from_cart( $cart_key );
+		edd_remove_from_cart( $cart_key );
 
 		edd_redirect( edd_get_checkout_uri() );
 	}
@@ -54,18 +54,23 @@ add_action( 'template_redirect', 'edd_process_cart_endpoints', 100 );
  *
  * @since 1.0
  *
- * @param array $data
+ * @param array $data The data sent via the add to cart form.
  */
 function edd_process_add_to_cart( $data ) {
 	$download_id = ! empty( $data['download_id'] ) ? absint( $data['download_id'] ) : false;
-	$options     = isset( $data['edd_options'] ) ? $data['edd_options'] : array();
+	$options     = isset( $data['edd_options'] ) ? (array) $data['edd_options'] : array();
 
 	if ( ! empty( $data['edd_download_quantity'] ) ) {
 		$options['quantity'] = absint( $data['edd_download_quantity'] );
 	}
 
 	if ( isset( $options['price_id'] ) && is_array( $options['price_id'] ) ) {
-		foreach ( $options['price_id'] as  $key => $price_id ) {
+		if ( ! isset( $options['quantity'] ) ) {
+			$options['quantity'] = array();
+		} elseif ( ! is_array( $options['quantity'] ) ) {
+			$options['quantity'] = (array) $options['quantity'];
+		}
+		foreach ( $options['price_id'] as $key => $price_id ) {
 			$options['quantity'][ $key ] = isset( $data[ 'edd_download_quantity_' . $price_id ] ) ? absint( $data[ 'edd_download_quantity_' . $price_id ] ) : 1;
 		}
 	}
@@ -75,8 +80,8 @@ function edd_process_add_to_cart( $data ) {
 	}
 
 	if ( edd_straight_to_checkout() && ! edd_is_checkout() ) {
-		$query_args = remove_query_arg( array( 'edd_action', 'download_id', 'edd_options' ) );
-		$query_part = strpos( $query_args, "?" );
+		$query_args     = remove_query_arg( array( 'edd_action', 'download_id', 'edd_options', 'edd_download_quantity' ) );
+		$query_part     = strpos( $query_args, '?' );
 		$url_parameters = '';
 
 		if ( false !== $query_part ) {
@@ -85,7 +90,7 @@ function edd_process_add_to_cart( $data ) {
 
 		edd_redirect( edd_get_checkout_uri() . $url_parameters, 303 );
 	} else {
-		edd_redirect( remove_query_arg( array( 'edd_action', 'download_id', 'edd_options' ) ) );
+		edd_redirect( remove_query_arg( array( 'edd_action', 'download_id', 'edd_options', 'edd_download_quantity' ) ) );
 	}
 }
 add_action( 'edd_add_to_cart', 'edd_process_add_to_cart' );
@@ -95,7 +100,7 @@ add_action( 'edd_add_to_cart', 'edd_process_add_to_cart' );
  *
  * @since 1.0
  *
- * @param $data
+ * @param array $data The data sent via the remove from cart form.
  */
 function edd_process_remove_from_cart( $data ) {
 	$cart_key = absint( $_GET['cart_item'] );
@@ -113,7 +118,7 @@ function edd_process_remove_from_cart( $data ) {
 		edd_remove_from_cart( $cart_key );
 	}
 
-	edd_redirect( remove_query_arg( array( 'edd_action', 'cart_item', 'nocache' ) ) );
+	edd_redirect( remove_query_arg( array( 'edd_action', 'cart_item', 'nocache', 'edd_remove_from_cart_nonce' ) ) );
 }
 add_action( 'edd_remove', 'edd_process_remove_from_cart' );
 
@@ -122,7 +127,7 @@ add_action( 'edd_remove', 'edd_process_remove_from_cart' );
  *
  * @since 2.0
  *
- * @param $data
+ * @param array $data The data sent via the remove fee from cart form.
  */
 function edd_process_remove_fee_from_cart( $data ) {
 	$fee = sanitize_text_field( $data['fee'] );
@@ -136,7 +141,7 @@ add_action( 'edd_remove_fee', 'edd_process_remove_fee_from_cart' );
  *
  * @since 1.0
  *
- * @param $data
+ * @param array $data The data sent via the collection purchase form.
  */
 function edd_process_collection_purchase( $data ) {
 	$taxonomy = urldecode( $data['taxonomy'] );

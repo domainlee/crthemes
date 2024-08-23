@@ -58,9 +58,10 @@ jQuery( document ).ready( function( $ ) {
 			no_bundles = container.hasClass( 'no-bundles' ),
 			variations = container.hasClass( 'variations' ),
 			variations_only = container.hasClass( 'variations-only' ),
-
+			current_id = container.hasClass( 'exclude-current' ) ? edd_vars.post_id : 0,
 			lastKey = e.which,
-			search_type = 'edd_download_search';
+			search_type = 'edd_download_search',
+			exclusions = select.data( 'excluded-products' );
 
 		// String replace the chosen container IDs
 		container.attr( 'id' ).replace( '_chosen', '' );
@@ -110,6 +111,8 @@ jQuery( document ).ready( function( $ ) {
 				no_bundles: no_bundles,
 				variations: variations,
 				variations_only: variations_only,
+				current_id: current_id,
+				exclusions: exclusions,
 			},
 
 			beforeSend: function() {
@@ -123,7 +126,7 @@ jQuery( document ).ready( function( $ ) {
 				// Add any option that doesn't already exist
 				$.each( data, function( key, item ) {
 					if ( ! $( 'option[value="' + item.id + '"]', select ).length ) {
-						select.prepend( '<option value="' + item.id + '">' + item.name + '</option>' );
+						select.append( '<option value="' + item.id + '">' + item.name + '</option>' );
 					}
 				} );
 

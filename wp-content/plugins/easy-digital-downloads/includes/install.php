@@ -13,81 +13,6 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Get the current database version
- *
- * @since 3.0
- *
- * @return string
- */
-function edd_get_db_version() {
-	$db_version = get_option( 'edd_version' );
-	$retval     = ! empty( $db_version )
-		? edd_format_db_version( $db_version )
-		: false;
-
-	return $retval;
-}
-
-/**
- * Update the EDD version in the options table
- *
- * @since 3.0
- */
-function edd_update_db_version() {
-	if ( defined( 'EDD_VERSION' ) ) {
-		update_option( 'edd_version', edd_format_db_version( EDD_VERSION ) );
-	}
-}
-
-/**
- * Format the EDD version (going into or coming from the database.)
- *
- * @since 3.0
- *
- * @param string $version
- * @return string
- */
-function edd_format_db_version( $version = '' ) {
-	return preg_replace( '/[^0-9.].*/', '', $version );
-}
-
-/**
- * Check if the upgrade routine has been run for a specific action
- *
- * @since  2.3
- * @param  string $upgrade_action The upgrade action to check completion for
- * @return bool                   If the action has been added to the copmleted actions array
- */
-function edd_has_upgrade_completed( $upgrade_action = '' ) {
-
-	// Bail if no upgrade action to check
-	if ( empty( $upgrade_action ) ) {
-		return false;
-	}
-
-	// Get completed upgrades
-	$completed_upgrades = edd_get_completed_upgrades();
-
-	// Return true if in array, false if not
-	return in_array( $upgrade_action, $completed_upgrades, true );
-}
-
-/**
- * Get's the array of completed upgrade actions
- *
- * @since  2.3
- * @return array The array of completed upgrades
- */
-function edd_get_completed_upgrades() {
-
-	// Get the completed upgrades for this site
-	$completed_upgrades = get_option( 'edd_completed_upgrades', array() );
-
-	// Return array of completed upgrades
-	return (array) $completed_upgrades;
-}
-
-/**
  * Install
  *
  * Runs on plugin install by setting up the post types, custom taxonomies,
@@ -167,50 +92,39 @@ function edd_run_multisite_install() {
  */
 function edd_run_install( $site_id = false ) {
 
-	// Not switched
+	if ( edd_get_db_version() ) {
+		return;
+	}
+
+	// Not switched.
 	$switched = false;
 
-	// Maybe switch to a site
+	// Maybe switch to a site.
 	if ( ! empty( $site_id ) ) {
 		switch_to_blog( $site_id );
 		$switched = true;
 	}
 
-	// Get the current database version
-	$current_version = edd_get_db_version();
-
-	// Setup the components (customers, discounts, logs, etc...)
+	// Setup the components (customers, discounts, logs, etc...).
 	edd_setup_components();
 
-	// Setup the Downloads Custom Post Type
+	// Setup the Downloads Custom Post Type.
 	edd_setup_edd_post_types();
 
-	// Setup the Download Taxonomies
+	// Setup the Download Taxonomies.
 	edd_setup_download_taxonomies();
 
-	// Clear the permalinks
+	// Clear the permalinks.
 	flush_rewrite_rules( false );
 
-	// Install the default pages
+	// Install the default pages and settings.
 	edd_install_pages();
-
-	// Maybe save the previous version, only if different than current
-	if ( ! empty( $current_version ) && ( edd_format_db_version( EDD_VERSION ) !== $current_version ) ) {
-		if ( version_compare( $current_version, edd_format_db_version( EDD_VERSION ), '>' ) ) {
-			$downgraded = true;
-			update_option( 'edd_version_downgraded_from', $current_version );
-		}
-
-		update_option( 'edd_version_upgraded_from', $current_version );
-	}
-
-	// Install the default settings
 	edd_install_settings();
 
 	// Set the activation date.
 	edd_get_activation_date();
 
-	// Create wp-content/uploads/edd/ folder and the .htaccess file
+	// Create wp-content/uploads/edd/ folder and the .htaccess file.
 	if ( ! function_exists( 'edd_create_protection_files' ) ) {
 		require_once EDD_PLUGIN_DIR . 'includes/admin/upload-functions.php';
 	}
@@ -218,30 +132,29 @@ function edd_run_install( $site_id = false ) {
 		edd_create_protection_files( true );
 	}
 
-	// Create custom tables. (@todo move to BerlinDB)
-	EDD()->notifications->create_table();
+	// Create EDD shop roles.
+	EDD()->roles->add_roles();
+	EDD()->roles->add_caps();
 
-	// Create EDD shop roles
-	$roles = new EDD_Roles;
-	$roles->add_roles();
-	$roles->add_caps();
+	// API version.
+	update_option( 'edd_default_api_version', 'v' . EDD()->api->get_version() );
 
-	// API version
-	$api = new EDD_API;
-	update_option( 'edd_default_api_version', 'v' . $api->get_version() );
+	// Set session handling to database by default.
+	update_option( 'edd_session_handling', 'db' );
 
-	// Check for PHP Session support, and enable if available
-	EDD()->session->use_php_sessions();
-
-	// Maybe set all upgrades as complete (only on fresh installation)
+	// Maybe set all upgrades as complete (only on fresh installation).
 	edd_set_all_upgrades_complete();
 
-	// Update the database version (must be at end, but before site restore)
-	edd_update_db_version();
+	// Update the database version (must be at end, but before site restore).
+	edd_do_automatic_upgrades();
 
-	// Maybe switch back
+	// Maybe switch back.
 	if ( true === $switched ) {
 		restore_current_blog();
+	}
+
+	if ( ! get_option( 'edd_onboarding_completed', false ) ) {
+		set_transient( 'edd_onboarding_redirect', true, 30 );
 	}
 }
 
@@ -256,21 +169,8 @@ function edd_set_all_upgrades_complete() {
 		return;
 	}
 
-	// Maybe include an admin-area only file/function
-	if ( ! function_exists( 'edd_set_upgrade_complete' ) ) {
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/upgrade-functions.php';
-	}
-
 	// When new upgrade routines are added, mark them as complete on fresh install
-	$upgrade_routines = array(
-		'upgrade_payment_taxes',
-		'upgrade_customer_payments_association',
-		'upgrade_user_api_keys',
-		'remove_refunded_sale_logs',
-		'update_file_download_log_data',
-	);
-	$edd_30_upgrades  = edd_get_v30_upgrades();
-	$upgrade_routines = array_merge( $upgrade_routines, array_keys( $edd_30_upgrades ) );
+	$upgrade_routines = edd_get_all_upgrades();
 
 	// Loop through upgrade routines and mark them as complete
 	foreach ( $upgrade_routines as $upgrade ) {
@@ -289,12 +189,7 @@ function edd_install_pages() {
 	$current_options = get_option( 'edd_settings', array() );
 
 	// Required store pages
-	$pages = array_flip( array(
-		'purchase_page',
-		'success_page',
-		'failure_page',
-		'purchase_history_page'
-	) );
+	$pages = edd_get_required_pages();
 
 	// Look for missing pages
 	$missing_pages  = array_diff_key( $pages, $current_options );
@@ -313,10 +208,23 @@ function edd_install_pages() {
 	$checkout = 0;
 
 	// We'll only update settings on change
-	$changed  = false;
+	$changed = false;
+
+	// Use the current user as the page author.
+	$user_id = get_current_user_id();
 
 	// Loop through all pages, fix or create any missing ones
-	foreach ( array_flip( $pages ) as $page ) {
+	foreach ( $pages as $page => $page_attributes ) {
+
+		$page_attributes = wp_parse_args(
+			$page_attributes,
+			array(
+				'post_status'    => 'publish',
+				'post_author'    => $user_id,
+				'post_type'      => 'page',
+				'comment_status' => 'closed',
+			)
+		);
 
 		$page_id = ! empty( $pages_to_check[ $page ] ) ? $pages_to_check[ $page ] : false;
 
@@ -337,62 +245,8 @@ function edd_install_pages() {
 			continue;
 		}
 
-		// Get page attributes for missing pages
-		switch ( $page ) {
-
-			// Checkout
-			case 'purchase_page':
-				$page_attributes = array(
-					'post_title'     => __( 'Checkout', 'easy-digital-downloads' ),
-					'post_content'   => "<!-- wp:shortcode -->[download_checkout]<!-- /wp:shortcode -->",
-					'post_status'    => 'publish',
-					'post_author'    => 1,
-					'post_parent'    => 0,
-					'post_type'      => 'page',
-					'comment_status' => 'closed',
-				);
-				break;
-
-			// Success
-			case 'success_page':
-				$text            = __( 'Thank you for your purchase!', 'easy-digital-downloads' );
-				$page_attributes = array(
-					'post_title'     => __( 'Purchase Confirmation', 'easy-digital-downloads' ),
-					'post_content'   => "<!-- wp:paragraph --><p>{$text}</p><!-- /wp:paragraph --><!-- wp:shortcode -->[edd_receipt]<!-- /wp:shortcode -->",
-					'post_status'    => 'publish',
-					'post_author'    => 1,
-					'post_parent'    => $checkout,
-					'post_type'      => 'page',
-					'comment_status' => 'closed',
-				);
-				break;
-
-			// Failure
-			case 'failure_page':
-				$text            = __( 'Your transaction failed, please try again or contact site support.', 'easy-digital-downloads' );
-				$page_attributes = array(
-					'post_title'     => __( 'Transaction Failed', 'easy-digital-downloads' ),
-					'post_content'   => "<!-- wp:paragraph --><p>{$text}</p><!-- /wp:paragraph -->",
-					'post_status'    => 'publish',
-					'post_author'    => 1,
-					'post_type'      => 'page',
-					'post_parent'    => $checkout,
-					'comment_status' => 'closed',
-				);
-				break;
-
-			// Purchase History
-			case 'purchase_history_page':
-				$page_attributes = array(
-					'post_title'     => __( 'Purchase History', 'easy-digital-downloads' ),
-					'post_content'   => "<!-- wp:shortcode -->[purchase_history]<!-- /wp:shortcode -->",
-					'post_status'    => 'publish',
-					'post_author'    => 1,
-					'post_type'      => 'page',
-					'post_parent'    => $checkout,
-					'comment_status' => 'closed',
-				);
-				break;
+		if ( ! isset( $page_attributes['post_parent'] ) ) {
+			$page_attributes['post_parent'] = $checkout;
 		}
 
 		// Create the new page
@@ -417,13 +271,46 @@ function edd_install_pages() {
 }
 
 /**
+ * Gets the array of required pages with default attributes and content for EDD.
+ *
+ * @since 3.1
+ * @return array
+ */
+function edd_get_required_pages() {
+
+	return apply_filters(
+		'edd_required_pages',
+		array(
+			'purchase_page'         => array(
+				'post_title'   => __( 'Checkout', 'easy-digital-downloads' ),
+				'post_content' => '<!-- wp:shortcode -->[download_checkout]<!-- /wp:shortcode -->',
+				'post_parent'  => 0,
+			),
+			'success_page'          => array(
+				'post_title'   => __( 'Purchase Confirmation', 'easy-digital-downloads' ),
+				'post_content' => '<!-- wp:paragraph --><p>' . __( 'Thank you for your purchase!', 'easy-digital-downloads' ) . '</p><!-- /wp:paragraph --><!-- wp:shortcode -->[edd_receipt]<!-- /wp:shortcode -->',
+			),
+			'failure_page'          => array(
+				'post_title'   => __( 'Transaction Failed', 'easy-digital-downloads' ),
+				'post_content' => '<!-- wp:paragraph --><p>' . __( 'Your transaction failed; please try again or contact site support.', 'easy-digital-downloads' ) .'</p><!-- /wp:paragraph -->',
+			),
+			'purchase_history_page' => array(
+				'post_title'   => __( 'Purchase History', 'easy-digital-downloads' ),
+				'post_content' => '<!-- wp:shortcode -->[purchase_history]<!-- /wp:shortcode -->',
+			),
+		)
+	);
+}
+
+/**
  * Install the default settings
  *
  * @since 3.0
- *
  * @global array $edd_options
+ * @return void
  */
 function edd_install_settings() {
+
 	global $edd_options;
 
 	// Setup some default options
@@ -452,7 +339,6 @@ function edd_install_settings() {
 		}
 	}
 
-	// Get the settings
 	$settings       = get_option( 'edd_settings', array() );
 	$merged_options = array_merge( $settings, $options );
 	$edd_options    = $merged_options;
@@ -483,35 +369,7 @@ function edd_new_blog_created( $blog ) {
 	edd_install();
 	restore_current_blog();
 }
-if ( version_compare( get_bloginfo( 'version' ), '5.1', '>=' ) ) {
-	add_action( 'wp_initialize_site', 'edd_new_blog_created' );
-} else {
-	add_action( 'wpmu_new_blog', 'edd_new_blog_created' );
-}
-
-/**
- * Drop our custom tables when a mu site is deleted
- *
- * @deprecated 3.0   Handled by WP_DB_Table
- * @since      2.5
- * @param      array $tables  The tables to drop
- * @param      int   $blog_id The Blog ID being deleted
- * @return     array          The tables to drop
- */
-function edd_wpmu_drop_tables( $tables, $blog_id ) {
-
-	switch_to_blog( $blog_id );
-	$customers_db     = new EDD_DB_Customers();
-	$customer_meta_db = new EDD_DB_Customer_Meta();
-	if ( $customers_db->installed() ) {
-		$tables[] = $customers_db->table_name;
-		$tables[] = $customer_meta_db->table_name;
-	}
-	restore_current_blog();
-
-	return $tables;
-
-}
+add_action( 'wp_initialize_site', 'edd_new_blog_created' );
 
 /**
  * Post-installation
@@ -551,19 +409,19 @@ function edd_install_roles_on_network() {
 
 	global $wp_roles;
 
-	if( ! is_object( $wp_roles ) ) {
+	if ( ! is_object( $wp_roles ) ) {
 		return;
 	}
 
+	if ( empty( $wp_roles->roles ) || ! array_key_exists( 'shop_manager', $wp_roles->roles ) ) {
 
-	if( empty( $wp_roles->roles ) || ! array_key_exists( 'shop_manager', $wp_roles->roles ) ) {
-
+		if ( empty( $wp_roles->roles ) ) {
+			$wp_roles->roles = array();
+		}
 		// Create EDD shop roles
-		$roles = new EDD_Roles;
+		$roles = new EDD_Roles();
 		$roles->add_roles();
 		$roles->add_caps();
-
 	}
-
 }
 add_action( 'admin_init', 'edd_install_roles_on_network' );

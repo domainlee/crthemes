@@ -4,7 +4,7 @@
  * Removes Stripe from active gateways if application requirements are not met.
  *
  * @since 2.8.1
- *
+ * @deprecated 3.2.0
  * @param array $enabled_gateways Enabled gateways that allow purchasing.
  * @return array
  */
@@ -15,7 +15,6 @@ function edds_validate_gateway_requirements( $enabled_gateways ) {
 
 	return $enabled_gateways;
 }
-add_filter( 'edd_enabled_payment_gateways', 'edds_validate_gateway_requirements', 20 );
 
 /**
  * Injects the Stripe token and customer email into the pre-gateway data
@@ -49,13 +48,17 @@ function edds_process_post_data( $purchase_data ) {
 		return;
 	}
 
-	if ( isset( $_POST['edd_stripe_existing_card'] ) && 'new' !== $_POST['edd_stripe_existing_card'] ) {
-		return;
-	}
+	$elements_mode = edds_get_elements_mode();
+	// These are card-elements validations.
+	if ( 'card-elements' === $elements_mode ) {
+		if ( isset( $_POST['edd_stripe_existing_card'] ) && 'new' !== $_POST['edd_stripe_existing_card'] ) {
+			return;
+		}
 
-	// Require a name for new cards.
-	if ( ! isset( $_POST['card_name'] ) || strlen( trim( $_POST['card_name'] ) ) === 0 ) {
-		edd_set_error( 'no_card_name', __( 'Please enter a name for the credit card.', 'easy-digital-downloads' ) );
+		// Require a name for new cards.
+		if ( ! isset( $_POST['card_name'] ) || strlen( trim( $_POST['card_name'] ) ) === 0 ) {
+			edd_set_error( 'no_card_name', __( 'Please enter a name for the credit card.', 'easy-digital-downloads' ) );
+		}
 	}
 }
 add_action( 'edd_checkout_error_checks', 'edds_process_post_data' );
@@ -85,3 +88,25 @@ function edds_get_stripe_checkout_locale() {
 function edds_set_logged_in_cookie_global( $logged_in_cookie ) {
 	$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in_cookie;
 }
+
+/**
+ * Given a transaction ID, generate a link to the Stripe transaction ID details
+ *
+ * @since  1.9.1
+ * @param  string $transaction_id The Transaction ID
+ * @param  int    $payment_id     The payment ID for this transaction
+ * @return string                 A link to the Stripe transaction details
+ */
+function edd_stripe_link_transaction_id( $transaction_id, $payment_id ) {
+
+	$order = edd_get_order( $payment_id );
+	$test  = 'test' === $order->mode ? 'test/' : '';
+
+	if ( 'preapproval' === $order->status ) {
+		$url = '<a href="https://dashboard.stripe.com/' . esc_attr( $test ) . 'setup_intents/' . esc_attr( $transaction_id ) . '" target="_blank">' . esc_html( $transaction_id ) . '</a>';
+	} else {
+		$url = '<a href="https://dashboard.stripe.com/' . esc_attr( $test ) . 'payments/' . esc_attr( $transaction_id ) . '" target="_blank">' . esc_html( $transaction_id ) . '</a>';
+	}
+	return apply_filters( 'edd_stripe_link_payment_details_transaction_id', $url );
+}
+add_filter( 'edd_payment_details_transaction_id-stripe', 'edd_stripe_link_transaction_id', 10, 2 );

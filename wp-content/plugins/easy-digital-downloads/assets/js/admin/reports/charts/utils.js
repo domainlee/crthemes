@@ -1,7 +1,7 @@
 /**
  * Internal dependencies
  */
-import { Currency } from '@easy-digital-downloads/currency';
+import { Currency, NumberFormat } from '@easy-digital-downloads/currency';
 
 /**
  * Determine if a pie graph.
@@ -53,11 +53,12 @@ export const toolTipBaseConfig = {
 	 */
 	custom: function( tooltip ) {
 		// Tooltip element.
-		let tooltipEl = document.getElementById( 'edd-chartjs-tooltip' );
+		let tooltipEl = document.getElementById( this._chart.canvas.parentNode.id + '-tooltip' );
 
 		if ( ! tooltipEl ) {
 			tooltipEl = document.createElement( 'div' );
-			tooltipEl.id = 'edd-chartjs-tooltip';
+			tooltipEl.id = this._chart.canvas.parentNode.id + '-tooltip';
+			tooltipEl.classList.add( 'edd-chartjs-tooltip' );
 			tooltipEl.innerHTML = '<table></table>';
 
 			this._chart.canvas.parentNode.appendChild( tooltipEl );
@@ -131,4 +132,29 @@ export const toolTipBaseConfig = {
 		tooltipEl.style.fontStyle = tooltip._bodyFontStyle;
 		tooltipEl.style.padding = tooltip.yPadding + 'px ' + tooltip.xPadding + 'px';
 	},
+};
+
+/**
+ * Attach formatting callback to axis ticks.
+ *
+ * @param {Object} ticks Axis ticks configuration.
+ */
+ export const attachAxisTickFormattingCallback = ( ticks ) => {
+	const number = new NumberFormat();
+
+	ticks.callback = function( value, index, values ) {
+		switch ( ticks.formattingType ) {
+			case 'integer':
+				value = parseInt( value );
+				break;
+			case 'format':
+				value = number.format( value );
+			  	break;
+			default:
+		  }
+
+		return value;
+	}
+
+	return ticks;
 };

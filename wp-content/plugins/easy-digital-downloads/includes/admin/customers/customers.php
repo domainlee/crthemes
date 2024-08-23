@@ -9,8 +9,8 @@
  * @since       2.3
  */
 
-// Exit if accessed directly
-defined( 'ABSPATH' ) || exit;
+// Exit if accessed directly.
+defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 /** Navigation ****************************************************************/
 
@@ -18,45 +18,31 @@ defined( 'ABSPATH' ) || exit;
  * Output the primary customers page navigation
  *
  * @since 3.0
- * @param string $active_tab
+ * @param string $active_tab The currently active tab. Default is empty string.
  */
 function edd_customers_page_primary_nav( $active_tab = '' ) {
-
-	ob_start();?>
-
-	<nav class="nav-tab-wrapper edd-nav-tab-wrapper" aria-label="<?php esc_attr_e( 'Secondary menu', 'easy-digital-downloads' ); ?>">
-		<?php
-
-		// Get the pages
-		$tabs = edd_get_customer_pages();
-
-		// Loop through pages and create tabs
-		foreach ( $tabs as $tab_id => $tab_name ) {
-
-			// Remove
-			$tab_url = edd_get_admin_url(
+	$tabs = array();
+	foreach ( edd_get_customer_pages() as $tab_id => $tab_name ) {
+		$tabs[ $tab_id ] = array(
+			'name' => $tab_name,
+			'url'  => edd_get_admin_url(
 				array(
 					'page'      => 'edd-customers',
 					'page_type' => urlencode( $tab_id ),
 				)
-			);
+			),
+		);
+	}
 
-			$class = 'nav-tab';
-			if ( $active_tab === $tab_id ) {
-				$class .= ' nav-tab-active';
-			}
-
-			// Link
-			echo '<a href="' . esc_url( $tab_url ) . '" class="' . esc_attr( $class ) . '">'; // WPCS: XSS ok.
-				echo esc_html( $tab_name );
-			echo '</a>';
-		}
-		?>
-	</nav>
-
-	<?php
-
-	echo ob_get_clean(); // WPCS: XSS ok.
+	$navigation = new EDD\Admin\Menu\SecondaryNavigation(
+		$tabs,
+		'edd-customers',
+		array(
+			'active_tab'  => $active_tab,
+			'show_search' => true,
+		)
+	);
+	$navigation->render();
 }
 
 /**
@@ -71,16 +57,19 @@ function edd_customers_page_primary_nav( $active_tab = '' ) {
 function edd_get_customer_pages() {
 	static $pages = null;
 
-	// Filter
+	// Filter.
 	if ( null === $pages ) {
-		$pages = (array) apply_filters( 'edd_get_customer_pages', array(
-			'customers' => esc_html__( 'Customers',          'easy-digital-downloads' ),
-			'emails'    => esc_html__( 'Email Addresses',    'easy-digital-downloads' ),
-			'physical'  => esc_html__( 'Physical Addresses', 'easy-digital-downloads' )
-		) );
+		$pages = (array) apply_filters(
+			'edd_get_customer_pages',
+			array(
+				'customers' => esc_html__( 'Customers', 'easy-digital-downloads' ),
+				'emails'    => esc_html__( 'Email Addresses', 'easy-digital-downloads' ),
+				'physical'  => esc_html__( 'Physical Addresses', 'easy-digital-downloads' ),
+			)
+		);
 	}
 
-	// Return
+	// Return.
 	return $pages;
 }
 
@@ -91,26 +80,28 @@ function edd_get_customer_pages() {
  *
  * @since 3.0
  *
- * @param object $customer
+ * @param EDD_Customer $customer Customer object.
  */
 function edd_customers_sections( $customer ) {
 
-	// Instantiate the Sections class and sections array
+	// Instantiate the Sections class and sections array.
 	$sections   = new EDD\Admin\Sections();
 	$c_sections = array();
 
-	// Setup sections variables
+	// Setup sections variables.
 	$sections->item            = $customer;
 	$sections->use_js          = true;
 	$sections->current_section = ! empty( $_GET['view'] )
 		? sanitize_key( $_GET['view'] )
 		: 'overview';
-	$sections->base_url = edd_get_admin_url( array(
-		'page' => 'edd-customers',
-		'id'   => absint( $customer->id ),
-	) );
+	$sections->base_url        = edd_get_admin_url(
+		array(
+			'page' => 'edd-customers',
+			'id'   => absint( $customer->id ),
+		)
+	);
 
-	// Get all registered tabs & views
+	// Get all registered tabs & views.
 	$tabs  = edd_customer_tabs();
 	$views = edd_customer_views();
 
@@ -119,29 +110,29 @@ function edd_customers_sections( $customer ) {
 		unset( $tabs['addresses'] );
 	}
 
-	// Loop through tabs & setup sections
+	// Loop through tabs & setup sections.
 	if ( ! empty( $tabs ) ) {
 		foreach ( $tabs as $id => $tab ) {
 
-			// Bail if no view
+			// Bail if no view.
 			if ( ! isset( $views[ $id ] ) ) {
 				continue;
 			}
 
-			// Add to sections array
+			// Add to sections array.
 			$c_sections[] = array(
 				'id'       => $id,
 				'label'    => $tab['title'],
 				'icon'     => str_replace( 'dashicons-', '', $tab['dashicon'] ),
-				'callback' => $views[ $id ]
+				'callback' => $views[ $id ],
 			);
 		}
 	}
 
-	// Set the customer sections
+	// Set the customer sections.
 	$sections->set_sections( $c_sections );
 
-	// Display the sections
+	// Display the sections.
 	$sections->display();
 }
 
@@ -158,23 +149,23 @@ function edd_customers_page() {
 	wp_enqueue_script( 'edd-admin-customers' );
 	wp_enqueue_script( 'edd-admin-notes' );
 
-	// Views
+	// Views.
 	$default_views  = edd_customer_views();
 	$requested_view = isset( $_GET['view'] )
 		? sanitize_key( $_GET['view'] )
 		: 'customers';
 
-	// Tabs
+	// Tabs.
 	$active_tab = ! empty( $_GET['page_type'] )
 		? sanitize_key( $_GET['page_type'] )
 		: 'customers';
 
-	// Single customer view
 	if ( array_key_exists( $requested_view, $default_views ) && is_callable( $default_views[ $requested_view ] ) ) {
+		// Single customer view.
 		edd_render_customer_view( $requested_view, $default_views );
 
-	// List table view
 	} else {
+		// List table view.
 		edd_customers_list( $active_tab );
 	}
 }
@@ -207,61 +198,62 @@ function edd_customer_tabs() {
  */
 function edd_customers_list( $active_tab = 'customers' ) {
 
-	// Get the possible pages
+	// Get the possible pages.
 	$pages = edd_get_customer_pages();
 
-	// Reset page if not a registered page
+	// Reset page if not a registered page.
 	if ( ! in_array( $active_tab, array_keys( $pages ), true ) ) {
 		$active_tab = 'customers';
 	}
 
-	// Get the label/name from the active tab
+	// Get the label/name from the active tab.
 	$name = $pages[ $active_tab ];
 
-	// Get the action url from the active tab
-	$action_url = edd_get_admin_url( array(
-		'page_type' => sanitize_key( $active_tab ),
-		'page'      => 'edd-' . sanitize_key( $active_tab ),
-	) );
+	// Get the action url from the active tab.
+	$action_url = edd_get_admin_url(
+		array(
+			'page_type' => sanitize_key( $active_tab ),
+			'page'      => 'edd-' . sanitize_key( $active_tab ),
+		)
+	);
 
-	// Setup the list table class
+	// Setup the list table class.
 	switch ( $active_tab ) {
-		case 'customers' :
-			include_once dirname( __FILE__ ) . '/class-customer-table.php';
+		case 'customers':
+			include_once __DIR__ . '/class-customer-table.php';
 			$list_table_class = 'EDD_Customer_Reports_Table';
 			break;
-		case 'emails' :
-			include_once dirname( __FILE__ ) . '/class-customer-email-addresses-table.php';
+		case 'emails':
+			include_once __DIR__ . '/class-customer-email-addresses-table.php';
 			$list_table_class = 'EDD_Customer_Email_Addresses_Table';
 			break;
-		case 'physical' :
-			include_once dirname( __FILE__ ) . '/class-customer-addresses-table.php';
+		case 'physical':
+			include_once __DIR__ . '/class-customer-addresses-table.php';
 			$list_table_class = 'EDD_Customer_Addresses_Table';
 			break;
 	}
 
-	// Initialize the list table
-	$customers_table = new $list_table_class;
-	$customers_table->prepare_items(); ?>
+	// Initialize the list table.
+	$customers_table = new $list_table_class();
+	$customers_table->prepare_items();
+	edd_customers_page_primary_nav( $active_tab );
+	?>
 
 	<div class="wrap">
 		<h1 class="wp-heading-inline"><?php echo esc_html( $name ); ?></h1>
 		<hr class="wp-header-end">
-
-		<?php edd_customers_page_primary_nav( $active_tab ); ?>
-		<br>
 
 		<?php do_action( 'edd_' . sanitize_key( $active_tab ) . '_table_top' ); ?>
 
 		<form id="edd-customers-filter" method="get" action="<?php echo esc_url( $action_url ); ?>">
 			<?php
 			$customers_table->views();
-			$customers_table->search_box( sprintf( __( 'Search %s', 'easy-digital-downloads' ), $name ), 'edd-customers' );
+			/* translators: the active screen, eg "Search Customers" or "Search Customer Email Addresses" */
+			$customers_table->search_box( sprintf( _x( 'Search %s', 'Noun: Customers or Customer Email Addresses placeholder for a search box', 'easy-digital-downloads' ), $name ), 'edd-customers' );
 			$customers_table->display();
 			?>
 			<input type="hidden" name="post_type" value="download" />
 			<input type="hidden" name="page" value="edd-customers" />
-			<input type="hidden" name="view" value="customers" />
 			<input type="hidden" name="page_type" value="<?php echo esc_attr( $active_tab ); ?>" />
 		</form>
 
@@ -278,8 +270,8 @@ function edd_customers_list( $active_tab = 'customers' ) {
  * @since 2.3
  * @since 3.0 Updated to use EDD\Sections class.
  *
- * @param  string $view      The View being requested
- * @param  array $callbacks  The Registered views and their callback functions
+ * @param  string $view      The View being requested.
+ * @param  array  $callbacks The Registered views and their callback functions.
  */
 function edd_render_customer_view( $view, $callbacks ) {
 
@@ -303,7 +295,8 @@ function edd_render_customer_view( $view, $callbacks ) {
 	if ( empty( $customer->id ) ) {
 		edd_set_error( 'edd-invalid_customer', __( 'Invalid Customer ID Provided.', 'easy-digital-downloads' ) );
 		$render = false;
-	} ?>
+	}
+	?>
 
 	<div class='wrap'>
 		<h1>
@@ -317,9 +310,11 @@ function edd_render_customer_view( $view, $callbacks ) {
 
 			<div class="error settings-error"><?php edd_print_errors(); ?></div>
 
-		<?php endif;
+			<?php
+		endif;
 
-		if ( $customer && $render ) : ?>
+		if ( $customer && $render ) :
+			?>
 
 			<div id="edd-item-wrapper" class="edd-item-has-tabs edd-clearfix">
 				<?php edd_customers_sections( $customer ); ?>
@@ -329,7 +324,6 @@ function edd_render_customer_view( $view, $callbacks ) {
 
 	</div>
 	<?php
-
 }
 
 /**
@@ -343,11 +337,12 @@ function edd_render_customer_view( $view, $callbacks ) {
 function edd_customers_view( $customer = null ) {
 	$customer_edit_role = edd_get_edit_customers_role();
 
-	$agreement_timestamps = $customer->get_meta( 'agree_to_terms_time', false );
-	$show_terms           = edd_get_option( 'show_agree_to_terms' );
-	$privacy_timestamps   = $customer->get_meta( 'agree_to_privacy_time', false );
-	$show_privacy         = edd_get_option( 'show_agree_to_privacy_policy' );
-	$last_payment_date    = '';
+	$agreement_timestamps  = $customer->get_meta( 'agree_to_terms_time', false );
+	$show_terms            = edd_get_option( 'show_agree_to_terms' );
+	$privacy_timestamps    = $customer->get_meta( 'agree_to_privacy_time', false );
+	$show_privacy          = edd_get_option( 'show_agree_to_privacy_policy' );
+	$last_payment_date     = '';
+	$agreement_date_format = 'H:i:s';
 
 	if ( ( empty( $agreement_timestamps ) && $show_terms ) || ( empty( $privacy_timestamps ) && $show_privacy ) ) {
 		$last_payment = edd_get_orders(
@@ -387,16 +382,16 @@ function edd_customers_view( $customer = null ) {
 
 	$data_atts = array(
 		'key'     => 'user_login',
-		'exclude' => $user_id
+		'exclude' => $user_id,
 	);
 
-	$user_args  = array(
+	$user_args = array(
 		'name'  => 'customerinfo[user_login]',
 		'class' => 'edd-user-dropdown',
-		'data'  => $data_atts
+		'data'  => $data_atts,
 	);
 
-	// Maybe get user data
+	// Maybe get user data.
 	if ( ! empty( $user_id ) ) {
 		$userdata = get_userdata( $user_id );
 
@@ -408,7 +403,7 @@ function edd_customers_view( $customer = null ) {
 		}
 	}
 
-	// Address
+	// Address.
 	$address = $customer->get_address();
 
 	if ( ! empty( $address ) ) {
@@ -421,38 +416,52 @@ function edd_customers_view( $customer = null ) {
 
 	do_action( 'edd_customer_card_top', $customer );
 
-	// Country
+	// Country.
 	$selected_country = $address['country'];
 	$countries        = edd_get_country_list();
 
-	// State
+	// State.
 	$selected_state = edd_get_shop_state();
 	$states         = edd_get_shop_states( $selected_country );
 	$selected_state = isset( $address['region'] )
 		? $address['region']
 		: $selected_state;
 
-	// Orders
 	// Orders and refunds.
-	$orders = edd_get_orders( array(
-		'customer_id' => $customer->id,
-		'number'      => 10,
-		'type'        => 'sale',
-	) );
+	$orders = edd_get_orders(
+		array(
+			'customer_id' => $customer->id,
+			'number'      => 10,
+			'type'        => 'sale',
+		)
+	);
 
-	$refunds = edd_get_orders( array(
-		'customer_id' => $customer->id,
-		'number'      => 10,
-		'type'        => 'refund',
-	) );
+	$refunds = edd_get_orders(
+		array(
+			'customer_id' => $customer->id,
+			'number'      => 10,
+			'type'        => 'refund',
+		)
+	);
 
-	// Downloads
+	// Downloads.
 	$downloads = edd_get_users_purchased_products( $customer->email );
-
 	?>
 
 	<div class="info-wrapper customer-section">
-		<form id="edit-customer-info" method="post" action="<?php echo esc_url( edd_get_admin_url( array( 'page' => 'edd-customers', 'view' => 'overview', 'id' => absint( $customer->id ) ) ) ); ?>">
+		<form id="edit-customer-info" method="post" action="
+		<?php
+		echo esc_url(
+			edd_get_admin_url(
+				array(
+					'page' => 'edd-customers',
+					'view' => 'overview',
+					'id'   => absint( $customer->id ),
+				)
+			)
+		);
+		?>
+		">
 			<input type="hidden" data-key="id" name="customerinfo[id]" value="<?php echo esc_attr( $customer->id ); ?>" />
 			<input type="hidden" name="edd_action" value="edit-customer" />
 			<?php wp_nonce_field( 'edit-customer', '_wpnonce', false, true ); ?>
@@ -504,11 +513,12 @@ function edd_customers_view( $customer = null ) {
 
 							<?php
 
-							if ( ! empty( $states ) ) : ?>
+							if ( ! empty( $states ) ) :
+								?>
 
 								<select data-key="state" name="customerinfo[region]" id="card_state" class="card_state edd-select info-item">
 									<?php
-									foreach( $states as $state_code => $state ) {
+									foreach ( $states as $state_code => $state ) {
 										echo '<option value="' . esc_attr( $state_code ) . '"' . selected( $state_code, $selected_state, false ) . '>' . esc_html( $state ) . '</option>';
 									}
 									?>
@@ -545,11 +555,18 @@ function edd_customers_view( $customer = null ) {
 					<span class="customer-since info-item editable">
 						<?php
 						printf(
-							/* translators: The date. */
+							/* translators: %s: i18n formatted date that the customer was created */
 							esc_html__( 'Customer since %s', 'easy-digital-downloads' ),
 							esc_html( edd_date_i18n( $customer->date_created ) )
 						);
 						?>
+					</span>
+					<span class="customer-status info-item edit-item">
+						<select name="customerinfo[status]">
+							<option value="active"<?php selected( $customer->status, 'active' ); ?>><?php esc_html_e( 'Active', 'easy-digital-downloads' ); ?></option>
+							<option value="inactive"<?php selected( $customer->status, 'inactive' ); ?>><?php esc_html_e( 'Inactive', 'easy-digital-downloads' ); ?></option>
+							<option value="disabled"<?php selected( $customer->status, 'disabled' ); ?>><?php esc_html_e( 'Disabled', 'easy-digital-downloads' ); ?></option>
+						</select>
 					</span>
 					<span class="customer-user-id info-item edit-item">
 						<?php echo EDD()->html->ajax_user_search( $user_args ); ?>
@@ -559,9 +576,12 @@ function edd_customers_view( $customer = null ) {
 						<?php if ( ! empty( $user_id ) ) : ?>
 
 							<span data-key="user_id">
-								<?php if ( empty( $user_login ) ) :
-									printf( __( 'User %s missing', 'easy-digital-downloads' ), '<code>' . esc_html( $user_id ) . '</code>');
-								endif; ?>
+								<?php
+								if ( empty( $user_login ) ) :
+									/* translators: %s: user id */
+									printf( __( 'User %s missing', 'easy-digital-downloads' ), '<code>' . esc_html( $user_id ) . '</code>' );
+								endif;
+								?>
 								<a href="<?php echo esc_url( admin_url( 'user-edit.php?user_id=' . absint( $user_id ) ) ); ?>"><?php echo esc_html( $user_login ); ?></a>
 							</span>
 
@@ -592,7 +612,18 @@ function edd_customers_view( $customer = null ) {
 	<div id="edd-item-stats-wrapper" class="customer-stats-wrapper customer-section">
 		<ul>
 			<li>
-				<a href="<?php echo esc_url( edd_get_admin_url( array( 'page' => 'edd-payment-history', 'customer' => absint( $customer->id ) ) ) ); ?>">
+				<a href="
+				<?php
+				echo esc_url(
+					edd_get_admin_url(
+						array(
+							'page'     => 'edd-payment-history',
+							'customer' => absint( $customer->id ),
+						)
+					)
+				);
+				?>
+				">
 					<span class="dashicons dashicons-cart"></span>
 					<?php
 					printf(
@@ -640,25 +671,52 @@ function edd_customers_view( $customer = null ) {
 		<p class="customer-terms-agreement-date info-item">
 			<?php
 			if ( ! empty( $agreement_timestamp ) ) {
-				echo esc_html( edd_date_i18n( $agreement_timestamp, get_option( 'date_format' ) . ' H:i:s' ) . ' ' . edd_get_timezone_abbr() );
+				// We're using date_i18n() here because the timestamp was added already localized in edd_build_order.
+				echo esc_html(
+					date_i18n(
+						get_option( 'date_format' ) . ' ' . $agreement_date_format,
+						$agreement_timestamp
+					) . ' ' . edd_get_timezone_abbr()
+				);
 
 				esc_html_e( ' &mdash; Agreed to Terms', 'easy-digital-downloads' );
 
-				if ( ! empty( $agreement_timestamps ) ) : ?>
+				if ( ! empty( $agreement_timestamps ) ) {
+					// Sort the timestamps in descending order.
+					rsort( $agreement_timestamps );
 
-					<span alt="f223" class="edd-help-tip dashicons dashicons-editor-help" title="<strong><?php esc_html_e( 'Previous Agreement Dates', 'easy-digital-downloads' ); ?></strong><br /><?php foreach ( $agreement_timestamps as $timestamp ) { echo date_i18n( get_option( 'date_format' ) . ' H:i:s', $timestamp ); } ?>"></span>
+					// Since we stored these as localized, we need to convert them to strings before passing them to the tooltip.
+					foreach ( $agreement_timestamps as $key => $timestamp ) {
+						$agreement_timestamps[ $key ] = date_i18n(
+							get_option( 'date_format' ) . ' ' . $agreement_date_format,
+							$timestamp
+						) . ' ' . edd_get_timezone_abbr();
+					}
 
-				<?php endif;
-
+					$tooltip = new EDD\HTML\TimelineTooltip(
+						array(
+							'title' => __( 'Previous Agreement Dates', 'easy-digital-downloads' ),
+							'items' => $agreement_timestamps,
+						)
+					);
+					$tooltip->output();
+				}
 			} elseif ( ! empty( $last_payment_date && $show_terms ) ) {
-				echo esc_html( edd_date_i18n( $last_payment_date, get_option( 'date_format' ) . ' H:i:s' ) . ' ' . edd_get_timezone_abbr() );
+				echo esc_html(
+					edd_date_i18n(
+						$last_payment_date,
+						get_option( 'date_format' ) . ' ' . $agreement_date_format
+					) . ' ' . edd_get_timezone_abbr()
+				);
 
 				esc_html_e( ' &mdash; Agreed to Terms', 'easy-digital-downloads' );
-				?>
-
-				<span alt="f223" class="edd-help-tip dashicons dashicons-editor-help" title="<strong><?php esc_html_e( 'Estimated Privacy Policy Date', 'easy-digital-downloads' ); ?></strong><br /><?php esc_html_e( 'This customer made a purchase prior to agreement dates being logged, this is the date of their last purchase. If your site was displaying the agreement checkbox at that time, this is our best estimate as to when they last agreed to your terms.', 'easy-digital-downloads' ); ?>"></span>
-
-				<?php
+				$tooltip = new EDD\HTML\Tooltip(
+					array(
+						'title'   => __( 'Estimated Terms Agreement Date', 'easy-digital-downloads' ),
+						'content' => __( 'This customer made a purchase prior to agreement dates being logged, this is the date of their last purchase. If your site was displaying the agreement checkbox at that time, this is our best estimate as to when they last agreed to your terms.', 'easy-digital-downloads' ),
+					)
+				);
+				$tooltip->output();
 			} else {
 				esc_html_e( 'No terms agreement found.', 'easy-digital-downloads' );
 			}
@@ -668,26 +726,53 @@ function edd_customers_view( $customer = null ) {
 		<p class="customer-privacy-policy-date info-item">
 			<?php
 			if ( ! empty( $privacy_timestamp ) ) {
-				echo esc_html( edd_date_i18n( $privacy_timestamp, get_option( 'date_format' ) . ' H:i:s' ) . ' ' . edd_get_timezone_abbr() );
+				// We're using date_i18n() here because the timestamp was added already localized in edd_build_order.
+				echo esc_html(
+					date_i18n(
+						get_option( 'date_format' ) . ' ' . $agreement_date_format,
+						$privacy_timestamp
+					) . ' ' . edd_get_timezone_abbr()
+				);
 
 				esc_html_e( ' &mdash; Agreed to Privacy Policy', 'easy-digital-downloads' );
 
-				if ( ! empty( $privacy_timestamps ) ) : ?>
+				if ( ! empty( $privacy_timestamps ) ) {
+					// Sort the timestamps in descending order.
+					rsort( $privacy_timestamps );
 
-					<span alt="f223" class="edd-help-tip dashicons dashicons-editor-help" title="<strong><?php esc_html_e( 'Previous Agreement Dates', 'easy-digital-downloads' ); ?></strong><br /><?php foreach ( $privacy_timestamps as $timestamp ) { echo esc_html( date_i18n( get_option( 'date_format' ) . ' H:i:s', $timestamp ) ); } ?>"></span>
+					// Since we stored these as localized, we need to convert them to strings before passing them to the tooltip.
+					foreach ( $privacy_timestamps as $key => $timestamp ) {
+						$privacy_timestamps[ $key ] = date_i18n(
+							get_option( 'date_format' ) . ' ' . $agreement_date_format,
+							$timestamp
+						) . ' ' . edd_get_timezone_abbr();
+					}
 
-				<?php endif;
-
+					$tooltip = new EDD\HTML\TimelineTooltip(
+						array(
+							'title' => __( 'Previous Agreement Dates', 'easy-digital-downloads' ),
+							'items' => $privacy_timestamps,
+						)
+					);
+					$tooltip->output();
+				}
 			} elseif ( ! empty( $last_payment_date ) && $show_privacy ) {
 
-				echo esc_html( edd_date_i18n( $last_payment_date, get_option( 'date_format' ) . ' H:i:s' ) . ' ' . edd_get_timezone_abbr() );
+				echo esc_html(
+					edd_date_i18n(
+						$last_payment_date,
+						get_option( 'date_format' ) . ' ' . $agreement_date_format
+					) . ' ' . edd_get_timezone_abbr()
+				);
 
 				esc_html_e( ' &mdash; Agreed to Privacy Policy', 'easy-digital-downloads' );
-				?>
-
-				<span alt="f223" class="edd-help-tip dashicons dashicons-editor-help" title="<strong><?php esc_html_e( 'Estimated Privacy Policy Date', 'easy-digital-downloads' ); ?></strong><br /><?php esc_html_e( 'This customer made a purchase prior to privacy policy dates being logged, this is the date of their last purchase. If your site was displaying the privacy policy checkbox at that time, this is our best estimate as to when they last agreed to your privacy policy.', 'easy-digital-downloads' ); ?>"></span>
-
-				<?php
+				$tooltip = new EDD\HTML\Tooltip(
+					array(
+						'title'   => __( 'Estimated Privacy Policy Date', 'easy-digital-downloads' ),
+						'content' => __( 'This customer made a purchase prior to privacy policy dates being logged, this is the date of their last purchase. If your site was displaying the privacy policy checkbox at that time, this is our best estimate as to when they last agreed to your privacy policy.', 'easy-digital-downloads' ),
+					)
+				);
+				$tooltip->output();
 			} else {
 				esc_html_e( 'No privacy policy agreement found.', 'easy-digital-downloads' );
 			}
@@ -712,31 +797,40 @@ function edd_customers_view( $customer = null ) {
 			</tr>
 			</thead>
 			<tbody>
-			<?php if ( ! empty( $orders ) ) :
+			<?php
+			if ( ! empty( $orders ) ) :
 				foreach ( $orders as $order ) :
-					$state  = '';
+					$state = '';
 
-					// State
+					// State.
 					if ( 'complete' !== $order->status ) {
 						$state = ' &mdash; ' . edd_get_payment_status_label( $order->status );
 					}
 
-					// View URL
-					$view_url = edd_get_admin_url( array(
-						'page' => 'edd-payment-history',
-						'view' => 'view-order-details',
-						'id'   => absint( $order->id ),
-					) );
+					// View URL.
+					$view_url = edd_get_admin_url(
+						array(
+							'page' => 'edd-payment-history',
+							'view' => 'view-order-details',
+							'id'   => absint( $order->id ),
+						)
+					);
 					?>
 					<tr>
 						<td class="column-primary"><strong><a class="row-title" href="<?php echo esc_url( $view_url ); ?>"><?php echo esc_html( $order->get_number() ); ?></a><?php echo esc_html( $state ); ?></strong></td>
 						<td><?php echo esc_html( edd_get_gateway_admin_label( $order->gateway ) ); ?></td>
 						<td><?php echo edd_currency_filter( edd_format_amount( $order->total ), $order->currency ); ?></td>
-						<td><time datetime="<?php echo esc_attr( EDD()->utils->date( $order->date_created, null, true )->toDateTimeString() ); ?>"><?php echo edd_date_i18n( EDD()->utils->date( $order->date_created, null, true )->toDateTimeString(), 'M. d, Y' ) . '<br>' . edd_date_i18n( strtotime( $order->date_created ), 'H:i' ) . ' ' . edd_get_timezone_abbr(); ?></time></td>
+						<td>
+							<time datetime="<?php echo esc_attr( EDD()->utils->date( $order->date_created, null, true )->toDateTimeString() ); ?>">
+								<?php echo edd_date_i18n( $order->date_created, 'M. d, Y' ) . '<br>' . edd_date_i18n( strtotime( $order->date_created ), 'H:i' ) . ' ' . edd_get_timezone_abbr(); ?>
+							</time>
+						</td>
 					</tr>
 
-				<?php endforeach;
-			else: ?>
+					<?php
+				endforeach;
+			else :
+				?>
 				<tr><td colspan="5" class="no-items"><?php esc_html_e( 'No orders found', 'easy-digital-downloads' ); ?></td></tr>
 			<?php endif; ?>
 			</tbody>
@@ -753,14 +847,17 @@ function edd_customers_view( $customer = null ) {
 			</tr>
 			</thead>
 			<tbody>
-			<?php if ( ! empty( $refunds ) ) :
+			<?php
+			if ( ! empty( $refunds ) ) :
 				foreach ( $refunds as $refund ) :
-					// View URL
-					$view_url = edd_get_admin_url( array(
-						'page' => 'edd-payment-history',
-						'view' => 'view-refund-details',
-						'id'   => absint( $refund->id ),
-					) );
+					// View URL.
+					$view_url = edd_get_admin_url(
+						array(
+							'page' => 'edd-payment-history',
+							'view' => 'view-refund-details',
+							'id'   => absint( $refund->id ),
+						)
+					);
 					?>
 					<tr>
 						<td class="column-primary"><a class="row-title" href="<?php echo esc_url( $view_url ); ?>"><?php echo esc_html( $refund->order_number ); ?></a></td>
@@ -769,14 +866,21 @@ function edd_customers_view( $customer = null ) {
 						<td><time datetime="<?php echo esc_attr( EDD()->utils->date( $refund->date_created, null, true )->toDateTimeString() ); ?>"><?php echo edd_date_i18n( EDD()->utils->date( $refund->date_created, null, true )->toDateTimeString(), 'M. d, Y' ) . '<br>' . edd_date_i18n( EDD()->utils->date( $refund->date_created, null, true )->toDateTimeString(), 'H:i' ); ?> <?php echo esc_html( edd_get_timezone_abbr() ); ?></time></td>
 					</tr>
 
-				<?php endforeach;
-			else: ?>
+					<?php
+				endforeach;
+			else :
+				?>
 				<tr><td colspan="5" class="no-items"><?php esc_html_e( 'No refunds found', 'easy-digital-downloads' ); ?></td></tr>
 			<?php endif; ?>
 			</tbody>
 		</table>
 
-		<h3><?php printf( __( 'Purchased %s', 'easy-digital-downloads' ), edd_get_label_plural() ); ?></h3>
+		<h3>
+			<?php
+			/* translators: %s: plural downloads label */
+			printf( esc_html__( 'Purchased %s', 'easy-digital-downloads' ), esc_html( edd_get_label_plural() ) );
+			?>
+		</h3>
 		<table class="wp-list-table widefat striped customer-downloads">
 			<thead>
 				<tr>
@@ -794,9 +898,14 @@ function edd_customers_view( $customer = null ) {
 
 					<?php endforeach; ?>
 
-				<?php else: ?>
+				<?php else : ?>
 
-					<tr><td class="no-items"><?php printf( __( 'No %s Found', 'easy-digital-downloads' ), edd_get_label_plural() ); ?></td></tr>
+					<tr><td class="no-items">
+						<?php
+						/* translators: %s: plural downloads label */
+						printf( esc_html__( 'No %s Found', 'easy-digital-downloads' ), esc_html( edd_get_label_plural() ) );
+						?>
+					</td></tr>
 
 				<?php endif; ?>
 			</tbody>
@@ -819,18 +928,27 @@ function edd_customers_view( $customer = null ) {
  * @return void
  */
 function edd_customers_emails_view( $customer ) {
-	// Email addresses
-	$all_emails = edd_get_customer_email_addresses( array(
-		'customer_id' => $customer->id,
-		'orderby'     => 'type', // to put `primary` email first
-		'order'       => 'ASC'
-	) );
+	// Email addresses.
+	$all_emails = edd_get_customer_email_addresses(
+		array(
+			'customer_id' => $customer->id,
+			'orderby'     => 'type', // to put `primary` email first.
+			'order'       => 'ASC',
+		)
+	);
 	?>
 	<div class="info-wrapper customer-section">
 		<?php edd_render_customer_details_header( $customer ); ?>
 		<h3>
-			<?php esc_html_e( 'Customer Emails', 'easy-digital-downloads' ); ?>
-			<span alt="f223" class="edd-help-tip dashicons dashicons-editor-help" title="<?php esc_html_e( 'This customer can use any of the emails listed here when making new purchases.', 'easy-digital-downloads' ); ?>"></span>
+			<?php
+			esc_html_e( 'Customer Emails', 'easy-digital-downloads' );
+			$tooltip = new EDD\HTML\Tooltip(
+				array(
+					'content' => __( 'This customer can use any of the emails listed here when making new purchases.', 'easy-digital-downloads' ),
+				)
+			);
+			$tooltip->output();
+			?>
 		</h3>
 
 		<div class="notice-wrap"></div>
@@ -843,9 +961,11 @@ function edd_customers_emails_view( $customer ) {
 				</tr>
 			</thead>
 			<tbody>
-			<?php if ( ! empty( $all_emails ) ) :
+			<?php
+			if ( ! empty( $all_emails ) ) :
 
-				foreach ( $all_emails as $key => $email ) : ?>
+				foreach ( $all_emails as $key => $email ) :
+					?>
 
 					<tr data-key="<?php echo esc_attr( $key ); ?>">
 						<td class="column-primary">
@@ -865,11 +985,29 @@ function edd_customers_emails_view( $customer ) {
 									);
 									$actions      = array(
 										'promote' => array(
-											'url'   => wp_nonce_url( add_query_arg( array( 'email' => rawurlencode( $email->email ), 'edd_action' => 'customer-primary-email' ), $base_url ), 'edd-set-customer-primary-email' ),
+											'url'   => wp_nonce_url(
+												add_query_arg(
+													array(
+														'email' => rawurlencode( $email->email ),
+														'edd_action' => 'customer-primary-email',
+													),
+													$base_url
+												),
+												'edd-set-customer-primary-email'
+											),
 											'label' => __( 'Make Primary', 'easy-digital-downloads' ),
 										),
 										'delete'  => array(
-											'url'   => wp_nonce_url( add_query_arg( array( 'email' => rawurlencode( $email->email ), 'edd_action' => 'customer-remove-email'  ), $base_url ), 'edd-remove-customer-email' ),
+											'url'   => wp_nonce_url(
+												add_query_arg(
+													array(
+														'email' => rawurlencode( $email->email ),
+														'edd_action' => 'customer-remove-email',
+													),
+													$base_url
+												),
+												'edd-remove-customer-email'
+											),
 											'label' => __( 'Delete', 'easy-digital-downloads' ),
 										),
 									);
@@ -888,7 +1026,7 @@ function edd_customers_emails_view( $customer ) {
 							<?php endif; ?>
 						</td>
 						<td class="column-type">
-							<time datetime="<?php echo esc_attr( EDD()->utils->date( $email->date_created, null, true )->toDateTimeString() ); ?>"><?php echo edd_date_i18n( EDD()->utils->date( $email->date_created, null, true )->toDateTimeString(), 'M. d, Y' ) . '<br>' . edd_date_i18n( strtotime( $email->date_created ), 'H:i' ) . ' ' . edd_get_timezone_abbr(); ?></time>
+							<time datetime="<?php echo esc_attr( EDD()->utils->date( $email->date_created, null, true )->toDateTimeString() ); ?>"><?php echo edd_date_i18n( $email->date_created, 'M. d, Y' ) . '<br>' . edd_date_i18n( strtotime( $email->date_created ), 'H:i' ) . ' ' . edd_get_timezone_abbr(); ?></time>
 						</td>
 					</tr>
 
@@ -915,8 +1053,11 @@ function edd_customers_emails_view( $customer ) {
 								<label for="make-additional-primary"><?php esc_html_e( 'Make Primary', 'easy-digital-downloads' ); ?></label>
 							</div>
 						</div>
-						<span class="spinner"></span>
-						<button class="button-secondary edd-add-customer-email" id="add-customer-email"><?php esc_html_e( 'Add Email', 'easy-digital-downloads' ); ?></button>
+						<div class="edd-form-group">
+							<button class="button button-secondary edd-add-customer-email" id="add-customer-email">
+								<?php esc_html_e( 'Add Email', 'easy-digital-downloads' ); ?>
+							</button>
+						</div>
 					</div>
 				</td>
 			</tr>
@@ -961,12 +1102,17 @@ function edd_customers_addresses_view( $customer ) {
 			<tbody>
 				<?php
 				foreach ( $addresses as $address ) :
-					$delete_url = wp_nonce_url( edd_get_admin_url( array(
-						'page'       => 'edd-customers',
-						'view'       => 'overview',
-						'id'         => urlencode( $address->id ),
-						'edd_action' => 'customer-remove-address',
-					) ), 'edd-remove-customer-address' );
+					$delete_url = wp_nonce_url(
+						edd_get_admin_url(
+							array(
+								'page'       => 'edd-customers',
+								'view'       => 'overview',
+								'id'         => urlencode( $address->id ),
+								'edd_action' => 'customer-remove-address',
+							)
+						),
+						'edd-remove-customer-address'
+					);
 					?>
 
 					<tr data-id="<?php echo esc_attr( $address->id ); ?>">
@@ -1032,7 +1178,7 @@ function edd_customers_addresses_view( $customer ) {
  *
  * @since 2.3
  *
- * @param $customer EDD_Customer Customer profile being viewed.
+ * @param EDD_Customer $customer Customer profile being viewed.
  */
 function edd_customer_notes_view( $customer ) {
 	$paged = ! empty( $_GET['paged'] ) && is_numeric( $_GET['paged'] )
@@ -1044,8 +1190,9 @@ function edd_customer_notes_view( $customer ) {
 	$note_count = $customer->get_notes_count();
 	$args       = array(
 		'total'        => $note_count,
-		'add_fragment' => '#edd_general_notes'
-	); ?>
+		'add_fragment' => '#edd_general_notes',
+	);
+	?>
 
 	<div id="edd-item-notes-wrapper">
 		<?php edd_render_customer_details_header( $customer ); ?>
@@ -1068,16 +1215,29 @@ function edd_customer_notes_view( $customer ) {
  * View the delete section of a customer
  *
  * @since  2.3
- * @param  $customer The Customer being displayed
+ * @param EDD_Customer $customer The Customer being displayed.
  * @return void
  */
 function edd_customers_delete_view( $customer ) {
 
-	do_action( 'edd_customer_delete_top', $customer ); ?>
+	do_action( 'edd_customer_delete_top', $customer );
+	?>
 
 	<div class="info-wrapper customer-section">
 
-		<form id="delete-customer" method="post" action="<?php echo esc_url( edd_get_admin_url( array( 'page' => 'edd-customers', 'view' => 'delete', 'id' => absint( $customer->id ) ) ) ); ?>">
+		<form id="delete-customer" method="post" action="
+		<?php
+		echo esc_url(
+			edd_get_admin_url(
+				array(
+					'page' => 'edd-customers',
+					'view' => 'delete',
+					'id'   => absint( $customer->id ),
+				)
+			)
+		);
+		?>
+															">
 
 			<?php edd_render_customer_details_header( $customer ); ?>
 			<h3><?php esc_html_e( 'Delete', 'easy-digital-downloads' ); ?></h3>
@@ -1090,7 +1250,14 @@ function edd_customers_delete_view( $customer ) {
 					</p>
 
 					<p>
-						<?php echo EDD()->html->checkbox( array( 'name' => 'edd-customer-delete-records', 'options' => array( 'disabled' => true ) ) ); ?>
+						<?php
+						echo EDD()->html->checkbox(
+							array(
+								'name'    => 'edd-customer-delete-records',
+								'options' => array( 'disabled' => true ),
+							)
+						);
+						?>
 						<label for="edd-customer-delete-records"><?php esc_html_e( 'Delete all associated payments and records?', 'easy-digital-downloads' ); ?></label>
 					</p>
 
@@ -1116,12 +1283,13 @@ function edd_customers_delete_view( $customer ) {
  * View the tools section of a customer
  *
  * @since  2.3
- * @param  $customer The Customer being displayed
+ * @param EDD_Customer $customer The Customer being displayed.
  * @return void
  */
 function edd_customer_tools_view( $customer ) {
 
-	do_action( 'edd_customer_tools_top', $customer ); ?>
+	do_action( 'edd_customer_tools_top', $customer );
+	?>
 
 	<div id="edd-item-tools-wrapper">
 		<?php edd_render_customer_details_header( $customer ); ?>

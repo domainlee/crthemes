@@ -30,9 +30,29 @@
  * Note that this function is hooked into the after_setup_theme hook, which
  * runs before the init hook. The init hook is too late for some features, such
  * as indicating support for post thumbnails.
- *
+ * https://crthemes.com/wp-json/wc/v3/order
  * @since Twenty Twenty 1.0
  */
+
+
+add_action('rest_api_init', function () {
+            register_rest_route('wc/v3', 'purchase', array(
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => 'update_stock_by_location'
+            ));
+        });
+
+function update_stock_by_location($request) {
+	
+	$data = $request->get_body();
+        $data = json_decode($data, true);
+	$code = get_field('theme_code', $data['theme_id']);
+
+	if($code !== $data['code']) {
+		return false;
+	}
+	echo 'valid';die;
+} 
 function twentytwenty_theme_support() {
 
 	// Add default posts and comments RSS feed links to head.
@@ -145,10 +165,24 @@ function twentytwenty_theme_support() {
 	$loader = new TwentyTwenty_Script_Loader();
 	add_filter( 'script_loader_tag', array( $loader, 'filter_script_loader_tag' ), 10, 2 );
 
+	add_theme_support( 'woocommerce' );
+
 }
 
 add_action( 'after_setup_theme', 'twentytwenty_theme_support' );
 
+add_filter( 'woocommerce_checkout_fields', 'wc_remove_checkout_fields' );
+function wc_remove_checkout_fields( $fields ) {
+    unset( $fields['billing']['billing_company'] );
+    unset( $fields['billing']['billing_country'] );
+    unset( $fields['billing']['billing_phone'] );
+    unset( $fields['billing']['billing_postcode'] );
+    unset( $fields['billing']['billing_state'] );
+    unset( $fields['billing']['billing_city'] );
+    unset( $fields['billing']['billing_address_1'] );
+    unset( $fields['billing']['billing_address_2'] );
+    return $fields;
+}
 /**
  * REQUIRED FILES
  * Include required files.
@@ -220,6 +254,9 @@ function twentytwenty_register_scripts() {
 
 	wp_enqueue_script( 'twentytwenty-js', get_template_directory_uri() . '/assets/js/index.js', array(), $theme_version, false );
 	wp_script_add_data( 'twentytwenty-js', 'async', true );
+
+	wp_enqueue_script( 'form-js', get_template_directory_uri() . '/assets/js/form.js', array(), $theme_version, false );
+	wp_script_add_data( 'form-js', 'async', true );
 
 }
 
@@ -655,6 +692,15 @@ function twentytwenty_customize_preview_init() {
 
 add_action( 'customize_preview_init', 'twentytwenty_customize_preview_init' );
 
+
+function lyn_portfolio_scripts() {
+    wp_enqueue_script( 'lyn-portfolio-main-script', get_template_directory_uri() . '/assets/js/bootstrap.bundle.js', array( 'jquery' ), '1.0.0', true );
+}
+add_action( 'wp_enqueue_scripts', 'lyn_portfolio_scripts' );
+
+remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30 );
+
+
 /**
  * Get accessible color for an area.
  *
@@ -785,4 +831,57 @@ function twentytwenty_get_elements_array() {
 	 * @param array Array of elements.
 	 */
 	return apply_filters( 'twentytwenty_get_elements_array', $elements );
+}
+
+
+add_action('rest_api_init', function () {
+    register_rest_route('create/v1', 'test', array(
+        'methods' => 'GET',
+        'callback' => 'create_coin_specifications',
+    ));
+});
+
+function create_coin_specifications() {
+    write_log('Crontab time '.date('H:i:s'));
+}
+
+if (!function_exists('write_log')) {
+    function write_log($log) {
+	
+        error_log($log);
+    }
+}
+
+
+add_shortcode('form_change_domain', 'form_change_domain');
+
+function form_change_domain() {
+?>
+<p>When moving WordPress websites from one domain to another, this tool is a great time saver. Just generate the queries and run them in MySQL. </p>
+<p>SQL Queries to Change WordPress Website Domain.</p>
+<div class="sql-tool">
+<div class="w">
+<form id="generate-sql" onsubmit="return false">
+<div class="sql-tool__fields">
+<p class="field"><label for="tooolddomain">From</label><input id="tooolddomain" class="required" autocomplete="off" type="text" placeholder="http://"></p>
+<p class="field"><label for="toolnewdomain">To</label><input id="toolnewdomain" class="required" autocomplete="off" type="text" placeholder="http://"></p>
+<p class="field"><label for="toolprefix">Prefix</label><input id="toolprefix" class="required" autocomplete="off" type="text" value="wp_"></p>
+
+</div>
+<div class="sql-tool__buttons"><button class="btn">Generate queries</button>
+<p>
+<span class="copy-link"><span>Copy to clipboard</span></span>
+</p>
+</div>
+</form></div>
+<div class="w">
+<div class="sql-tool__result" style=""><textarea id="sql-result" rows="8" spellcheck="false"></textarea></div>
+</div>
+</div>
+<?php
+}
+
+add_action('wpcf7_mail_sent', 'contact_form_action');
+function contact_form_action ($cf7) {
+    print_r($cf7->id);die;
 }

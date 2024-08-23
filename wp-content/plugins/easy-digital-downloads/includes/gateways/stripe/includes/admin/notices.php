@@ -14,12 +14,12 @@
 function edds_admin_notices_scripts() {
 	wp_register_script(
 		'edds-admin-notices',
-		EDDSTRIPE_PLUGIN_URL . 'assets/js/build/notices.min.js',
+		EDD_PLUGIN_URL . 'assets/js/stripe-notices.js',
 		array(
 			'wp-util',
 			'jquery',
 		),
-		EDD_STRIPE_VERSION,
+		EDD_VERSION,
 		true
 	);
 }
@@ -40,34 +40,6 @@ function edds_admin_notices_register() {
 	}
 
 	try {
-		// PHP
-		$registry->add(
-			'php-requirement',
-			array(
-				'message'     => function() {
-					ob_start();
-					require_once EDDS_PLUGIN_DIR . '/includes/admin/notices/php-requirement.php';
-					return ob_get_clean();
-				},
-				'type'        => 'error',
-				'dismissible' => false,
-			)
-		);
-
-		// EDD 2.9
-		$registry->add(
-			'edd-requirement',
-			array(
-				'message'     => function() {
-					ob_start();
-					require_once EDDS_PLUGIN_DIR . '/includes/admin/notices/edd-requirement.php';
-					return ob_get_clean();
-				},
-				'type'        => 'error',
-				'dismissible' => false,
-			)
-		);
-
 		// Recurring requirement.
 		$registry->add(
 			'edd-recurring-requirement',
@@ -128,19 +100,6 @@ function edds_admin_notices_print() {
 	wp_enqueue_script( 'edds-admin-notices' );
 
 	try {
-		// PHP 5.6 requirement.
-		if (
-			false === edds_has_met_requirements( 'php' ) &&
-			true === edds_is_pro()
-		) {
-			$notices->output( 'php-requirement' );
-		}
-
-		// EDD 2.9 requirement.
-		if ( false === edds_has_met_requirements( 'edd' ) ) {
-			$notices->output( 'edd-requirement' );
-		}
-
 		// Recurring 2.10.0 requirement.
 		if ( false === edds_has_met_requirements( 'recurring' ) ) {
 			$notices->output( 'edd-recurring-requirement' );

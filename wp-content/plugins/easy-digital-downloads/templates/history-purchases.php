@@ -24,10 +24,11 @@ $page    = get_query_var( 'paged' ) ? get_query_var( 'paged' ) : 1;
 $user_id = get_current_user_id();
 $orders  = edd_get_orders(
 	array(
-		'user_id' => $user_id,
-		'number'  => 20,
-		'offset'  => 20 * ( intval( $page ) - 1 ),
-		'type'    => 'sale',
+		'user_id'        => $user_id,
+		'number'         => 20,
+		'offset'         => 20 * ( intval( $page ) - 1 ),
+		'type'           => 'sale',
+		'status__not_in' => array( 'trash' ),
 	)
 );
 
@@ -75,7 +76,7 @@ if ( $orders ) :
 						endif;
 						?>
 					<?php else: ?>
-						<a href="<?php echo esc_url( add_query_arg( 'payment_key', urlencode( $order->payment_key ), edd_get_success_page_uri() ) ); ?>"><?php esc_html_e( 'View Details and Downloads', 'easy-digital-downloads' ); ?></a>
+						<a href="<?php echo esc_url( edd_get_receipt_page_uri( $order->id ) ); ?>"><?php esc_html_e( 'View Details and Downloads', 'easy-digital-downloads' ); ?></a>
 					<?php endif; ?>
 				</td>
 				<?php do_action( 'edd_order_history_row_end', $order ); ?>

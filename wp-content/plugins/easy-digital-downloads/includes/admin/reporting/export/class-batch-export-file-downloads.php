@@ -31,6 +31,13 @@ class EDD_Batch_File_Downloads_Export extends EDD_Batch_Export {
 	public $export_type = 'file_downloads';
 
 	/**
+	 * The download ID to export.
+	 *
+	 * @var int
+	 */
+	private $download_id;
+
+	/**
 	 * Set the CSV columns.
 	 *
 	 * @since 2.4
@@ -86,9 +93,13 @@ class EDD_Batch_File_Downloads_Export extends EDD_Batch_Export {
 			$customer  = edd_get_customer( $log->customer_id );
 
 			if ( $customer ) {
-				$customer = ! empty( $customer->name )
-					? $customer->name
-					: $customer->email;
+				$customer = $customer->email;
+				if ( ! empty( $customer->name ) ) {
+					$customer = $customer->name;
+					if ( preg_match( '~^[+\-=@]~m', $customer ) ) {
+						$customer = "'{$customer}";
+					}
+				}
 			} else {
 				$order = edd_get_order( $log->order_id );
 

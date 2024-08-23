@@ -7,16 +7,12 @@
  * @license     http://opensource.org/licenses/gpl-2.0.php GNU Public License
  */
 
-@import "~@wordpress/base-styles/colors";
-@import "~@wordpress/base-styles/variables";
-@import "~@wordpress/base-styles/mixins";
-@import "~@wordpress/base-styles/breakpoints";
-@import "~@wordpress/base-styles/animations";
-
-@import "../variables/colors";
-@import "../variables/mixins";
-
+@import "../variables/variables";
+@import "general/style";
 @import "downloads/style";
+
+@import "discounts/style";
+
 @import "forms/style";
 
 @import "upgrades/v3";
@@ -29,25 +25,19 @@
 
 @import "gateways/style";
 
-@import "notifications/style";
+@import "settings/style";
 
-@import "general/style";
+@import "discounts/style";
+
+@import "dashboard/style";
+
+@import "../components/toggle-checkbox";
 
 /**
  * Notes:
  *
  * [1] Backwards compatibility for vertical tabs < 3.0
  */
-
-.edd-hidden {
-	display: none;
-}
-
-.edd-clearfix:after {
-	content: "";
-	display: table;
-	clear: both;
-}
 
 .edd-wrap a,
 .edd-notice .notice-dismiss {
@@ -97,7 +87,7 @@ body.post-type-download #screen-meta {
 #edd-header img {
 	display: block;
 	max-width: 300px;
-	margin: 0 0 0 20px;
+	margin: 0;
 }
 
 .edd-header-page-title-wrap {
@@ -139,6 +129,10 @@ body.post-type-download #screen-meta {
 	margin-left: 10px;
 	cursor: pointer;
 	transition: background-color .2s ease;
+
+	&.edd-hidden {
+		display: none;
+	}
 }
 
 button.edd-round {
@@ -219,74 +213,6 @@ button.edd-round:active {
 	position: relative;
 }
 
-.edd-settings-sub-nav {
-	margin: 0 0px 10px 0;
-	width: 100%;
-	border-bottom: 1px solid #ccc;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
-.edd-settings-sub-nav a {
-	padding: 13px;
-	display: block;
-}
-
-.edd-settings-sub-nav a.current {
-	border-bottom: 4px solid #000;
-	padding-bottom: 9px;
-}
-
-.admin-color-fresh .edd-settings-sub-nav a.current {
-	border-bottom-color: #00a0d2;
-}
-
-/* Blue */
-.admin-color-blue .edd-settings-sub-nav a.current {
-	border-bottom-color: #096484;
-}
-
-/* Coffee */
-.admin-color-coffee .edd-settings-sub-nav a.current {
-	border-bottom-color: #c7a589;
-}
-
-/* Ectoplasm */
-.admin-color-ectoplasm .edd-settings-sub-nav a.current {
-	border-bottom-color: #a3b745;
-}
-
-/* Midnight */
-.admin-color-midnight .edd-settings-sub-nav a.current {
-	border-bottom-color: #e14d43;
-}
-
-/* Ocean */
-.admin-color-ocean .edd-settings-sub-nav a.current {
-	border-bottom-color: #627c83;
-}
-
-/* Sunrise */
-.admin-color-sunrise .edd-settings-sub-nav a.current {
-	border-bottom-color: #be3631;
-}
-
-/* Light */
-.admin-color-light .edd-settings-sub-nav a.current {
-	border-bottom-color: #888;
-}
-
-/* bbPress Color Schemes */
-
-/* Evergreen */
-.admin-color-evergreen .edd-settings-sub-nav a.current {
-	border-bottom-color: #36533f;
-}
-
-/* Mint */
-.admin-color-mint .edd-settings-sub-nav a.current {
-	border-bottom-color: #4f6d59;
-}
-
 .download_page_edd-settings .edd-check-wrapper {
 	clear: both;
 }
@@ -310,6 +236,10 @@ button.edd-round:active {
 	position: relative;
 	height: 28px;
 	cursor: move;
+
+	&.edd-toggle {
+		padding: 4px 0;
+	}
 }
 
 .edd-sortable-list li label * {
@@ -341,30 +271,7 @@ button.edd-round:active {
 	width: 32px;
 	height: 24px;
 	position: relative;
-	top: -2px;
 	margin-right: 5px;
-}
-
-/* Tooltips */
-.edd-help-tip {
-	cursor: help;
-	margin-top: -2px;
-	font-size: 24px;
-	color: grey;
-}
-
-.edd-ui-tooltip {
-	position: absolute;
-	background: #333 !important;
-	border-width: 1px !important;
-	border-radius: 3px !important;
-	box-shadow: 1px 1px 2px 1px rgba(214, 214, 214, 0.5) !important;
-	color: #dedede !important;
-	max-width: 300px !important;
-	padding: 7px !important;
-	text-rendering: optimizeLegibility;
-	text-shadow: none !important;
-	z-index: 9999 !important;
 }
 
 /* =Payment Icon Styling
@@ -410,97 +317,6 @@ button.edd-round:active {
 
 .download_page_edd-settings .taxrates .regular-text {
 	width: 100%;
-}
-
-
-/* =Add Ons Styles
--------------------------------------------------------------- */
-
-.edd-add-ons-footer {
-	padding-top: 10px;
-}
-
-#edd-add-ons .subsubsub .dashicons {
-	margin-top: 3px;
-}
-
-#edd-add-ons .edd-add-ons-container {
-	clear: both;
-	padding-top: 10px;
-}
-
-#edd-add-ons .search-box .button-secondary span {
-	margin: 2px -5px 0 4px;
-	padding: 0;
-	color: #aaa;
-}
-
-#edd-add-ons .edd-extension {
-	background: #fff;
-	border: 1px solid #ccc;
-	float: left;
-	padding: 14px;
-	position: relative;
-	margin: 0 15px 16px 0;
-	width: 320px;
-	height: 315px;
-	opacity: 0.9;
-	transition: all .2s ease-in-out;
-	cursor: default;
-}
-
-#edd-add-ons .edd-extension:hover {
-	border: 1px solid #bbb;
-	opacity: 1;
-	transform: scale(1.05);
-	z-index: 5;
-}
-
-#edd-add-ons .edd-extension h3 {
-	font-size: 13px;
-	margin: 0 0 8px;
-}
-
-#edd-add-ons .edd-extension .button-secondary {
-	position: absolute;
-	bottom: 14px;
-	left: 14px;
-}
-
-#edd-add-ons .edd-browse-all {
-	clear: both;
-	width: 100%;
-}
-
-#edd-add-ons .edd-extension .third-party {
-	display: none;
-}
-
-#edd-add-ons .edd-add-ons-container .edd-extension:first-child {
-	background-color: #85c0e5;
-	border-color: #62a9d7;
-	color: #fff;
-	box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
-}
-
-#edd-add-ons .edd-add-ons-container .edd-extension:first-child h3 {
-	color: #fff;
-}
-
-/* Mock blue "Primary" styling on Starter Package */
-#edd-add-ons .edd-add-ons-container .edd-extension:first-child .button-secondary {
-	background: #0085ba;
-	border-color: #0073aa #006799 #006799;
-	box-shadow: 0 1px 0 #006799;
-	color: #fff;
-	text-decoration: none;
-	text-shadow: 0 -1px 1px #006799, 1px 0 1px #006799, 0 1px 1px #006799, -1px 0 1px #006799;
-}
-
-#edd-add-ons .edd-extension .wp-post-image {
-	width: 100%;
-	height: auto;
-	vertical-align: bottom;
 }
 
 /* Insert Download
@@ -1018,68 +834,6 @@ table.edd-order-overview-summary--refund {
 	width: 100%;
 }
 
-/** Columns */
-.wp-list-table.orders .column-number .row-title {
-	display: block;
-}
-
-/** Status labels */
-.edd-admin-order-status-badge {
-	padding: 2px 7px;
-	border-radius: 4px;
-	background: #ececec;
-	display: inline-flex;
-	align-items: center;
-}
-
-.edd-admin-order-status-badge__text {}
-
-.edd-admin-order-status-badge__icon {
-	opacity: 0.80;
-	margin: 0 -2px 0 2px;
-}
-
-.edd-admin-order-status-badge--refunded {}
-
-.edd-admin-order-status-badge--refunded .edd-admin-order-status-badge__icon {
-	font-size: 16px;
-	width: 16px;
-	height: 16px;
-}
-
-.edd-admin-order-status-badge--failed {
-	color: #ac3d3d;
-	background: #ffd6d6;
-}
-
-.edd-admin-order-status-badge--failed .edd-admin-order-status-badge__icon {
-	margin-left: 0;
-	margin-top: -1px;
-}
-
-.edd-admin-order-status-badge--complete {
-	color: #017d5c;
-	background: #e5f5f0;
-}
-
-.edd-admin-order-status-badge--complete .edd-admin-order-status-badge__icon {
-	margin-left: 0px;
-}
-
-.edd-admin-order-status-badge--pending {
-	color: #7d6e01;
-	background: #f5f2e5;
-}
-
-.edd-admin-order-status-badge--processing {
-	color: #015a7d;
-	background: #e5f1f5;
-}
-
-.wp-list-table.orderitems .refunded .edd-admin-order-status-badge {
-	margin-left: 10px;
-}
-
 .edd-order-resend-email-chooser legend {
 	font-weight: bold;
 	margin-bottom: 4px;
@@ -1178,60 +932,11 @@ textarea[name="edd-note"] {
 	margin-right: 0;
 }
 
-/* Discount Code Styles
--------------------------------------------------------------- */
-
-#edd-products {
-	height: 100px;
-	min-width: 200px;
-}
-
-#edd-add-discount input[type="text"],
-#edd-edit-discount input[type="text"] {
-	width: 300px;
-}
-
-#edd-add-discount .edd-discount-datetime input,
-#edd-edit-discount .edd-discount-datetime input {
-	vertical-align: middle;
-}
-
-#edd-add-discount input[type="text"].edd_datepicker,
-#edd-edit-discount input[type="text"].edd_datepicker {
-	display: inline-block;
-	width: 183px;
-}
-
-#edd-edit-discount textarea {
-	height: 100px;
-}
-
-.edd-amount-type-wrapper {
-	position: relative;
-	display: flex;
-}
-
-.edd-amount-type-wrapper select {
-	border-top-left-radius: 0;
-	border-bottom-left-radius: 0;
-	width: auto !important;
-}
-
-.edd-amount-type-wrapper #edd-amount {
-	border-top-right-radius: 0;
-	border-bottom-right-radius: 0;
-	margin-right: -2px;
-	padding: 0 8px;
-	width: unset;
-	max-width: 125px;
-}
-
-.edd-amount-type-wrapper input:focus {
-	z-index: 2;
-}
-
 /* List Tables
 -------------------------------------------------------------- */
+.post-type-download .tablenav.top .edd-select  {
+	margin-right: 6px;
+}
 
 .wp-list-table.customers .column-primary strong,
 .wp-list-table.emails .column-primary strong,
@@ -1254,10 +959,6 @@ textarea[name="edd-note"] {
 .wp-list-table.orders div.order-list-email {
 	font-size: .85em;
 	color: #888888;
-}
-
-.wp-list-table.orders th.column-number {
-	width: 150px;
 }
 
 .wp-list-table.orders th.column-amount {
@@ -1291,10 +992,6 @@ textarea[name="edd-note"] {
 
 /* Nav Tab Styles
 -------------------------------------------------------------- */
-
-#edd-add-ons {
-	margin: 9px 20px -9px 2px;
-}
 
 .no-js.edit-tags-php.post-type-download .wp-heading-inline {
 	position: absolute;
@@ -1519,11 +1216,11 @@ input[class*="edd-price-field"] {
 .edd-admin-box .label--has-tip {
 	display: flex;
 	align-items: center;
-}
 
-.edd-admin-box .label--has-tip .edd-help-tip {
-	margin-top: 0;
-	font-size: 20px;
+	.edd-help-tip {
+		margin-top: 0;
+		font-size: 20px;
+	}
 }
 
 .edd-admin-box div:not(.edd-admin-box-inside--row) .label--has-checkbox {
@@ -1580,22 +1277,9 @@ input[class*="edd-price-field"] {
 	margin-top: 11px;
 }
 
-#edd-order-resend-receipt .edd-order-resend-receipt-addresses {
-	margin-top: 10px;
-}
-
 .edd-order-resend-receipt-header {
 	font-size: 14px;
 	line-height: 1.4;
-}
-
-.edd-order-resend-receipt-addresses label {
-	display: block;
-	line-height: 1.75em;
-}
-
-.edd-order-resend-receipt-addresses label:last-child {
-	margin-bottom: 10px;
 }
 
 .edd-admin-box-inside:last-child {
@@ -1893,112 +1577,6 @@ input[class*="edd-price-field"] {
 	content: '\f239';
 }
 
-/* Dashboard Page Styles
--------------------------------------------------------------- */
-
-body.dashboard_page_edd-upgrades.js .postbox .hndle {
-	cursor: default;
-}
-
-/* Dashboard Widget Styles
--------------------------------------------------------------- */
-
-.edd_dashboard_widget table thead td {
-	border-bottom: 1px solid #ececec;
-	color: #777;
-}
-
-.edd_dashboard_widget .table_left {
-	float: left;
-	width: 45%;
-}
-
-.edd_dashboard_widget .table_right {
-	float: right;
-	width: 45%;
-}
-
-.edd_dashboard_widget .inside {
-	font-size: 12px;
-}
-
-.edd_dashboard_widget td {
-	padding: 3px 0;
-}
-
-.edd_dashboard_widget .b,
-.edd_dashboard_widget .t {
-	line-height: 1.5;
-	vertical-align: middle;
-}
-
-.edd_dashboard_widget .b {
-	padding-right: 6px;
-	width: auto;
-}
-
-.edd_dashboard_widget .t {
-	font-size: 12px;
-	padding-right: 12px;
-	color: #777;
-	width: 100%;
-}
-
-.edd_dashboard_widget .label_heading {
-	border-top: 1px solid #ececec;
-	color: #8f8f8f;
-	font-family: Helvetica, Arial, sans-serif;
-	font-size: 12px;
-	font-weight: normal;
-	display: block;
-	padding-top: 10px;
-	margin: 0 0 8px 12px;
-}
-
-.edd_dashboard_widget .edd_dashboard_widget_subheading {
-	border-top: 1px solid #ececec;
-	color: #8f8f8f;
-	font-size: 14px;
-	padding-top: 10px;
-	margin: 1em 0 0 0;
-}
-
-.edd_dashboard_widget .edd_dashboard_widget_subheading+.table {
-	margin: 8px 0 0 0;
-}
-
-.edd_dashboard_widget .edd_price_label {
-	background: rgb(0, 118, 156);
-	border-radius: 3px;
-	color: white;
-	font-size: 10px;
-	padding: 2px 4px;
-	margin-right: 2px;
-}
-
-.edd_dashboard_widget table {
-	width: 100%;
-	margin-left: 0;
-	margin-bottom: 1em;
-}
-
-td.edd_order_label {
-	width: 80%;
-}
-
-td.edd_order_price {
-	text-align: right;
-}
-
-@media handheld,
-only screen and (max-width: 1000px) {
-
-	.edd_dashboard_widget .edd-recent-email {
-		display: none;
-	}
-
-}
-
 /* Reports Styles
 -------------------------------------------------------------- */
 
@@ -2016,13 +1594,6 @@ body.download_page_edd-reports {
 	border-radius: 3px;
 	color: #fff;
 	background-color: #444;
-}
-
-.edd-vertical-sections .edd-legacy-label {
-	display: inline-block;
-	position: absolute;
-	top: 11px;
-	right: 6px;
 }
 
 /* Keeping this rule for Software Licensing Reports */
@@ -2102,10 +1673,12 @@ body.download_page_edd-reports {
 }
 
 fieldset.edd-to-and-from-container {
-	display: grid;
-	display: -ms-grid;
-	grid-template-columns: 1fr 1fr;
-	grid-gap: 8px;
+	display: flex;
+	gap: 8px;
+
+	select {
+		flex: 0 0 calc(50% - 6px);
+	}
 }
 
 span.edd-to-and-from--separator {
@@ -2156,6 +1729,10 @@ span.edd-to-and-from--separator {
 
 .notice-wrap div.notice {
 	margin: 0;
+}
+
+h3 + .notice-wrap .notice {
+	margin-bottom: 1em;
 }
 
 .admin-color-fresh .edd-import-export-form .edd-progress div {
@@ -2367,29 +1944,6 @@ span.edd-to-and-from--separator {
 		transform: rotate(360deg);
 	}
 }
-#edd-chartjs-tooltip {
-	position: absolute;
-	background-color: #fff;
-	-webkit-border-radius: 7px;
-	-moz-border-radius: 7px;
-	border-radius: 7px;
-	-webkit-transition: all .1s ease;
-	transition: all .1s ease;
-	pointer-events: none;
-	-webkit-transform: translate(-50%, 0);
-	transform: translate(-50%, 0);
-	font-size: 12px;
-	box-shadow: 0 0 0 1px rgba(89, 94, 100, .1), 0 15px 35px 0 rgba(89, 94, 100, .1), 0 5px 15px 0 rgba(0, 0, 0, .12);
-	min-width: 120px;
-	opacity: 0;
-}
-
-.edd-chartjs-tooltip-key {
-	display: inline-block;
-	width: 10px;
-	height: 10px;
-	margin-right: 5px;
-}
 
 /* Upgrades page styles
 -------------------------------------------------------------- */
@@ -2397,105 +1951,13 @@ span.edd-to-and-from--separator {
 /* Settings page styles
 -------------------------------------------------------------- */
 
-.wrap-licenses .form-table,
-.wrap-licenses thead,
-.wrap-licenses tbody,
-.wrap-licenses tfoot,
-.wrap-licenses tr,
-.wrap-licenses td,
-.wrap-licenses th,
-.wrap-licenses caption {
-	display: block;
-}
-
-.wrap-licenses .form-table tr {
-	float: left;
-	margin: 0 15px 15px 0;
-	background: #fff;
-	border: 1px solid #ccc;
-	width: 30.5%;
-	max-width: 350px;
-	padding: 14px;
-	min-height: 220px;
-	position: relative;
-	box-sizing: border-box;
-}
-
-.wrap-licenses .form-table th {
-	background: #f9f9f9;
-	padding: 14px;
-	border-bottom: 1px solid #ccc;
-	margin: -14px -14px 20px;
-	width: 100%;
-}
-
-.wrap-licenses .form-table td {
-	padding: 0;
-}
-
-.wrap-licenses td input.regular-text {
-	margin: 0 0 8px;
-	width: 100%;
-}
-
-.wrap-licenses .edd-license-data[class*="edd-license-"] {
-	position: absolute;
-	background: #fafafa;
-	padding: 14px;
-	border-top: 1px solid #eee;
-	margin: 20px -14px -14px;
-	min-height: 67px;
-	width: 100%;
-	bottom: 14px;
-	box-sizing: border-box;
-}
-
-.wrap-licenses .edd-license-data[class*="edd-license-"] a {
-	color: #444;
-}
-
-.wrap-licenses .edd-license-data[class*="edd-license-"] a:hover {
-	text-decoration: none;
-}
-
-.wrap-licenses .edd-license-data.license-expires-soon-notice {
-	background-color: #00a0d2;
-	color: #fff;
-	border-color: #00a0d2;
-}
-
-.wrap-licenses .edd-license-data.edd-license-expired {
-	background-color: #e24e4e;
-	color: #fff;
-	border-color: #e24e4e;
-}
-
-.wrap-licenses .edd-license-data.edd-license-error,
-.wrap-licenses .edd-license-data.edd-license-missing,
-.wrap-licenses .edd-license-data.edd-license-invalid,
-.wrap-licenses .edd-license-data.edd-license-site_inactive,
-.wrap-licenses .edd-license-data.edd-license-item_name_mismatch {
-	background-color: #ffebcd;
-	border-color: #ffebcd;
-}
-
-.wrap-licenses .edd-license-data p {
+#edd-send-test-summary-save-changes-notice .notice p {
 	font-size: 13px;
-	margin-top: 0;
 }
 
-.wrap-licenses .edd-license-data.license-expires-soon-notice a,
-.wrap-licenses .edd-license-data.edd-license-expired a {
-	color: #fff;
-}
-
-.wrap-licenses .edd-license-data.license-expires-soon-notice a:hover,
-.wrap-licenses .edd-license-data.edd-license-expired a:hover {
-	text-decoration: none;
-}
-
-.wrap-licenses p.submit {
-	clear: both;
+#edd-send-test-summary-save-changes-notice, #edd-send-test-summary-notice {
+	display: flex;
+	margin-top: 5px;
 }
 
 /* Global Graph Styles
@@ -2520,77 +1982,6 @@ span.edd-to-and-from--separator {
 	border: 1px solid #ddd;
 	box-shadow: none;
 	color: #555;
-}
-
-
-/* Toggle Styles
--------------------------------------------------------------- */
-
-.edd-toggle {
-	position: relative;
-	display: inline-block;
-	overflow: visible;
-}
-
-.edd-toggle input[type="checkbox"] {
-	display: inline-block;
-	vertical-align: middle;
-	position: relative;
-	margin: 0;
-	padding: 0;
-	width: 42px;
-	height: 24px;
-	background-color: #ccc;
-	-webkit-transition: background 0.2s ease;
-	transition: background 0.2s ease;
-	border-radius: 34px;
-	box-shadow: none;
-	border: none;
-}
-
-.edd-toggle .label {
-	display: inline-block;
-	vertical-align: middle;
-	white-space: nowrap;
-}
-
-.edd-toggle input[type="checkbox"]:before {
-	position: absolute;
-	content: "";
-	height: 18px;
-	width: 18px;
-	left: 3px;
-	bottom: 3px;
-	background-color: white;
-	-webkit-transition: 0.1s transform ease;
-	transition: 0.1s transform ease;
-	border-radius: 50%;
-}
-
-.edd-toggle input[type="checkbox"]:checked {
-	background-color: #007cba;
-}
-
-.edd-toggle input[type="checkbox"]:active,
-.edd-toggle input[type="checkbox"]:focus {
-	outline: 0;
-	box-shadow: 0 0 0 1px #fff, 0 0 0 3px #7e8993;
-}
-
-.edd-toggle input[type="checkbox"]:checked:active,
-.edd-toggle input[type="checkbox"]:checked:focus {
-	box-shadow: 0 0 0 1px #fff, 0 0 0 3px #007cba;
-}
-
-.edd-toggle input[type="checkbox"]:checked:before {
-	-webkit-transform: translateX(22px);
-	-ms-transform: translateX(22px);
-	transform: translateX(22px);
-}
-
-.edd-toggle input+.label,
-.edd-toggle .label+input {
-	margin-left: 5px;
 }
 
 /* List Table Styles
@@ -2670,12 +2061,6 @@ span.edd-to-and-from--separator {
 		display: block;
 		width: 100%;
 	}
-
-	.wrap-licenses .form-table tr {
-		width: 46%;
-		max-width: none;
-		min-height: 230px;
-	}
 }
 
 @media screen and (max-width: 782px) {
@@ -2685,18 +2070,9 @@ span.edd-to-and-from--separator {
 	.license-null {
 		padding-left: 0;
 	}
-
-	[class^="license-"] input[type="text"] {
-		margin-bottom: 3px;
-	}
 }
 
 @media screen and (max-width: 600px) {
-	.wrap-licenses .form-table tr {
-		width: 100%;
-		min-height: 230px;
-	}
-
 	#edd-edit-order-form input.large-text {
 		width: 100%;
 	}

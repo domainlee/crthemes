@@ -11,7 +11,6 @@ require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/checko
 require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/functions.php';
 require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/template.php';
 require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/shortcode.php';
-require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/apple-pay.php';
 
 if ( is_admin() ) {
 	require_once EDDS_PLUGIN_DIR . '/includes/payment-methods/payment-request/admin/settings.php';

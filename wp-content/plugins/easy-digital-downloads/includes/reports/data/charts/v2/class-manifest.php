@@ -318,7 +318,11 @@ class Manifest implements Error_Logger {
 	 */
 	public function render() {
 		// Render a <canvas> element to inject the chart in to.
-		printf( '<canvas id="%s"></canvas>', esc_attr( $this->get_target_el() ) );
+		printf(
+			'<div class="edd-canvas__container edd-canvas__type-%1$s" id="%2$s-container"><canvas id="%2$s"></canvas></div>',
+			esc_attr( $this->get_type() ),
+			esc_attr( $this->get_target_el() )
+		);
 
 		// Enqueue script and configuration to render the chart.
 		wp_enqueue_script( 'edd-admin-reports' );
@@ -419,8 +423,13 @@ class Manifest implements Error_Logger {
 	 * @return array Parsed chart options.
 	 */
 	public function get_chart_options() {
+		$endpoint_options = $this->get_endpoint()->get_options();
+
 		if ( $this->is_pie_manifest() ) {
 			$defaults = array(
+				'animation' => array(
+					'duration'   => 0,
+				),
 				'responsive' => true,
 				'legend'     => array(
 					'position' => 'left',
@@ -442,6 +451,9 @@ class Manifest implements Error_Logger {
 			}
 
 			$defaults = array(
+				'animation' => array(
+					'duration'   => 0,
+				),
 				'responsive' => true,
 				'hoverMode'  => 'index',
 				'stacked'    => false,
@@ -449,34 +461,51 @@ class Manifest implements Error_Logger {
 					'display' => $this->get_endpoint()->get_label() && $this->get_endpoint()->get( 'show_chart_title' ),
 					'text'    => $this->get_endpoint()->get_label(),
 				),
-				'scales'     => array(
-					'xAxes' => array(
-						array(
-							'type'     => 'time',
-							'display'  => true,
-							'ticks'    => array(
-								'source'      => 'auto',
-								'maxRotation' => 0,
-							),
-							'position' => 'bottom',
-							'time'     => array(
-								'unit'          => $time_unit,
-								'tooltipFormat' => $time_format,
-							),
-						),
+				'scales'    => array(
+					'xAxes' => array(),
+					'yAxes' => array(),
+				),
+			);
+
+			$default_xAxes = array(
+				array(
+					'type'     => 'time',
+					'display'  => true,
+					'ticks'    => array(
+						'source'        => 'auto',
+						'maxRotation'   => 0,
 					),
-					'yAxes' => array(
-						array(
-							'type'     => 'linear',
-							'display'  => true,
-							'position' => 'left',
-						),
+					'position' => 'bottom',
+					'time'     => array(
+						'unit'          => $time_unit,
+						'tooltipFormat' => $time_format,
 					),
 				),
 			);
+
+			$default_yAxes = array(
+				array(
+					'type'     => 'linear',
+					'display'  => true,
+					'position' => 'left',
+					'ticks'    => array(
+						'formattingType' => 'format',
+						'beginAtZero'    => true,
+						'suggestedMin'   => 0,
+					),
+				),
+			);
+
+			// Check if specific axes are missing from the endpoint options and load them from defaults.
+			foreach ( array( 'xAxes', 'yAxes' ) as $axes_name) {
+				if ( empty( $endpoint_options['scales'][ $axes_name ] ) ) {
+					$endpoint_options['scales'][ $axes_name ] = ${ "default_{$axes_name}" };
+				}
+			}
+
 		}
 
-		return array_merge( $defaults, $this->get_endpoint()->get_options() );
+		return array_merge( $defaults, $endpoint_options );
 	}
 
 	/**

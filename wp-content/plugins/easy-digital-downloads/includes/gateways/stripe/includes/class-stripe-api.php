@@ -6,7 +6,7 @@
  * @since   2.7.0
  */
 
-use \Stripe\Stripe;
+use \EDD\Vendor\Stripe\Stripe;
 
 /**
  * Implements a wrapper for the Stripe API PHP bindings.
@@ -41,7 +41,7 @@ class EDD_Stripe_API {
 	 * @param string $object  Stripe object, such as Customer, Subscription, PaymentMethod, etc.
 	 * @param string $method  Method to call on the object, such as update, retrieve, etc.
 	 * @param mixed  ...$args Additional arguments to pass to the request.
-	 * @return \Stripe\StripeObject
+	 * @return \EDD\Vendor\Stripe\Stripe\StripeObject
 	 */
 	public function request( $object, $method ) {
 		// Nothing should be executing API requests if the application requirements
@@ -52,7 +52,7 @@ class EDD_Stripe_API {
 			);
 		}
 
-		$classname = 'Stripe\\' . $object;
+		$classname = 'EDD\\Vendor\\Stripe\\' . $object;
 
 		// Retrieve additional arguments.
 		$args = func_get_args();
@@ -120,7 +120,7 @@ class EDD_Stripe_API {
 	public function set_app_info() {
 		Stripe::setAppInfo(
 			'WordPress Easy Digital Downloads - Stripe',
-			EDD_STRIPE_VERSION,
+			EDD_VERSION,
 			esc_url( site_url() ),
 			EDD_STRIPE_PARTNER_ID
 		);

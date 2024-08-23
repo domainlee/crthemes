@@ -33,6 +33,7 @@ class EDD_CLI extends WP_CLI_Command {
 
 	public function __construct() {
 		$this->api = new EDD_API();
+		edd_do_automatic_upgrades();
 	}
 
 
@@ -56,23 +57,118 @@ class EDD_CLI extends WP_CLI_Command {
 		$success_page           = edd_get_option( 'success_page', '' );
 		$failure_page           = edd_get_option( 'failure_page', '' );
 
+		/* translators: %s: EDD version */
 		WP_CLI::line( sprintf( __( 'You are running EDD version: %s', 'easy-digital-downloads' ), EDD_VERSION ) );
-		WP_CLI::line( "\n" . sprintf( __( 'Test mode is: %s', 'easy-digital-downloads' ), ( edd_is_test_mode() ? __( 'Enabled', 'easy-digital-downloads' ) : __( 'Disabled', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'AJAX is: %s', 'easy-digital-downloads' ), ( edd_is_ajax_enabled() ? __( 'Enabled', 'easy-digital-downloads' ) : __( 'Disabled', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'Guest checkouts are: %s', 'easy-digital-downloads' ), ( edd_no_guest_checkout() ? __( 'Disabled', 'easy-digital-downloads' ) : __( 'Enabled', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'Symlinks are: %s', 'easy-digital-downloads' ), ( apply_filters( 'edd_symlink_file_downloads', isset( $symlink_file_downloads ) ) && function_exists( 'symlink' ) ? __( 'Enabled', 'easy-digital-downloads' ) : __( 'Disabled', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( "\n" . sprintf( __( 'Checkout page is: %s', 'easy-digital-downloads' ), ( ! edd_get_option( 'purchase_page', false ) ) ? __( 'Valid', 'easy-digital-downloads' ) : __( 'Invalid', 'easy-digital-downloads' ) ) );
-		WP_CLI::line( sprintf( __( 'Checkout URL is: %s', 'easy-digital-downloads' ), ( ! empty( $purchase_page ) ? get_permalink( $purchase_page ) : __( 'Undefined', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'Success URL is: %s', 'easy-digital-downloads' ), ( ! empty( $success_page ) ? get_permalink( $success_page ) : __( 'Undefined', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'Failure URL is: %s', 'easy-digital-downloads' ), ( ! empty( $failure_page ) ? get_permalink( $failure_page ) : __( 'Undefined', 'easy-digital-downloads' ) ) ) );
-		WP_CLI::line( sprintf( __( 'Downloads slug is: %s', 'easy-digital-downloads' ), ( defined( 'EDD_SLUG' ) ? '/' . EDD_SLUG : '/downloads' ) ) );
-		WP_CLI::line( "\n" . sprintf( __( 'Taxes are: %s', 'easy-digital-downloads' ), ( edd_use_taxes() ? __( 'Enabled', 'easy-digital-downloads' ) : __( 'Disabled', 'easy-digital-downloads' ) ) ) );
+		WP_CLI::line(
+			"\n"
+			. sprintf(
+				/* translators: %s: The status of test mode, either Enabled or Disabled */
+				__( 'Test mode is: %s', 'easy-digital-downloads' ),
+				( edd_is_test_mode()
+					? __( 'Enabled', 'easy-digital-downloads' )
+					: __( 'Disabled', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The status of AJAX, either Enabled or Disabled */
+				__( 'AJAX is: %s', 'easy-digital-downloads' ),
+				( edd_is_ajax_enabled()
+					? __( 'Enabled', 'easy-digital-downloads' )
+					: __( 'Disabled', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The status of guest checkouts, either Enabled or Disabled */
+				__( 'Guest checkouts are: %s', 'easy-digital-downloads' ),
+				( edd_no_guest_checkout()
+					? __( 'Disabled', 'easy-digital-downloads' )
+					: __( 'Enabled', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The status of file downloads via symlink setting, either Enabled or Disabled */
+				__( 'Symlinks are: %s', 'easy-digital-downloads' ),
+				( apply_filters( 'edd_symlink_file_downloads', isset( $symlink_file_downloads ) ) && function_exists( 'symlink' )
+					? __( 'Enabled', 'easy-digital-downloads' )
+					: __( 'Disabled', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			"\n"
+			. sprintf(
+				/* translators: %s: The status of the checkout page, either Valid or Invalid */
+				__( 'Checkout page is: %s', 'easy-digital-downloads' ),
+				( ! edd_get_option( 'purchase_page', false ) )
+					? __( 'Valid', 'easy-digital-downloads' )
+					: __( 'Invalid', 'easy-digital-downloads' )
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The URL of the checkout page */
+				__( 'Checkout URL is: %s', 'easy-digital-downloads' ),
+				( ! empty( $purchase_page )
+					? get_permalink( $purchase_page )
+					: __( 'Undefined', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The URL of the success page */
+				__( 'Success URL is: %s', 'easy-digital-downloads' ),
+				( ! empty( $success_page )
+					? get_permalink( $success_page )
+					: __( 'Undefined', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The URL of the failure page */
+				__( 'Failure URL is: %s', 'easy-digital-downloads' ),
+				( ! empty( $failure_page )
+					? get_permalink( $failure_page )
+					: __( 'Undefined', 'easy-digital-downloads' )
+				)
+			)
+		);
+		WP_CLI::line(
+			sprintf(
+				/* translators: %s: The download slug used in the WordPress Permalinks, defaults to /downloads */
+				__( 'Downloads slug is: %s', 'easy-digital-downloads' ),
+				( defined( 'EDD_SLUG' )
+					? '/' . EDD_SLUG
+					: '/downloads'
+				)
+			)
+		);
+		WP_CLI::line(
+			"\n"
+			. sprintf(
+				/* translators: %s: The status of the taxes enabled setting, either Enabled or Disabled */
+				__( 'Taxes are: %s', 'easy-digital-downloads' ),
+				( edd_use_taxes()
+					? __( 'Enabled', 'easy-digital-downloads' )
+					: __( 'Disabled', 'easy-digital-downloads' )
+				)
+			)
+		);
+		/* translators: %s: The default tax rate formatted as a percentage */
 		WP_CLI::line( sprintf( __( 'Tax rate is: %s', 'easy-digital-downloads' ), edd_get_formatted_tax_rate() ) );
 
 		$rates = edd_get_tax_rates();
 		if ( ! empty( $rates ) ) {
 			foreach ( $rates as $rate ) {
-				WP_CLI::line( sprintf( __( 'Country: %s, State: %s, Rate: %s', 'easy-digital-downloads' ), $rate['country'], $rate['state'], $rate['rate'] ) );
+				/* translators: 1: The country code, 2: The state code, 3: The tax rate formatted as a percentage */
+				WP_CLI::line( sprintf( __( 'Country: %1$s, State: %2$s, Rate: %3$s', 'easy-digital-downloads' ), $rate['country'], $rate['state'], $rate['rate'] ) );
 			}
 		}
 	}
@@ -115,9 +211,10 @@ class EDD_CLI extends WP_CLI_Command {
 		$earnings = $stats->get_earnings( $download, $start_date, $end_date );
 		$sales    = $stats->get_sales( $download, $start_date, $end_date );
 
+		/* translators: %s: The earnings formatted for the currency */
 		WP_CLI::line( sprintf( __( 'Earnings: %s', 'easy-digital-downloads' ), $earnings ) );
+		/* translators: %s: The sales count */
 		WP_CLI::line( sprintf( __( 'Sales: %s', 'easy-digital-downloads' ), $sales ) );
-
 	}
 
 
@@ -181,16 +278,26 @@ class EDD_CLI extends WP_CLI_Command {
 			$pricing = implode( ', ', $pricing );
 
 			WP_CLI::line( WP_CLI::colorize( '%G' . $product['info']['title'] . '%N' ) );
-			WP_CLI::line( sprintf( __( 'ID: %d', 'easy-digital-downloads' ), $product['info']['id'] ) );
-			WP_CLI::line( sprintf( __( 'Status: %s', 'easy-digital-downloads' ), $product['info']['status'] ) );
+			/* translators: %d: The product ID (post ID) */
+			WP_CLI::line( sprintf( _x( 'ID: %d', 'The Download/Product ID', 'easy-digital-downloads' ), $product['info']['id'] ) );
+			/* translators: %s: The status of the product */
+			WP_CLI::line( sprintf( _x( 'Status: %s', 'The Download/Product Status', 'easy-digital-downloads' ), $product['info']['status'] ) );
+			/* translators: %s: The date the product was posted */
 			WP_CLI::line( sprintf( __( 'Posted: %s', 'easy-digital-downloads' ), $product['info']['create_date'] ) );
+			/* translators: %s: The product categories */
 			WP_CLI::line( sprintf( __( 'Categories: %s', 'easy-digital-downloads' ), $categories ) );
+			/* translators: %s: The product tags */
 			WP_CLI::line( sprintf( __( 'Tags: %s', 'easy-digital-downloads' ), ( is_array( $tags ) ? '' : $tags ) ) );
+			/* translators: %s: The product pricing */
 			WP_CLI::line( sprintf( __( 'Pricing: %s', 'easy-digital-downloads' ), $pricing ) );
-			WP_CLI::line( sprintf( __( 'Sales: %s', 'easy-digital-downloads' ), $product['stats']['total']['sales'] ) );
-			WP_CLI::line( sprintf( __( 'Earnings: %s', 'easy-digital-downloads' ), edd_format_amount( $product['stats']['total']['earnings'] ) ) ) . ' ' . edd_get_currency();
+			/* translators: %s: The product sales count */
+			WP_CLI::line( sprintf( _x( 'Sales: %s', 'The sales count for the product', 'easy-digital-downloads' ), $product['stats']['total']['sales'] ) );
+			/* translators: %s: The product earnings formatted for the currency */
+			WP_CLI::line( sprintf( _x( 'Earnings: %s', 'The product earnings', 'easy-digital-downloads' ), edd_format_amount( $product['stats']['total']['earnings'] . ' ' . edd_get_currency() ) ) );
 			WP_CLI::line( '' );
+			/* translators: %s: The product page slug */
 			WP_CLI::line( sprintf( __( 'Slug: %s', 'easy-digital-downloads' ), $product['info']['slug'] ) );
+			/* translators: %s: The product link */
 			WP_CLI::line( sprintf( __( 'Permalink: %s', 'easy-digital-downloads' ), $product['info']['link'] ) );
 
 			if ( array_key_exists( 'files', $product ) ) {
@@ -198,9 +305,11 @@ class EDD_CLI extends WP_CLI_Command {
 				WP_CLI::line( __( 'Download Files:', 'easy-digital-downloads' ) );
 
 				foreach ( $product['files'] as $file ) {
-					WP_CLI::line( '  ' . sprintf( __( 'File: %s (%s)', 'easy-digital-downloads' ), $file['name'], $file['file'] ) );
+					/* translators: 1: The file name, 2: The file path */
+					WP_CLI::line( '  ' . sprintf( __( 'File: %1$s (%2$s)', 'easy-digital-downloads' ), $file['name'], $file['file'] ) );
 
 					if ( isset( $file['condition'] ) && 'all' !== $file['condition'] ) {
+						/* translators: %s: The price assignment condition */
 						WP_CLI::line( '  ' . sprintf( __( 'Price Assignment: %s', 'easy-digital-downloads' ), $file['condition'] ) );
 					}
 				}
@@ -208,7 +317,6 @@ class EDD_CLI extends WP_CLI_Command {
 
 			WP_CLI::line( '' );
 		}
-
 	}
 
 
@@ -242,17 +350,17 @@ class EDD_CLI extends WP_CLI_Command {
 		if ( $create ) {
 			$number = 1;
 
-			// Create one or more customers
+			// Create one or more customers.
 			if ( ! $email ) {
 
-				// If no email is specified, look to see if we are generating arbitrary customer accounts
+				// If no email is specified, look to see if we are generating arbitrary customer accounts.
 				$number = is_numeric( $create ) ? absint( $create ) : 1;
 			}
 
-			for ( $i = 0; $i < $number; $i ++ ) {
+			for ( $i = 0; $i < $number; $i++ ) {
 				if ( ! $email ) {
 
-					// Generate fake email
+					// Generate fake email.
 					$email = 'customer-' . uniqid() . '@test.com';
 				}
 
@@ -265,17 +373,19 @@ class EDD_CLI extends WP_CLI_Command {
 				$customer_id = edd_add_customer( $args );
 
 				if ( $customer_id ) {
+					/* translators: %d: The customer ID */
 					WP_CLI::line( sprintf( __( 'Customer %d created successfully', 'easy-digital-downloads' ), $customer_id ) );
 				} else {
 					WP_CLI::error( __( 'Failed to create customer', 'easy-digital-downloads' ) );
 				}
 
-				// Reset email to false so it is generated on the next loop (if creating customers)
+				// Reset email to false so it is generated on the next loop (if creating customers).
 				$email = false;
 
 			}
 
-			WP_CLI::line( WP_CLI::colorize( '%G' . sprintf( __( '%d customers created in %d seconds', 'easy-digital-downloads' ), $create, time() - $start ) . '%N' ) );
+			/* translators: 1: The number of customers created, %2$d: The time it took to create the customers */
+			WP_CLI::line( WP_CLI::colorize( '%G' . sprintf( __( '%1$d customers created in %2$d seconds', 'easy-digital-downloads' ), $create, time() - $start ) . '%N' ) );
 		} else {
 			// Search for customers
 			$search = false;
@@ -310,30 +420,37 @@ class EDD_CLI extends WP_CLI_Command {
 
 			foreach ( $customers['customers'] as $customer ) {
 				WP_CLI::line( WP_CLI::colorize( '%G' . $customer['info']['email'] . '%N' ) );
+				/* translators: %d: The customer's user ID */
 				WP_CLI::line( sprintf( __( 'Customer User ID: %s', 'easy-digital-downloads' ), $customer['info']['id'] ) );
+				/* translators: %s: The customer's username */
 				WP_CLI::line( sprintf( __( 'Username: %s', 'easy-digital-downloads' ), $customer['info']['username'] ) );
+				/* translators: %s: The customer's display name */
 				WP_CLI::line( sprintf( __( 'Display Name: %s', 'easy-digital-downloads' ), $customer['info']['display_name'] ) );
 
 				if ( array_key_exists( 'first_name', $customer ) ) {
+					/* translators: %s: The customer's first name */
 					WP_CLI::line( sprintf( __( 'First Name: %s', 'easy-digital-downloads' ), $customer['info']['first_name'] ) );
 				}
 
 				if ( array_key_exists( 'last_name', $customer ) ) {
+					/* translators: %s: The customer's surname */
 					WP_CLI::line( sprintf( __( 'Last Name: %s', 'easy-digital-downloads' ), $customer['info']['last_name'] ) );
 				}
 
+				/* translators: %s: The customer's email address */
 				WP_CLI::line( sprintf( __( 'Email: %s', 'easy-digital-downloads' ), $customer['info']['email'] ) );
 
 				WP_CLI::line( '' );
+				/* translators: %s: The customer's total purchases */
 				WP_CLI::line( sprintf( __( 'Purchases: %s', 'easy-digital-downloads' ), $customer['stats']['total_purchases'] ) );
+				/* translators: %s: The customer's total spent */
 				WP_CLI::line( sprintf( __( 'Total Spent: %s', 'easy-digital-downloads' ), edd_format_amount( $customer['stats']['total_spent'] ) . ' ' . edd_get_currency() ) );
+				/* translators: %s: The customer's total downloads */
 				WP_CLI::line( sprintf( __( 'Total Downloads: %s', 'easy-digital-downloads' ), $customer['stats']['total_downloads'] ) );
 
 				WP_CLI::line( '' );
 			}
-
 		}
-
 	}
 
 
@@ -366,22 +483,30 @@ class EDD_CLI extends WP_CLI_Command {
 
 		foreach ( $sales['sales'] as $sale ) {
 			WP_CLI::line( WP_CLI::colorize( '%G' . $sale['ID'] . '%N' ) );
+			/* translators: %s: The purchase key */
 			WP_CLI::line( sprintf( __( 'Purchase Key: %s', 'easy-digital-downloads' ), $sale['key'] ) );
+			/* translators: %s: The customer's email address */
 			WP_CLI::line( sprintf( __( 'Email: %s', 'easy-digital-downloads' ), $sale['email'] ) );
+			/* translators: %s: The purchase date */
 			WP_CLI::line( sprintf( __( 'Date: %s', 'easy-digital-downloads' ), $sale['date'] ) );
+			/* translators: %s: The purchase subtotal */
 			WP_CLI::line( sprintf( __( 'Subtotal: %s', 'easy-digital-downloads' ), edd_format_amount( $sale['subtotal'] ) . ' ' . edd_get_currency() ) );
+			/* translators: %s: The purchase tax */
 			WP_CLI::line( sprintf( __( 'Tax: %s', 'easy-digital-downloads' ), edd_format_amount( $sale['tax'] ) . ' ' . edd_get_currency() ) );
 
 			if ( array_key_exists( 0, $sale['fees'] ) ) {
 				WP_CLI::line( __( 'Fees:', 'easy-digital-downloads' ) );
 
 				foreach ( $sale['fees'] as $fee ) {
-					WP_CLI::line( sprintf( __( '  Fee: %s - %s', 'easy-digital-downloads' ), edd_format_amount( $fee['amount'] ), edd_get_currency() ) );
+					/* translators: 1: The fee amount, 2: The currency */
+					WP_CLI::line( sprintf( __( '  Fee: %1$s - %2$s', 'easy-digital-downloads' ), edd_format_amount( $fee['amount'] ), edd_get_currency() ) );
 				}
 			}
 
+			/* translators: %s: The purchase total */
 			WP_CLI::line( sprintf( __( 'Total: %s', 'easy-digital-downloads' ), edd_format_amount( $sale['total'] ) . ' ' . edd_get_currency() ) );
 			WP_CLI::line( '' );
+			/* translators: %s: The payment gateway used */
 			WP_CLI::line( sprintf( __( 'Gateway: %s', 'easy-digital-downloads' ), $sale['gateway'] ) );
 
 			if ( array_key_exists( 0, $sale['products'] ) ) {
@@ -389,7 +514,8 @@ class EDD_CLI extends WP_CLI_Command {
 
 				foreach ( $sale['products'] as $product ) {
 					$price_name = ! empty( $product['price_name'] ) ? ' (' . $product['price_name'] . ')' : '';
-					WP_CLI::line( sprintf( __( '  Product: %s - %s', 'easy-digital-downloads' ), $product['name'], edd_format_amount( $product['price'] ) . ' ' . edd_get_currency() . $price_name ) );
+					/* translators: 1: The product name, 2: The product price */
+					WP_CLI::line( sprintf( __( '  Product: %1$s - %2$s', 'easy-digital-downloads' ), $product['name'], edd_format_amount( $product['price'] ) . ' ' . edd_get_currency() . $price_name ) );
 				}
 			}
 
@@ -427,7 +553,9 @@ class EDD_CLI extends WP_CLI_Command {
 
 		foreach ( $discounts['discounts'] as $discount ) {
 			WP_CLI::line( WP_CLI::colorize( '%G' . $discount['ID'] . '%N' ) );
+			/* translators: %s: The name of the discount */
 			WP_CLI::line( sprintf( __( 'Name: %s', 'easy-digital-downloads' ), $discount['name'] ) );
+			/* translators: %s: The code of the discount */
 			WP_CLI::line( sprintf( __( 'Code: %s', 'easy-digital-downloads' ), $discount['code'] ) );
 
 			if ( $discount['type'] == 'percent' ) {
@@ -436,12 +564,18 @@ class EDD_CLI extends WP_CLI_Command {
 				$amount = edd_format_amount( $discount['amount'] ) . ' ' . edd_get_currency();
 			}
 
+			/* translators: %s: The amount of the discount */
 			WP_CLI::line( sprintf( __( 'Amount: %s', 'easy-digital-downloads' ), $amount ) );
+			/* translators: %s: The number of uses of the discount */
 			WP_CLI::line( sprintf( __( 'Uses: %s', 'easy-digital-downloads' ), $discount['uses'] ) );
+			/* translators: %s: The maximum number of uses of the discount */
 			WP_CLI::line( sprintf( __( 'Max Uses: %s', 'easy-digital-downloads' ), ( $discount['max_uses'] == '0' ? __( 'Unlimited', 'easy-digital-downloads' ) : $discount['max_uses'] ) ) );
+			/* translators: %s: The start date of the discount */
 			WP_CLI::line( sprintf( __( 'Start Date: %s', 'easy-digital-downloads' ), ( empty( $discount['start_date'] ) ? __( 'No Start Date', 'easy-digital-downloads' ) : $discount['start_date'] ) ) );
+			/* translators: %s: The expiration date of the discount */
 			WP_CLI::line( sprintf( __( 'Expiration Date: %s', 'easy-digital-downloads' ), ( empty( $discount['exp_date'] ) ? __( 'No Expiration', 'easy-digital-downloads' ) : $discount['exp_date'] ) ) );
-			WP_CLI::line( sprintf( __( 'Status: %s', 'easy-digital-downloads' ), ucwords( $discount['status'] ) ) );
+			/* translators: %s: The status of the discount */
+			WP_CLI::line( sprintf( _x( 'Status: %s', 'The status of the discount code', 'easy-digital-downloads' ), ucwords( $discount['status'] ) ) );
 
 			WP_CLI::line( '' );
 
@@ -449,13 +583,16 @@ class EDD_CLI extends WP_CLI_Command {
 				WP_CLI::line( __( 'Product Requirements:', 'easy-digital-downloads' ) );
 
 				foreach ( $discount['product_requirements'] as $req => $req_id ) {
+					/* translators: %s: The ID of the product required for this discount */
 					WP_CLI::line( sprintf( __( '  Product: %s', 'easy-digital-downloads' ), $req_id ) );
 				}
 			}
 
 			WP_CLI::line( '' );
 
+			/* translators: %s: The type of discount if it is able to be used on all products. */
 			WP_CLI::line( sprintf( __( 'Global Discount: %s', 'easy-digital-downloads' ), ( empty( $discount['global_discount'] ) ? 'False' : 'True' ) ) );
+			/* translators: %s: The type of discount if it is a single use discount. */
 			WP_CLI::line( sprintf( __( 'Single Use: %s', 'easy-digital-downloads' ), ( empty( $discount['single_use'] ) ? 'False' : 'True' ) ) );
 
 			WP_CLI::line( '' );
@@ -495,24 +632,26 @@ class EDD_CLI extends WP_CLI_Command {
 			}
 
 			WP_CLI::error(
+				/* translators: %s: The query string */
 				sprintf( $error . ' %s?', 'wp edd payments create' . $query )
 			);
 
 			return;
 		}
 
-
-		// Setup some defaults
+		// Setup some defaults.
 		$number   = 1;
 		$status   = 'complete';
 		$id       = false;
-		$price_id = false;
+		$price_id = null;
 		$tax      = 0;
 		$email    = 'guest@edd.local';
 		$fname    = 'Pippin';
 		$lname    = 'Williamson';
 		$date     = false;
 		$range    = 30;
+		$currency = edd_get_currency();
+		$gateway  = 'manual';
 
 		$generate_users = false;
 
@@ -538,10 +677,13 @@ class EDD_CLI extends WP_CLI_Command {
 						? 'complete'
 						: $assoc_args['status'];
 				} else {
-					WP_CLI::warning( sprintf(
-						__( "Invalid status '%s', defaulting to 'complete'", 'easy-digital-downloads' ),
-						$assoc_args['status']
-					) );
+					WP_CLI::warning(
+						sprintf(
+							/* translators: %s: The status of the payment */
+							__( "Invalid status '%s', defaulting to 'complete'", 'easy-digital-downloads' ),
+							$assoc_args['status']
+						)
+					);
 				}
 			}
 		}
@@ -557,18 +699,20 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Creating Orders', $number );
 
-		for ( $i = 0; $i < $number; $i ++ ) {
+		for ( $i = 0; $i < $number; $i++ ) {
 			$products = array();
 			$total    = 0;
 
 			// No specified product
 			if ( ! $id ) {
-				$products = get_posts( array(
-					'post_type'      => 'download',
-					'orderby'        => 'rand',
-					'order'          => 'ASC',
-					'posts_per_page' => rand( 1, 3 ),
-				) );
+				$products = get_posts(
+					array(
+						'post_type'      => 'download',
+						'orderby'        => 'rand',
+						'order'          => 'ASC',
+						'posts_per_page' => rand( 1, 3 ),
+					)
+				);
 			} else {
 				$product = get_post( $id );
 
@@ -596,7 +740,7 @@ class EDD_CLI extends WP_CLI_Command {
 				if ( edd_has_variable_prices( $download->ID ) ) {
 					$prices = edd_get_variable_prices( $download->ID );
 
-					if ( false === $price_id || ! array_key_exists( $price_id, (array) $prices ) ) {
+					if ( false === $price_id || ( ! empty( $prices ) && ! array_key_exists( $price_id, (array) $prices ) ) ) {
 						$item_price_id = array_rand( $prices );
 					} else {
 						$item_price_id = $price_id;
@@ -605,7 +749,7 @@ class EDD_CLI extends WP_CLI_Command {
 					$item_price          = $prices[ $item_price_id ]['amount'];
 					$options['price_id'] = $item_price_id;
 
-				// Flat price.
+					// Flat price.
 				} else {
 					$item_price = edd_get_download_price( $download->ID );
 				}
@@ -617,7 +761,7 @@ class EDD_CLI extends WP_CLI_Command {
 				);
 
 				$cart_details[ $key ] = array(
-					'name'        => $download->post_title,
+					'name'        => edd_get_download_name( $download->ID, $price_id ),
 					'id'          => $download->ID,
 					'item_number' => $item_number,
 					'item_price'  => edd_sanitize_amount( $item_price ),
@@ -640,16 +784,14 @@ class EDD_CLI extends WP_CLI_Command {
 				$newest_time = current_time( 'timestamp' );
 
 				$timestamp  = rand( $oldest_time, $newest_time );
-				$timestring = date( "Y-m-d H:i:s", $timestamp );
+				$timestring = date( 'Y-m-d H:i:s', $timestamp );
 			} elseif ( empty( $date ) ) {
 				$timestring = false;
+			} elseif ( is_numeric( $date ) ) {
+					$timestring = date( 'Y-m-d H:i:s', $date );
 			} else {
-				if ( is_numeric( $date ) ) {
-					$timestring = date( "Y-m-d H:i:s", $date );
-				} else {
-					$parsed_time = strtotime( $date );
-					$timestring  = date( "Y-m-d H:i:s", $parsed_time );
-				}
+				$parsed_time = strtotime( $date );
+				$timestring  = date( 'Y-m-d H:i:s', $parsed_time );
 			}
 
 			// Maybe generate users.
@@ -670,6 +812,18 @@ class EDD_CLI extends WP_CLI_Command {
 				);
 			}
 
+			// Allow random currencies.
+			if ( ! empty( $assoc_args['currency'] ) && 'random' === $assoc_args['currency'] ) {
+				$currencies = array( 'USD', 'EUR', 'GBP' );
+				$currency   = $currencies[ array_rand( $currencies ) ];
+			}
+
+			// Allow random gateways.
+			if ( ! empty( $assoc_args['gateway'] ) && 'random' === $assoc_args['gateway'] ) {
+				$gateways = array_keys( edd_get_payment_gateways() );
+				$gateway  = $gateways[ array_rand( $gateways ) ];
+			}
+
 			// Build purchase data.
 			$purchase_data = array(
 				'price'        => edd_sanitize_amount( $total ),
@@ -677,7 +831,7 @@ class EDD_CLI extends WP_CLI_Command {
 				'purchase_key' => strtolower( md5( uniqid() ) ),
 				'user_email'   => $email,
 				'user_info'    => $user_info,
-				'currency'     => edd_get_currency(),
+				'currency'     => $currency,
 				'downloads'    => $final_downloads,
 				'cart_details' => $cart_details,
 				'status'       => 'pending',
@@ -700,7 +854,7 @@ class EDD_CLI extends WP_CLI_Command {
 			if ( ! empty( $timestring ) ) {
 				$payment                 = new EDD_Payment( $order_id );
 				$payment->completed_date = $timestring;
-				$payment->gateway        = 'manual';
+				$payment->gateway        = $gateway;
 				$payment->save();
 			}
 
@@ -709,6 +863,7 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$progress->finish();
 
+		/* translators: %s: The number of orders created */
 		WP_CLI::success( sprintf( __( 'Created %s orders', 'easy-digital-downloads' ), $number ) );
 
 		return;
@@ -719,93 +874,101 @@ class EDD_CLI extends WP_CLI_Command {
 	 *
 	 * ## OPTIONS
 	 *
-	 * --legacy: Create legacy discount codes using pre-3.0 schema
 	 * --number: The number of discounts to create
 	 *
 	 * ## EXAMPLES
 	 *
 	 * wp edd create_discounts --number=100
-	 * wp edd create_discounts --number=50 --legacy
 	 */
 	public function create_discounts( $args, $assoc_args ) {
 		$number = array_key_exists( 'number', $assoc_args ) ? absint( $assoc_args['number'] ) : 1;
-		$legacy = array_key_exists( 'legacy', $assoc_args ) ? true : false;
 
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Creating Discount Codes', $number );
 
-		for ( $i = 0; $i < $number; $i ++ ) {
-			if ( $legacy ) {
-				$discount_id = wp_insert_post( array(
-					'post_type'   => 'edd_discount',
-					'post_title'  => 'Auto-Generated Legacy Discount #' . $i,
-					'post_status' => 'active',
-				) );
+		for ( $i = 0; $i < $number; $i++ ) {
+			$type              = array( 'flat', 'percent' );
+			$status            = array( 'active', 'inactive', 'archived' );
+			$product_condition = array( 'any', 'all' );
 
-				$download_ids = get_posts( array(
-					'post_type'      => 'download',
-					'posts_per_page' => 2,
-					'fields'         => 'ids',
-					'orderby'        => 'rand',
-				) );
+			$type_index              = array_rand( $type, 1 );
+			$status_index            = array_rand( $status, 1 );
+			$product_condition_index = array_rand( $product_condition, 1 );
 
-				$meta = array(
-					'code'              => 'LEGACY' . $i,
-					'status'            => 'active',
-					'uses'              => 10,
-					'max_uses'          => 20,
-					'name'              => 'Auto-Generated Legacy Discount #' . $i,
-					'amount'            => 20,
-					'start'             => '01/01/2000 00:00:00',
-					'expiration'        => '12/31/2050 23:59:59',
-					'type'              => 'percent',
-					'min_price'         => '10.50',
-					'product_reqs'      => array( $download_ids[0] ),
-					'product_condition' => 'all',
-					'excluded_products' => array( $download_ids[1] ),
-					'is_not_global'     => true,
-					'is_single_use'     => true,
-				);
-
-				remove_action( 'pre_get_posts', '_edd_discount_get_post_doing_it_wrong', 99, 1 );
-				remove_filter( 'add_post_metadata', '_edd_discount_update_meta_backcompat', 99 );
-
-				foreach ( $meta as $key => $value ) {
-					add_post_meta( $discount_id, '_edd_discount_' . $key, $value );
+			// Randomly set a start date and time.
+			if ( rand( 0, 1 ) ) {
+				// Generate a start date randomly between 90 days ago and 90 days in the future.
+				$start_date_range = rand( -90, 90 );
+				if ( 0 > $start_date_range ) {
+					$start_date_range = '+' . intval( $start_date_range );
 				}
 
-				add_filter( 'add_post_metadata', '_edd_discount_update_meta_backcompat', 99, 5 );
-				add_action( 'pre_get_posts', '_edd_discount_get_post_doing_it_wrong', 99, 1 );
-			} else {
-				$type              = array( 'flat', 'percent' );
-				$status            = array( 'active', 'inactive' );
-				$product_condition = array( 'any', 'all' );
+				$start_date_string = date( 'Y-m-d', strtotime( $start_date_range . ' days' ) );
 
-				$type_index              = array_rand( $type, 1 );
-				$status_index            = array_rand( $status, 1 );
-				$product_condition_index = array_rand( $product_condition, 1 );
+				$start_hour = rand( 0, 23 );
+				$start_min  = rand( 0, 59 );
 
-				$post = array(
-					'code'              => md5( time() ),
-					'uses'              => mt_rand( 0, 100 ),
-					'max'               => mt_rand( 0, 100 ),
-					'name'              => 'Auto-Generated Discount #' . $i,
-					'type'              => $type[ $type_index ],
-					'amount'            => mt_rand( 10, 95 ),
-					'start'             => '12/12/2010 00:00:00',
-					'expiration'        => '12/31/2050 23:59:59',
-					'min_price'         => mt_rand( 30, 255 ),
-					'status'            => $status[ $status_index ],
-					'product_condition' => $product_condition[ $product_condition_index ],
+				$start_date = edd_get_utc_date_string(
+					EDD()->utils->get_date_string(
+						$start_date_string,
+						$start_hour,
+						$start_min
+					)
 				);
-
-				edd_store_discount( $post );
-
-				$progress->tick();
 			}
+
+			// Randomly set a end date and time.
+			if ( rand( 0, 1 ) ) {
+				// Generate a start date randomly between 90 days ago and 90 days in the future.
+				$end_date_range = rand( 1, 90 );
+
+				if ( isset( $start_date_string ) ) {
+					$end_date_string = date( 'Y-m-d', strtotime( $start_date_string . ' +' . $end_date_range . ' days' ) );
+				} else {
+					$end_date_string = date( 'Y-m-d', strtotime( '+' . $end_date_range . ' days' ) );
+				}
+
+				$end_hour = rand( 0, 23 );
+				$end_min  = rand( 0, 59 );
+
+				$end_date = edd_get_utc_date_string(
+					EDD()->utils->get_date_string(
+						$end_date_string,
+						$end_hour,
+						$end_min
+					)
+				);
+			}
+
+			$max = mt_rand( 0, 100 );
+
+			$discount = array(
+				'code'         => md5( wp_generate_uuid4() ),
+				'uses'         => mt_rand( 0, $max ),
+				'max'          => $max,
+				'name'         => 'Auto-Generated Discount #' . $i,
+				'type'         => $type[ $type_index ],
+				'amount'       => mt_rand( 10, 95 ),
+				'min_price'    => mt_rand( 1, 255 ),
+				'status'       => $status[ $status_index ],
+				'product_reqs' => $product_condition[ $product_condition_index ],
+			);
+
+			if ( isset( $start_date ) ) {
+				$discount['start_date'] = $start_date;
+			}
+
+			if ( isset( $end_date ) ) {
+				$discount['end_date'] = $end_date;
+			}
+
+			edd_add_discount( $discount );
+
+			$progress->tick();
 		}
 
 		$progress->finish();
 
+		/* translators: %s: The number of discounts created */
 		WP_CLI::success( sprintf( __( 'Created %s discounts', 'easy-digital-downloads' ), $number ) );
 
 		return;
@@ -887,11 +1050,15 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
-
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
+
+		$destroy = (bool) ( $force && isset( $assoc_args['destroy'] ) );
+
+		if ( $destroy ) {
+			WP_CLI::confirm( __( 'This process will remove and recreate discounts in your database. Please make sure you\'ve backed up your EDD database tables. Are you sure you want to delete discounts that have already been migrated and run the migration again?', 'easy-digital-downloads' ) );
+		}
 
 		$upgrade_completed = edd_has_upgrade_completed( 'migrate_discounts' );
 
@@ -908,6 +1075,9 @@ class EDD_CLI extends WP_CLI_Command {
 			$progress = new \cli\progress\Bar( 'Migrating Discounts', $total );
 
 			foreach ( $results as $result ) {
+				if ( $destroy ) {
+					edd_delete_discount( $result->ID );
+				}
 				\EDD\Admin\Upgrades\v3\Data_Migrator::discounts( $result );
 
 				$progress->tick();
@@ -921,7 +1091,6 @@ class EDD_CLI extends WP_CLI_Command {
 			WP_CLI::line( __( 'Old Records: ', 'easy-digital-downloads' ) . $old_count[0] );
 			WP_CLI::line( __( 'New Records: ', 'easy-digital-downloads' ) . $new_count );
 
-			edd_update_db_version();
 			edd_set_upgrade_complete( 'migrate_discounts' );
 
 		} else {
@@ -949,8 +1118,6 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
-
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
@@ -963,40 +1130,89 @@ class EDD_CLI extends WP_CLI_Command {
 
 		WP_CLI::line( __( 'Preparing to migrate logs (this can take several minutes).', 'easy-digital-downloads' ) );
 
-		$sql = "
+		// New Progress indicator.
+		$progress = new \cli\notify\Spinner( __( 'Migrating Logs', 'easy-digital-downloads' ) );
+		$progress->tick();
+
+		// Base SQL to get legacy logs (LIMIT added below)
+		$sql_base = "
 			SELECT p.*, t.slug
-			FROM {$wpdb->posts} AS p
-			LEFT JOIN {$wpdb->term_relationships} AS tr ON (p.ID = tr.object_id)
-			LEFT JOIN {$wpdb->term_taxonomy} AS tt ON (tr.term_taxonomy_id = tt.term_taxonomy_id)
-			LEFT JOIN {$wpdb->terms} AS t ON (tt.term_id = t.term_id)
-			WHERE p.post_type = 'edd_log' AND t.slug != 'sale'
+				FROM {$wpdb->posts} AS p
+					LEFT JOIN {$wpdb->term_relationships} AS tr ON (p.ID = tr.object_id)
+					LEFT JOIN {$wpdb->term_taxonomy} AS tt ON (tr.term_taxonomy_id = tt.term_taxonomy_id)
+					LEFT JOIN {$wpdb->terms} AS t ON (tt.term_id = t.term_id)
+				WHERE
+					p.post_type = 'edd_log'
+					AND
+					t.slug != 'sale'
+				ORDER BY p.ID ASC
 		";
 
-		$results = $wpdb->get_results( $sql );
-		$total   = count( $results );
+		// Query & count.
+		$sql          = $sql_base . ' LIMIT 1';
+		$check_result = $wpdb->get_results( $sql );
+		$check_total  = count( $check_result );
+		$has_results  = ! empty( $check_total );
 
-		if ( ! empty( $total ) ) {
-			$progress = new \cli\progress\Bar( 'Migrating Logs', $total );
+		// Setup base iteration variables.
+		$step   = 0;
+		$offset = 0;
+		$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+			? (int) $assoc_args['number']
+			: 1000;
 
-			foreach ( $results as $result ) {
-				\EDD\Admin\Upgrades\v3\Data_Migrator::logs( $result );
+		// Maximum 10,000 - this ain't no VTEC.
+		if ( $number > 10000 ) {
+			$number = 10000;
+		}
 
-				$progress->tick();
+		// Starting total.
+		$total = 0;
+
+		while ( $has_results ) {
+			$progress->tick();
+
+			// Query & count.
+			$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+			$results = $wpdb->get_results( $sql );
+
+			// Not empty, so lets chug through them!
+			if ( ! empty( $results ) ) {
+				foreach ( $results as $result ) {
+					\EDD\Admin\Upgrades\v3\Data_Migrator::logs( $result );
+
+					// Tick the spinner...
+					$progress->tick();
+
+					// Bump the total...
+					++$total;
+				}
+
+				// Increment step for the next offset...
+				++$step;
+
+				// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+				$offset = ( $step * $number );
+
+				// Done!
+			} else {
+				$has_results = false;
 			}
+		}
 
-			$progress->finish();
+		$progress->finish();
 
+		if ( 0 === $step ) {
+			WP_CLI::line( __( 'No log records found.', 'easy-digital-downloads' ) );
+		} else {
+			// This migration is completed on a data set.
 			WP_CLI::line( __( 'Migration complete: Logs', 'easy-digital-downloads' ) );
 			$new_count = edd_count_logs() + edd_count_file_download_logs() + edd_count_api_request_logs();
 			WP_CLI::line( __( 'Old Records: ', 'easy-digital-downloads' ) . $total );
 			WP_CLI::line( __( 'New Records: ', 'easy-digital-downloads' ) . $new_count );
-
-			edd_update_db_version();
-			edd_set_upgrade_complete( 'migrate_logs' );
-		} else {
-			WP_CLI::line( __( 'No log records found.', 'easy-digital-downloads' ) );
-			edd_set_upgrade_complete( 'migrate_logs' );
 		}
+
+		edd_set_upgrade_complete( 'migrate_logs' );
 	}
 
 	/**
@@ -1016,8 +1232,6 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
-
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
@@ -1028,34 +1242,81 @@ class EDD_CLI extends WP_CLI_Command {
 			WP_CLI::error( __( 'The order notes custom table migration has already been run. To do this anyway, use the --force argument.', 'easy-digital-downloads' ) );
 		}
 
-		$sql     = "SELECT * FROM {$wpdb->comments} WHERE comment_type = 'edd_payment_note' ORDER BY comment_ID ASC";
-		$results = $wpdb->get_results( $sql );
-		$total   = count( $results );
+		WP_CLI::line( __( 'Preparing to migrate order notes.', 'easy-digital-downloads' ) );
 
-		if ( ! empty( $total ) ) {
-			$progress = new \cli\progress\Bar( 'Migrating Notes', $total );
+		$progress = new \cli\notify\Spinner( __( 'Migrating Order Notes', 'easy-digital-downloads' ) );
+		$progress->tick();
 
-			foreach ( $results as $result ) {
-				$result->object_id = $result->comment_post_ID;
-				\EDD\Admin\Upgrades\v3\Data_Migrator::order_notes( $result );
+		$sql_base = "
+			SELECT * FROM {$wpdb->comments}
+				WHERE comment_type = 'edd_payment_note'
+				ORDER BY comment_ID ASC
+		";
 
-				$progress->tick();
-			}
+		// Query & count.
+		$sql          = $sql_base . ' LIMIT 1';
+		$check_result = $wpdb->get_results( $sql );
+		$check_total  = count( $check_result );
+		$has_results  = ! empty( $check_total );
 
-			$progress->finish();
+		// Setup base iteration variables.
+		$step   = 0;
+		$offset = 0;
+		$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+			? (int) $assoc_args['number']
+			: 1000;
 
-			WP_CLI::line( __( 'Migration complete: Order Notes', 'easy-digital-downloads' ) );
-			$new_count = edd_count_notes();
-			$old_count = $wpdb->get_col( "SELECT count(comment_ID) FROM {$wpdb->comments} WHERE comment_type = 'edd_payment_note'", 0 );
-			WP_CLI::line( __( 'Old Records: ', 'easy-digital-downloads' ) . $old_count[0] );
-			WP_CLI::line( __( 'New Records: ', 'easy-digital-downloads' ) . $new_count );
-
-			edd_update_db_version();
-			edd_set_upgrade_complete( 'migrate_order_notes' );
-		} else {
-			WP_CLI::line( __( 'No note records found.', 'easy-digital-downloads' ) );
-			edd_set_upgrade_complete( 'migrate_order_notes' );
+		// Maximum 10,000 - this ain't no VTEC.
+		if ( $number > 10000 ) {
+			$number = 10000;
 		}
+
+		$total = 0;
+
+		while ( $has_results ) {
+			$progress->tick();
+
+			// Query & count.
+			$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+			$results = $wpdb->get_results( $sql );
+
+			// Not empty, so lets process the order notes.
+			if ( ! empty( $results ) ) {
+				foreach ( $results as $result ) {
+					$result->object_id = $result->comment_post_ID;
+					\EDD\Admin\Upgrades\v3\Data_Migrator::order_notes( $result );
+
+					// Tick the spinner...
+					$progress->tick();
+
+					// Bump the total...
+					++$total;
+				}
+
+				// Increment step for the next offset...
+				++$step;
+
+				// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+				$offset = ( $step * $number );
+
+				// Done!
+			} else {
+				$has_results = false;
+			}
+		}
+
+		$progress->finish();
+
+		if ( 0 === $step ) {
+			WP_CLI::line( __( 'No order notes found.', 'easy-digital-downloads' ) );
+		} else {
+			WP_CLI::line( __( 'Migration complete: Order Notes', 'easy-digital-downloads' ) );
+			$new_count = edd_count_notes( array( 'object_type' => 'order' ) );
+			WP_CLI::line( __( 'Old order notes: ', 'easy-digital-downloads' ) . $total );
+			WP_CLI::line( __( 'New order notes: ', 'easy-digital-downloads' ) . $new_count );
+		}
+
+		edd_set_upgrade_complete( 'migrate_order_notes' );
 	}
 
 	/**
@@ -1075,8 +1336,6 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
-
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
@@ -1085,29 +1344,76 @@ class EDD_CLI extends WP_CLI_Command {
 
 		if ( ! $force && $upgrade_completed ) {
 			WP_CLI::error( __( 'The customer notes custom table migration has already been run. To do this anyway, use the --force argument.', 'easy-digital-downloads' ) );
-		}
+		} else {
+			WP_CLI::line( __( 'Preparing to migrate customer notes.', 'easy-digital-downloads' ) );
 
-		$sql     = "SELECT * FROM {$wpdb->edd_customers}";
-		$results = $wpdb->get_results( $sql );
-		$total   = count( $results );
+			$progress = new \cli\notify\Spinner( __( 'Migrating Customer Notes', 'easy-digital-downloads' ) );
+			$progress->tick();
 
-		if ( ! empty( $total ) ) {
-			$progress = new \cli\progress\Bar( 'Migrating Customer Notes', $total );
+			$sql_base = "SELECT * FROM {$wpdb->edd_customers}";
 
-			foreach ( $results as $result ) {
-				\EDD\Admin\Upgrades\v3\Data_Migrator::customer_notes( $result );
+			// Query & count.
+			$sql          = $sql_base . ' LIMIT 1';
+			$check_result = $wpdb->get_results( $sql );
+			$check_total  = count( $check_result );
+			$has_results  = ! empty( $check_total );
 
+			// Setup base iteration variables.
+			$step   = 0;
+			$offset = 0;
+			$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+				? (int) $assoc_args['number']
+				: 1000;
+
+			// Maximum 10,000 - this ain't no VTEC.
+			if ( $number > 10000 ) {
+				$number = 10000;
+			}
+
+			$total = 0;
+
+			while ( $has_results ) {
 				$progress->tick();
+
+				// Query & count.
+				$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+				$results = $wpdb->get_results( $sql );
+
+				// Not empty, so lets process the customer notes.
+				if ( ! empty( $results ) ) {
+					foreach ( $results as $result ) {
+						\EDD\Admin\Upgrades\v3\Data_Migrator::customer_notes( $result );
+
+						// Tick the spinner...
+						$progress->tick();
+
+						// Bump the total...
+						++$total;
+					}
+
+					// Increment step for the next offset...
+					++$step;
+
+					// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+					$offset = ( $step * $number );
+
+					// Done!
+				} else {
+					$has_results = false;
+				}
 			}
 
 			$progress->finish();
 
-			WP_CLI::line( __( 'Migration complete: Customer Notes', 'easy-digital-downloads' ) );
+			if ( 0 === $step ) {
+				WP_CLI::line( __( 'No customer notes found.', 'easy-digital-downloads' ) );
+			} else {
+				WP_CLI::line( __( 'Migration complete: Customer Notes', 'easy-digital-downloads' ) );
+				$new_count = edd_count_notes( array( 'object_type' => 'customer' ) );
+				WP_CLI::line( __( 'Old customer notes: ', 'easy-digital-downloads' ) . $total );
+				WP_CLI::line( __( 'New customer notes: ', 'easy-digital-downloads' ) . $new_count );
+			}
 
-			edd_update_db_version();
-			edd_set_upgrade_complete( 'migrate_customer_notes' );
-		} else {
-			WP_CLI::line( __( 'No customer note records found.', 'easy-digital-downloads' ) );
 			edd_set_upgrade_complete( 'migrate_customer_notes' );
 		}
 	}
@@ -1129,82 +1435,120 @@ class EDD_CLI extends WP_CLI_Command {
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
+		$customers = new EDD\Database\Tables\Customers();
+		$customers->maybe_upgrade();
+
+		$meta = new EDD\Database\Tables\Customer_Meta();
+		$meta->maybe_upgrade();
 
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
 
+		WP_CLI::line( __( 'Preparing to migrate additional customer data.', 'easy-digital-downloads' ) );
+
+		// Create the tables if they do not exist.
+		$components = array(
+			array( 'order', 'table' ),
+			array( 'order', 'meta' ),
+			array( 'customer', 'table' ),
+			array( 'customer', 'meta' ),
+			array( 'customer_address', 'table' ),
+			array( 'customer_email_address', 'table' ),
+		);
+
+		foreach ( $components as $component ) {
+			/** @var EDD\Database\Tables\Base $table */
+			$table = edd_get_component_interface( $component[0], $component[1] );
+
+			if ( $table instanceof EDD\Database\Tables\Base && ! $table->exists() ) {
+				@$table->create();
+			}
+		}
+
+		// Migrate Customer Addresses.
 		$customer_addresses_complete = edd_has_upgrade_completed( 'migrate_customer_addresses' );
 
 		if ( ! $force && $customer_addresses_complete ) {
 			WP_CLI::warning( __( 'The user addresses custom table migration has already been run. To do this anyway, use the --force argument.', 'easy-digital-downloads' ) );
 		} else {
-
-			// Create the tables if they do not exist.
-			$components = array(
-				array( 'order', 'table' ),
-				array( 'order', 'meta' ),
-				array( 'customer', 'table' ),
-				array( 'customer', 'meta' ),
-				array( 'customer_address', 'table' ),
-				array( 'customer_email_address', 'table' ),
-			);
-
-			foreach ( $components as $component ) {
-				/** @var EDD\Database\Tables\Base $table */
-				$table = edd_get_component_interface( $component[0], $component[1] );
-
-				if ( $table instanceof EDD\Database\Tables\Base && ! $table->exists() ) {
-					@$table->create();
-				}
-			}
+			WP_CLI::line( __( 'Preparing to migrate customer address data.', 'easy-digital-downloads' ) );
+			$progress = new \cli\notify\Spinner( __( 'Migrating Customer Addresses', 'easy-digital-downloads' ) );
+			$progress->tick();
 
 			// Migrate user addresses first.
-			$sql = "
+			$sql_base = "
 				SELECT *
 				FROM {$wpdb->usermeta}
 				WHERE meta_key = '_edd_user_address'
 			";
-			$results = $wpdb->get_results( $sql );
-			$total   = count( $results );
 
-			if ( ! empty( $total ) ) {
-				$progress = new \cli\progress\Bar( 'Migrating User Addresses', $total );
+			// Query & count.
+			$sql          = $sql_base . ' LIMIT 1';
+			$check_result = $wpdb->get_results( $sql );
+			$check_total  = count( $check_result );
+			$has_results  = ! empty( $check_total );
 
-				foreach ( $results as $result ) {
-					\EDD\Admin\Upgrades\v3\Data_Migrator::customer_addresses( $result, 'billing' );
+			// Setup base iteration variables.
+			$step   = 0;
+			$offset = 0;
+			$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+				? (int) $assoc_args['number']
+				: 1000;
 
-					$progress->tick();
-				}
-
-				$progress->finish();
+			// Maximum 10,000 - this ain't no VTEC.
+			if ( $number > 10000 ) {
+				$number = 10000;
 			}
 
-			// Now update the most recent billing address entries for customers as the primary address.
-			$sql = "
-				UPDATE {$wpdb->edd_customer_addresses} ca
-				SET ca.is_primary = 1
-				WHERE ca.id IN (
-					SELECT MAX(ca2.id)
-					FROM ( SELECT * FROM {$wpdb->edd_customer_addresses} ) ca2
-					WHERE ca2.type = 'billing'
-					GROUP BY ca2.customer_id
-				)
-			";
+			$total = 0;
 
-			@$wpdb->query( $sql );
+			while ( $has_results ) {
+				$progress->tick();
+
+				// Query & count.
+				$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+				$results = $wpdb->get_results( $sql );
+
+				// Not empty, so lets process the customer address.
+				if ( ! empty( $results ) ) {
+					foreach ( $results as $result ) {
+						\EDD\Admin\Upgrades\v3\Data_Migrator::customer_addresses( $result, 'billing' );
+
+						// Tick the spinner...
+						$progress->tick();
+
+						// Bump the total...
+						++$total;
+					}
+
+					// Increment step for the next offset...
+					++$step;
+
+					// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+					$offset = ( $step * $number );
+
+					// Done!
+				} else {
+					$has_results = false;
+				}
+			}
+
+			$progress->tick();
+			$progress->finish();
 
 			edd_set_upgrade_complete( 'migrate_customer_addresses' );
 		}
 
+		// Migrate Customer Email Addresses.
 		$customer_email_addresses_complete = edd_has_upgrade_completed( 'migrate_customer_email_addresses' );
 
 		if ( ! $force && $customer_email_addresses_complete ) {
 			WP_CLI::warning( __( 'The user email addresses custom table migration has already been run. To do this anyway, use the --force argument.', 'easy-digital-downloads' ) );
 		} else {
-
 			WP_CLI::line( __( 'Preparing to migrate customer email addresses (this can take several minutes).', 'easy-digital-downloads' ) );
+			$progress = new \cli\notify\Spinner( __( 'Migrating Customer Email Addresses', 'easy-digital-downloads' ) );
+			$progress->tick();
 
 			// Migrate email addresses next.
 			$sql = "
@@ -1212,26 +1556,108 @@ class EDD_CLI extends WP_CLI_Command {
 				FROM {$wpdb->edd_customermeta}
 				WHERE meta_key = 'additional_email'
 			";
-			$results = $wpdb->get_results( $sql );
-			$total   = count( $results );
 
-			if ( ! empty( $total ) ) {
-				$progress = new \cli\progress\Bar( 'Migrating Email Addresses', $total );
+			// Query & count.
+			$sql          = $sql_base . ' LIMIT 1';
+			$check_result = $wpdb->get_results( $sql );
+			$check_total  = count( $check_result );
+			$has_results  = ! empty( $check_total );
 
-				foreach ( $results as $result ) {
-					\EDD\Admin\Upgrades\v3\Data_Migrator::customer_email_addresses( $result );
+			// Setup base iteration variables.
+			$step   = 0;
+			$offset = 0;
+			$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+				? (int) $assoc_args['number']
+				: 1000;
 
-					$progress->tick();
-				}
-
-				$progress->finish();
+			// Maximum 10,000 - this ain't no VTEC.
+			if ( $number > 10000 ) {
+				$number = 10000;
 			}
+
+			$total = 0;
+
+			while ( $has_results ) {
+				$progress->tick();
+
+				// Query & count.
+				$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+				$results = $wpdb->get_results( $sql );
+
+				// Not empty, so lets process the customer email addresses.
+				if ( ! empty( $results ) ) {
+					foreach ( $results as $result ) {
+						\EDD\Admin\Upgrades\v3\Data_Migrator::customer_email_addresses( $result );
+
+						// Tick the spinner...
+						$progress->tick();
+
+						// Bump the total...
+						++$total;
+					}
+
+					// Increment step for the next offset...
+					++$step;
+
+					// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+					$offset = ( $step * $number );
+
+					// Done!
+				} else {
+					$has_results = false;
+				}
+			}
+
+			// Now look for customers without email addresses in the emails table.
+			$sql_base     =
+				"SELECT *
+				FROM {$wpdb->edd_customers}
+				WHERE email != ''
+				AND email NOT IN (
+					SELECT email
+					FROM {$wpdb->edd_customer_email_addresses}
+				)";
+			$sql          = $sql_base . ' LIMIT 1';
+			$check_result = $wpdb->get_results( $sql );
+			$check_total  = count( $check_result );
+			$has_results  = ! empty( $check_total );
+
+			while ( $has_results ) {
+				$progress->tick();
+
+				// Query & count.
+				$sql     = $sql_base . " LIMIT {$number}";
+				$results = $wpdb->get_results( $sql );
+
+				if ( ! empty( $results ) ) {
+					foreach ( $results as $result ) {
+						$customer_has_primary = edd_count_customer_email_addresses(
+							array(
+								'customer_id' => $result->id,
+								'type'        => 'primary',
+							)
+						);
+						edd_add_customer_email_address(
+							array(
+								'customer_id'  => $result->id,
+								'email'        => $result->email,
+								'date_created' => $result->date_created,
+								'type'         => $customer_has_primary ? 'secondary' : 'primary',
+							)
+						);
+
+						// Tick the spinner...
+						$progress->tick();
+					}
+				} else {
+					$has_results = false;
+				}
+			}
+
+			$progress->finish();
 			edd_set_upgrade_complete( 'migrate_customer_email_addresses' );
+			WP_CLI::line( __( 'Migration complete: Customer Email Addresses', 'easy-digital-downloads' ) );
 		}
-
-		WP_CLI::line( __( 'Migration complete: Email Addresses', 'easy-digital-downloads' ) );
-
-		edd_update_db_version();
 	}
 
 	/**
@@ -1250,8 +1676,6 @@ class EDD_CLI extends WP_CLI_Command {
 		global $wpdb;
 
 		$this->maybe_install_v3_tables();
-
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
 
 		$force = isset( $assoc_args['force'] )
 			? true
@@ -1295,7 +1719,6 @@ class EDD_CLI extends WP_CLI_Command {
 		WP_CLI::line( __( 'Old Records: ', 'easy-digital-downloads' ) . count( $tax_rates ) );
 		WP_CLI::line( __( 'New Records: ', 'easy-digital-downloads' ) . $new_count );
 
-		edd_update_db_version();
 		edd_set_upgrade_complete( 'migrate_tax_rates' );
 	}
 
@@ -1304,23 +1727,35 @@ class EDD_CLI extends WP_CLI_Command {
 	 *
 	 * ## OPTIONS
 	 *
-	 * --force=<boolean>: If the routine should be run even if the upgrade routine has been run already
+	 * --force=<boolean>:   If the routine should be run even if the upgrade routine has been run already
+	 * --id=<int>:          Run the migration for a specific order.
+	 * --start=<int>:       Run the migration beginning with a specific order ID.
+	 * --end=<int>:         Run the migration ending with a specific order ID.
+	 * --destroy=<boolean>: Destroy existing orders that have already been migrated.
 	 *
 	 * ## EXAMPLES
 	 *
 	 * wp edd migrate_payments
 	 * wp edd migrate_payments --force
+	 * wp edd migrate_payments --force --id=3    Migrate payment ID 3.
+	 * wp edd migrate_payments --force --start=3 Migrate payments beginning with and including ID 3.
+	 * wp edd migrate_payments --force --end=3   Migrate payments up to and including ID 3, but not higher.
+	 * wp edd migrate_payments --force --destroy Destroy existing orders and migrate them again.
 	 */
 	public function migrate_payments( $args, $assoc_args ) {
 		global $wpdb;
 
 		$this->maybe_install_v3_tables();
 
-		require_once EDD_PLUGIN_DIR . 'includes/admin/upgrades/v3/class-data-migrator.php';
-
 		$force = isset( $assoc_args['force'] )
 			? true
 			: false;
+
+		$destroy = (bool) ( $force && isset( $assoc_args['destroy'] ) );
+
+		if ( $destroy ) {
+			WP_CLI::confirm( __( 'This process will remove and recreate orders in your database. Please make sure you\'ve backed up your EDD database tables. Are you sure you want to delete orders that have already been migrated and run the migration again?', 'easy-digital-downloads' ) );
+		}
 
 		$upgrade_completed = edd_has_upgrade_completed( 'migrate_orders' );
 
@@ -1328,33 +1763,208 @@ class EDD_CLI extends WP_CLI_Command {
 			WP_CLI::error( __( 'The payments custom table migration has already been run. To do this anyway, use the --force argument.', 'easy-digital-downloads' ) );
 		}
 
-		$sql = "
+		WP_CLI::line( __( 'Preparing to migrate payments.', 'easy-digital-downloads' ) );
+
+		// New Progress indicator.
+		$progress = new \cli\notify\Spinner( __( 'Migrating Payments', 'easy-digital-downloads' ) );
+		$progress->tick();
+
+		$sql_base = "
 			SELECT *
 			FROM {$wpdb->posts}
 			WHERE post_type = 'edd_payment'
-			ORDER BY ID ASC
 		";
-		$results = $wpdb->get_results( $sql );
-		$total   = count( $results );
 
-		if ( ! empty( $total ) ) {
-			$progress = new \cli\progress\Bar( 'Migrating Payments', $total );
-			$orders   = new \EDD\Database\Queries\Order();
-			foreach ( $results as $result ) {
+		// Query & count.
+		$sql          = $sql_base . ' ORDER BY ID DESC LIMIT 1';
+		$check_result = $wpdb->get_results( $sql );
+		$check_total  = count( $check_result );
+		$has_results  = ! empty( $check_total );
 
-				// Check if order has already been migrated.
-				$migrated = $orders->get_item( $result->ID );
-				if ( $migrated ) {
-					continue;
+		// Setup base iteration variables.
+		$step           = 0;
+		$offset         = 0;
+		$full_migration = true;
+
+		// Migrate one specific order.
+		if ( ! empty( $assoc_args['id'] ) ) {
+			if ( is_numeric( $assoc_args['id'] ) ) {
+				$id             = absint( $assoc_args['id'] );
+				$sql_base      .= " AND ID = {$id}";
+				$full_migration = false;
+				if ( ! $wpdb->get_results( $sql_base ) ) {
+					WP_CLI::error( __( 'An EDD Payment could not be found for that ID.', 'easy-digital-downloads' ) );
+				}
+			} else {
+				WP_CLI::error( __( 'The payment ID must be an integer from the post_id column.', 'easy-digital-downloads' ) );
+			}
+		} elseif ( ! empty( $assoc_args['start'] ) || ! empty( $assoc_args['end'] ) ) {
+
+			// Begin the order migration at a specific payment ID.
+			if ( ! empty( $assoc_args['start'] ) ) {
+				if ( is_numeric( $assoc_args['start'] ) ) {
+					$start          = absint( $assoc_args['start'] );
+					$sql_base      .= " AND ID >= {$start}";
+					$full_migration = false;
+				} else {
+					WP_CLI::error( __( 'The starting ID must be an integer from the post_id column.', 'easy-digital-downloads' ) );
+				}
+			}
+			// Stop the order migration at a specific payment ID.
+			if ( ! empty( $assoc_args['end'] ) ) {
+				if ( is_numeric( $assoc_args['end'] ) ) {
+					$end            = absint( $assoc_args['end'] );
+					$sql_base      .= " AND ID <= {$end}";
+					$full_migration = false;
+				} else {
+					WP_CLI::error( __( 'The ending ID must be an integer from the post_id column.', 'easy-digital-downloads' ) );
+				}
+			}
+		} elseif ( $destroy && isset( $assoc_args['conflicts'] ) ) {
+			$conflicting_orders = $this->find_conflicting_orders();
+			if ( $conflicting_orders ) {
+				$full_migration = false;
+				$sql_base      .= ' AND ID IN (' . implode( ',', $conflicting_orders ) . ')';
+			} else {
+				WP_CLI::error( __( 'No conflicting orders were found.', 'easy-digital-downloads' ) );
+			}
+		}
+
+		if ( $full_migration ) {
+			$auto_increment = $wpdb->get_var( "SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = '" . DB_NAME . "' AND TABLE_NAME = '{$wpdb->edd_orders}';" );
+			$last_payment   = reset( $check_result );
+			// If the auto_increment is less than the last payment ID, we need to reset the auto_increment.
+			if ( $auto_increment < $last_payment->ID ) {
+				$new_auto_increment = absint( $last_payment->ID ) + 1;
+				$wpdb->query( "ALTER TABLE {$wpdb->edd_orders} AUTO_INCREMENT = {$new_auto_increment}" );
+			}
+		}
+
+		// Confirm any partial migrations if the upgrade hasn't been completed.
+		if ( ! $full_migration && ! $upgrade_completed ) {
+			WP_CLI::confirm( __( 'Are you sure you want to run a partial order migration?', 'easy-digital-downloads' ) );
+		}
+
+		$sql_base .= ' ORDER BY ID ASC';
+
+		$number = isset( $assoc_args['number'] ) && is_numeric( $assoc_args['number'] )
+			? (int) $assoc_args['number']
+			: 1000;
+
+		// Maximum 10,000 - this ain't no VTEC.
+		if ( $number > 10000 ) {
+			$number = 10000;
+		}
+
+		// Starting total.
+		$total = 0;
+
+		while ( $has_results ) {
+			$orders = new \EDD\Database\Queries\Order();
+			$progress->tick();
+
+			// Query & count.
+			$sql     = $sql_base . " LIMIT {$offset}, {$number}";
+			$results = $wpdb->get_results( $sql );
+
+			// Not empty, so lets chug through them!
+			if ( ! empty( $results ) ) {
+				foreach ( $results as $result ) {
+
+					// Check if order has already been migrated.
+					$migrated  = $orders->get_item( $result->ID );
+					$parent_id = false;
+
+					// Delete the existing order to re-run the migration fresh.
+					if ( $destroy ) {
+						$parent_id = ! empty( $migrated->type ) && 'refund' === $migrated->type && ! empty( $migrated->parent ) ? $migrated->parent : false;
+
+						// EDD has detected a collision between a refund ID and a payment ID.
+						if ( ! empty( $parent_id ) ) {
+							WP_CLI::line(
+								sprintf(
+									/* translators: 1: the refund order ID, 2: the original payment ID. */
+									__( '%1$d is a refund order. EDD will delete the refund and migrate payment %1$d, then re-migrate payment %2$d.', 'easy-digital-downloads' ),
+									$result->ID,
+									$parent_id
+								)
+							);
+						} elseif ( ! empty( $migrated->date_created ) && $result->post_date_gmt !== $migrated->date_created ) {
+							// The migrated order does not appear to be the same as the original order, so let's confirm.
+							WP_CLI::confirm(
+								sprintf(
+									/* translators: 1: the order/payment ID. */
+									__( 'Order ID %1$d appears to be a different record from Payment ID %1$d. Are you sure you want to destroy this order and overwrite it?', 'easy-digital-downloads' ),
+									$result->ID
+								)
+							);
+						}
+						/* translators: %d: The order ID. */
+						WP_CLI::line( sprintf( __( 'Deleting order %d.', 'easy-digital-downloads' ), $result->ID ) );
+						edd_destroy_order( $result->ID );
+						$migrated = false;
+					}
+
+					if ( $migrated ) {
+						$progress->tick();
+						continue;
+					}
+
+					$success = \EDD\Admin\Upgrades\v3\Data_Migrator::orders( $result );
+
+					/**
+					 * We detected that a refund order ID collided with an edd_payment post ID.
+					 * We deleted the refund already; now delete the original order and re-migrate it to regenerate the refund.
+					 */
+					if ( $parent_id ) {
+						edd_destroy_order( $parent_id );
+						$result = $wpdb->get_row(
+							$wpdb->prepare(
+								"SELECT *
+								FROM {$wpdb->posts}
+								WHERE post_type = 'edd_payment'
+								AND ID = %d",
+								$parent_id
+							)
+						);
+						\EDD\Admin\Upgrades\v3\Data_Migrator::orders( $result );
+					}
+					if ( ! $full_migration && empty( $success ) ) {
+						/* translators: %d: The payment ID. */
+						WP_CLI::line( sprintf( __( 'Migration failed for payment %d.', 'easy-digital-downloads' ), $result->ID ) );
+					}
+
+					// Tick the spinner...
+					$progress->tick();
+
+					// Bump the total...
+					++$total;
 				}
 
-				\EDD\Admin\Upgrades\v3\Data_Migrator::orders( $result );
+				// Increment step for the next offset...
+				++$step;
 
-				$progress->tick();
+				// EG: 1 * 1000 = 1000, 2 * 1000 = 2000.
+				$offset = ( $step * $number );
+
+				// Done!
+			} else {
+				$has_results = false;
 			}
+		}
 
-			$progress->finish();
-
+		if ( 0 === $step ) {
+			WP_CLI::line( __( 'No payment records found.', 'easy-digital-downloads' ) );
+			if ( $full_migration ) {
+				edd_set_upgrade_complete( 'migrate_orders' );
+				edd_set_upgrade_complete( 'remove_legacy_payments' );
+				edd_set_upgrade_complete( 'migrate_order_actions_date' );
+			}
+		} elseif ( ! $full_migration ) {
+				WP_CLI::line( __( 'Partial order migration complete. Orders Processed: ', 'easy-digital-downloads' ) . $total );
+				WP_CLI::line( __( 'To recalculate all download sales and earnings, run `wp edd recalculate_download_sales_earnings`.', 'easy-digital-downloads' ) );
+				WP_CLI::line( __( 'To recalculate all customer sales and earnings, run `wp edd recalculate_customer_values`.', 'easy-digital-downloads' ) );
+		} else {
 			WP_CLI::line( __( 'Migration complete: Orders', 'easy-digital-downloads' ) );
 			$new_count = edd_count_orders( array( 'type' => 'sale' ) );
 			$old_count = $wpdb->get_col( "SELECT count(ID) FROM {$wpdb->posts} WHERE post_type = 'edd_payment'", 0 );
@@ -1364,14 +1974,54 @@ class EDD_CLI extends WP_CLI_Command {
 			$refund_count = edd_count_orders( array( 'type' => 'refund' ) );
 			WP_CLI::line( __( 'Refund Records Created: ', 'easy-digital-downloads' ) . $refund_count );
 
-			edd_update_db_version();
 			edd_set_upgrade_complete( 'migrate_orders' );
 
+			$progress->tick();
 			$this->recalculate_download_sales_earnings();
-		} else {
-			WP_CLI::line( __( 'No payment records found.', 'easy-digital-downloads' ) );
-			edd_set_upgrade_complete( 'migrate_orders' );
-			edd_set_upgrade_complete( 'remove_legacy_payments' );
+			$this->recalculate_customer_values();
+		}
+
+		$progress->finish();
+	}
+
+	/**
+	 * Display the legacy data for an EDD_Payment.
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function display_legacy_payment_data( $args ) {
+		$id = ! empty( $args[0] ) ? (int) $args[0] : false;
+		if ( ! $id ) {
+			WP_CLI::error( __( 'You must enter a payment ID to display legacy data.', 'easy-digital-downloads' ) );
+		}
+
+		global $wpdb;
+
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT *
+				FROM {$wpdb->postmeta}
+				WHERE post_id = %d",
+				$id
+			)
+		);
+
+		if ( empty( $results ) ) {
+			WP_CLI::error( __( 'The legacy payment data could not be found.', 'easy-digital-downloads' ) );
+		}
+
+		foreach ( $results as $result ) {
+			$meta_value = maybe_unserialize( $result->meta_value );
+			if ( is_array( $meta_value ) ) {
+				WP_CLI::line( $result->meta_key . ' =>' );
+				foreach ( $meta_value as $key => $value ) {
+					WP_CLI::line( $key . ' => ' . print_r( maybe_unserialize( $value ), true ) );
+				}
+				WP_CLI::line( '/' . $result->meta_key );
+			} else {
+				WP_CLI::line( $result->meta_key . ' => ' . print_r( $meta_value, true ) );
+			}
 		}
 	}
 
@@ -1403,6 +2053,33 @@ class EDD_CLI extends WP_CLI_Command {
 		}
 		WP_CLI::line( __( 'Sales and Earnings successfully recalculated for all downloads.', 'easy-digital-downloads' ) );
 		WP_CLI::line( __( 'Downloads Updated: ', 'easy-digital-downloads' ) . $total );
+	}
+
+	/**
+	 * Recalculates all customer values.
+	 *
+	 * @since 3.1.2
+	 * @return void
+	 */
+	public function recalculate_customer_values() {
+		$customers = edd_get_customers(
+			array(
+				'number' => 9999999,
+			)
+		);
+		$total     = count( $customers );
+
+		if ( ! empty( $total ) ) {
+			$progress = new \cli\progress\Bar( 'Recalculating Customer Values', $total );
+			foreach ( $customers as $customer ) {
+				$customer->recalculate_stats();
+				$progress->tick();
+			}
+			$progress->finish();
+		}
+
+		WP_CLI::line( __( 'Sales and Earnings successfully recalculated for all customers.', 'easy-digital-downloads' ) );
+		WP_CLI::line( __( 'Customers Updated: ', 'easy-digital-downloads' ) . $total );
 	}
 
 	/**
@@ -1499,10 +2176,20 @@ class EDD_CLI extends WP_CLI_Command {
 		 * @var \EDD\Database\Tables\Customers|false $customer_table
 		 */
 		$customer_table = edd_get_component_interface( 'customer', 'table' );
-		if ( $customer_table instanceof \EDD\Database\Tables\Customers && $customer_table->column_exists( 'payment_ids' ) ) {
+		if ( $customer_table instanceof \EDD\Database\Tables\Customers ) {
 			WP_CLI::line( __( 'Updating customers database table.', 'easy-digital-downloads' ) );
 
-			$wpdb->query( "ALTER TABLE {$wpdb->edd_customers} DROP `payment_ids`" );
+			if ( $customer_table->column_exists( 'payment_ids' ) ) {
+				WP_CLI::line( __( 'Removing Payment IDs column.', 'easy-digital-downloads' ) );
+
+				$wpdb->query( "ALTER TABLE {$wpdb->edd_customers} DROP `payment_ids`" );
+			}
+
+			if ( $customer_table->column_exists( 'notes' ) ) {
+				WP_CLI::line( __( 'Removing notes column.', 'easy-digital-downloads' ) );
+
+				$wpdb->query( "ALTER TABLE {$wpdb->edd_customers} DROP `notes`" );
+			}
 		}
 
 		/**
@@ -1592,7 +2279,6 @@ class EDD_CLI extends WP_CLI_Command {
 			$number = ( array_key_exists( 'number', $assoc_args ) ) ? absint( $assoc_args['number'] ) : $number;
 		}
 
-
 		// First we need to find all downloads that have files associated.
 		$download_ids_with_file_meta = $wpdb->get_results( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'edd_download_files'" );
 		$download_ids_with_files     = array();
@@ -1611,7 +2297,7 @@ class EDD_CLI extends WP_CLI_Command {
 		}
 
 		global $wpdb;
-		$product_ids = implode('","', array_keys( $download_ids_with_files ) );
+		$product_ids = implode( '","', array_keys( $download_ids_with_files ) );
 		$table       = $wpdb->prefix . 'edd_order_items';
 		$sql         = 'SELECT order_id, product_id, price_id, uuid FROM ' . $table . ' WHERE product_id IN ( "' . $product_ids . '")';
 		$results     = $wpdb->get_results( $sql );
@@ -1623,9 +2309,9 @@ class EDD_CLI extends WP_CLI_Command {
 			$found_item = array_rand( $results, 1 );
 			$item       = $results[ $found_item ];
 
-			$order_id    = (int) $item->order_id;
-			$order       = edd_get_order( $order_id );
-			$product_id  = (int) $item->product_id;
+			$order_id   = (int) $item->order_id;
+			$order      = edd_get_order( $order_id );
+			$product_id = (int) $item->product_id;
 
 			if ( edd_has_variable_prices( $product_id ) ) {
 				$price_id = (int) $item->price_id;
@@ -1647,23 +2333,84 @@ class EDD_CLI extends WP_CLI_Command {
 
 			$file_id_key = array_rand( $download_ids_with_files[ $product_id ], 1 );
 			$file_key    = $download_ids_with_files[ $product_id ][ $file_id_key ];
-			edd_add_file_download_log( array(
-				'product_id'   => absint( $product_id ),
-				'file_id'      => absint( $file_key ),
-				'order_id'     => absint( $order_id ),
-				'price_id'     => absint( $price_id ),
-				'customer_id'  => $order->customer_id,
-				'ip'           => edd_get_ip(),
-				'user_agent'   => 'EDD; WPCLI; download_logs;',
-				'date_created' => $order->date_completed,
-			) );
+			edd_record_download_in_log(
+				absint( $product_id ),
+				absint( $file_key ),
+				array(),
+				edd_get_ip(),
+				absint( $order_id ),
+				absint( $price_id ),
+				'EDD; WPCLI; download_logs;'
+			);
 
 			$progress->tick();
-			$i ++;
+			++$i;
 		}
 		$progress->finish();
 	}
 
+	/**
+	 * Migrate missing discounts.
+	 *
+	 * wp edd migrate_missing_discounts
+	 *
+	 * @since 3.2.0
+	 * @return void
+	 */
+	public function migrate_missing_discounts() {
+		$discounts = new EDD\CLI\Migration\Discounts();
+		$discounts->migrate_missing();
+	}
+
+	/**
+	 * Migrate missing customer emails.
+	 *
+	 * Command: wp edd migrate_missing_emails
+	 *
+	 * @since 3.2.2
+	 * @return void
+	 */
+	public function migrate_missing_emails() {
+		$emails = new EDD\CLI\Migration\CustomerEmails();
+		$emails->migrate_missing();
+	}
+
+	/**
+	 * Find payment IDs which were incorrectly migrated as refunds.
+	 *
+	 * @since 3.3.0
+	 * @return array
+	 */
+	public function find_conflicting_orders() {
+		global $wpdb;
+
+		$results = $wpdb->get_results(
+			"SELECT p.*
+			 FROM {$wpdb->posts} p
+			 INNER JOIN {$wpdb->edd_orders} o ON p.id = o.id
+			 WHERE p.post_type = 'edd_payment'
+			 AND o.type = 'refund';"
+		);
+
+		$conflicting_orders = array();
+
+		if ( empty( $results ) ) {
+			WP_CLI::line( __( 'No conflicting orders were found.', 'easy-digital-downloads' ) );
+			return $conflicting_orders;
+		}
+		foreach ( $results as $payment ) {
+			$conflicting_orders[] = $payment->ID;
+			WP_CLI::line( sprintf( 'Conflicting refund found for: %d', $payment->ID ) );
+		}
+
+		return $conflicting_orders;
+	}
+
+	/**
+	 * Gets a random first name.
+	 *
+	 * @return string
+	 */
 	protected function get_fname() {
 		$names = array(
 			'Ilse',
@@ -1691,6 +2438,11 @@ class EDD_CLI extends WP_CLI_Command {
 		return $names[ rand( 0, ( count( $names ) - 1 ) ) ];
 	}
 
+	/**
+	 * Gets a random last name.
+	 *
+	 * @return string
+	 */
 	protected function get_lname() {
 		$names = array(
 			'Warner',
@@ -1718,6 +2470,11 @@ class EDD_CLI extends WP_CLI_Command {
 		return $names[ rand( 0, ( count( $names ) - 1 ) ) ];
 	}
 
+	/**
+	 * Gets a random domain.
+	 *
+	 * @return string
+	 */
 	protected function get_domain() {
 		$domains = array(
 			'example',
@@ -1729,6 +2486,11 @@ class EDD_CLI extends WP_CLI_Command {
 		return $domains[ rand( 0, ( count( $domains ) - 1 ) ) ];
 	}
 
+	/**
+	 * Gets a random TLD.
+	 *
+	 * @return string
+	 */
 	protected function get_tld() {
 		$tlds = array(
 			'local',

@@ -160,10 +160,14 @@ class Five_Star_Review_Dashboard extends Notice {
 		if ( ! is_numeric( $activated ) || ( $activated + ( DAY_IN_SECONDS * 30 ) ) > time() ) {
 			return false;
 		}
-		// @todo Change this to edd_count_orders in 3.0
-		$payments = edd_count_payments();
+		$orders = edd_count_orders(
+			array(
+				'type'       => 'sale',
+				'status__in' => edd_get_complete_order_statuses(),
+			)
+		);
 
-		return isset( $payments->publish ) && $payments->publish >= 15;
+		return $orders >= 15;
 	}
 
 	/**
@@ -174,16 +178,14 @@ class Five_Star_Review_Dashboard extends Notice {
 	 * @return string
 	 */
 	private function url() {
-		$args = array(
-			'utm_source'   => urlencode( $this->screen ),
-			'utm_medium'   => urlencode( static::TYPE ),
-			'utm_campaign' => 'Feedback',
-			'utm_content'  => 'give-feedback',
+		$url = edd_link_helper(
+			'https://easydigitaldownloads.com/plugin-feedback/',
+			array(
+				'utm_medium'  => 'feedback-' . static::TYPE,
+				'utm_content' => 'give-feedback',
+			)
 		);
 
-		return add_query_arg(
-			$args,
-			'https://easydigitaldownloads.com/plugin-feedback'
-		);
+		return $url;
 	}
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Easy Digital Downloads API V1
+ * Easy Digital Downloads API V2
  *
  * @package     EDD
  * @subpackage  Classes/API
@@ -145,6 +145,17 @@ class EDD_API_V2 extends EDD_API_V1 {
 
 			}
 
+			/**
+			 * Filter the query arguments for the products API
+			 *
+			 * @since 3.2.2
+			 *
+			 * @param array $query_args The query arguments.
+			 * @param array $args       The original arguments passed to the API.
+			 *
+			 * @return array $query_args The modified query arguments.
+			 */
+			$query_args   = apply_filters( 'edd_api_v2_products_query_args', $query_args, $args );
 			$product_list = get_posts( $query_args );
 
 			if ( $product_list ) {
@@ -192,15 +203,15 @@ class EDD_API_V2 extends EDD_API_V1 {
 	}
 
 	/**
-	 * Process Get Customers API Request
+	 * Process Get Customers API Request.
 	 *
 	 * @since 2.6
-	 * @global object $wpdb Used to query the database using the WordPress Database API
-	 * @param array $args Array of arguments for filters customers
-	 * @return array $customers Multidimensional array of the customers
+	 *
+	 * @param array $args Array of arguments for filters customers.
+	 *
+	 * @return array $customers Multidimensional array of the customers.
 	 */
 	public function get_customers( $args = array() ) {
-		global $wpdb;
 
 		$paged    = $this->get_paged();
 		$per_page = $this->per_page();
@@ -218,69 +229,78 @@ class EDD_API_V2 extends EDD_API_V1 {
 		$args      = wp_parse_args( $args, $defaults );
 		$customers = array();
 		$error     = array();
+		$stats     = new EDD\Stats(
+			array(
+				'output' => 'formatted',
+			)
+		);
 
-		if( ! user_can( $this->user_id, 'view_shop_sensitive_data' ) && ! $this->override ) {
+		if ( ! user_can( $this->user_id, 'view_shop_sensitive_data' ) && ! $this->override ) {
 			return $customers;
 		}
 
-		if( is_numeric( $args['customer'] ) ) {
+		$query_by_customer = false;
+		if ( is_numeric( $args['customer'] ) ) {
 			$field = 'id';
-		} else {
+		} elseif ( is_email( $args['customer'] ) ) {
 			$field = 'email';
 		}
 
-		$args[ $field ] = $args['customer'];
+		if ( isset( $field ) ) {
+			$args[ $field ] = $args['customer'];
 
-		$dates = $this->get_dates( $args );
+			if ( ! empty( $args[ $field ] ) ) {
+				$query_by_customer = true;
+				unset( $args['customer'] );
+			}
+		}
 
-		if( $args['date'] === 'range' ) {
+		if ( ! empty( $args['date'] ) ) {
+			if ( 'range' === $args['date'] ) {
+				if ( ! empty( $args['startdate'] ) ) {
+					$_GET['filter_from'] = $args['startdate'];
+				}
 
-			// Ensure the end date is later than the start date
-			if( ( ! empty( $args['enddate'] ) && ! empty( $args['enddate'] ) ) && $args['enddate'] < $args['startdate'] ) {
-				$error['error'] = __( 'The end date must be later than the start date!', 'easy-digital-downloads' );
+				if ( ! empty( $args['enddate'] ) ) {
+					$_GET['filter_to'] = $args['enddate'];
+				}
+
+				$_GET['range'] = 'other';
+			} elseif ( ! empty( $args['date'] ) ) {
+				$_GET['range'] = $args['date'];
 			}
 
-			$date_range = array();
-			if ( ! empty( $args['startdate'] ) ) {
-				$date_range['start'] = $dates['year']     . sprintf('%02d', $dates['m_start'] ) . $dates['day_start'];
+			$dates = EDD\Reports\parse_dates_for_range();
+
+			$date_query = array(
+				'column' => 'date_created',
+			);
+
+			if ( ! empty( $dates['start'] ) && ! empty( $dates['end'] ) ) {
+				$date_query['compare'] = 'BETWEEN';
+				$date_query['after']   = $dates['start']->format( 'Y-m-d' );
+				$date_query['before']  = $dates['end']->format( 'Y-m-d' );
+			} elseif ( ! empty( $dates['start'] ) ) {
+				$date_query['after'] = $dates['start']->format( 'Y-m-d' );
+			} elseif ( ! empty( $dates['end'] ) ) {
+				$date_query['before'] = $dates['end']->format( 'Y-m-d' );
 			}
 
-			if ( ! empty( $args['enddate'] ) ) {
-				$date_range['end'] = $dates['year_end'] . sprintf('%02d', $dates['m_end'] )   . $dates['day_end'];
-			}
-
-			$args['date'] = $date_range;
-
-		} elseif( ! empty( $args['date'] ) ) {
-
-			if( $args['date'] == 'this_quarter' || $args['date'] == 'last_quarter'  ) {
-
-				$args['date'] = array(
-					'start' => $dates['year'] . sprintf('%02d', $dates['m_start'] ) . '01',
-					'end'   => $dates['year'] . sprintf('%02d', $dates['m_end'] )   . cal_days_in_month( CAL_GREGORIAN, $dates['m_end'], $dates['year'] ),
-				);
-
-			} else if ( $args['date'] == 'this_month' || $args['date'] == 'last_month' ) {
-				$args['date'] = array(
-					'start' => $dates['year'] . sprintf( '%02d', $dates['m_start'] ) . '01',
-					'end'   => $dates['year'] . sprintf( '%02d', $dates['m_end'] ). cal_days_in_month( CAL_GREGORIAN, $dates['m_end'], $dates['year'] ),
-				);
-			} else if ( $args['date'] == 'this_year' || $args['date'] == 'last_year' ) {
-				$args['date'] = array(
-					'start' => $dates['year'] . '0101',
-					'end'   => $dates['year'] . '1231',
-				);
-			} else {
-				$args['date'] = $dates['year'] . sprintf('%02d', $dates['m_start'] ) . $dates['day'];
+			$date_query = array_filter( $date_query );
+			if ( ! empty( $date_query ) ) {
+				$args['date_query'] = $date_query;
 			}
 		}
 
 		unset( $args['startdate'], $args['enddate'] );
 
+		// Remove any empty values.
+		$args = array_filter( $args );
+
 		$customer_query = edd_get_customers( $args );
 		$customer_count = 0;
 
-		if( $customer_query ) {
+		if ( $customer_query ) {
 
 			foreach ( $customer_query as $customer_obj ) {
 				// Setup a new EDD_Customer object so additional details are defined (like additional emails)
@@ -289,7 +309,7 @@ class EDD_API_V2 extends EDD_API_V1 {
 				$names      = explode( ' ', $customer_obj->name );
 				$first_name = ! empty( $names[0] ) ? $names[0] : '';
 				$last_name  = '';
-				if( ! empty( $names[1] ) ) {
+				if ( ! empty( $names[1] ) ) {
 					unset( $names[0] );
 					$last_name = implode( ' ', $names );
 				}
@@ -307,7 +327,7 @@ class EDD_API_V2 extends EDD_API_V1 {
 				if ( ! empty( $customer_obj->emails ) && count( $customer_obj->emails ) > 1 ) {
 					$additional_emails = $customer_obj->emails;
 
-					$primary_email_key = array_search( $customer_obj->email, $customer_obj->emails );
+					$primary_email_key = array_search( $customer_obj->email, $customer_obj->emails, true );
 					if ( false !== $primary_email_key ) {
 						unset( $additional_emails[ $primary_email_key ] );
 					}
@@ -329,16 +349,15 @@ class EDD_API_V2 extends EDD_API_V1 {
 				}
 
 				$customers['customers'][ $customer_count ]['stats']['total_purchases'] = $customer_obj->purchase_count;
-				$customers['customers'][ $customer_count ]['stats']['total_spent']     = $customer_obj->purchase_value;
+				$customers['customers'][ $customer_count ]['stats']['total_spent']     = edd_format_amount( $customer_obj->purchase_value, true, '', 'typed' );
 				$customers['customers'][ $customer_count ]['stats']['total_downloads'] = edd_count_file_downloads_of_customer( $customer_obj->id );
 
 				$customer_count++;
 
 			}
+		} elseif ( true === $query_by_customer ) {
 
-		} elseif( $args['customer'] ) {
-
-			$error['error'] = sprintf( __( 'Customer %s not found!', 'easy-digital-downloads' ), $args['customer'] );
+			$error['error'] = __( 'Customer not found!', 'easy-digital-downloads' );
 			return $error;
 
 		} else {
@@ -362,102 +381,118 @@ class EDD_API_V2 extends EDD_API_V1 {
 
 		$sales = array();
 
-		if( ! user_can( $this->user_id, 'view_shop_reports' ) && ! $this->override ) {
+		if ( ! user_can( $this->user_id, 'view_shop_reports' ) && ! $this->override ) {
 			return $sales;
 		}
 
-		if( isset( $wp_query->query_vars['id'] ) ) {
+		if ( isset( $wp_query->query_vars['id'] ) ) {
 			$query   = array();
-			$query[] = new EDD_Payment( $wp_query->query_vars['id'] );
-		} elseif( isset( $wp_query->query_vars['purchasekey'] ) ) {
+			$query[] = edd_get_order( $wp_query->query_vars['id'] );
+		} elseif ( isset( $wp_query->query_vars['purchasekey'] ) ) {
 			$query   = array();
-			$query[] = edd_get_payment_by( 'key', $wp_query->query_vars['purchasekey'] );
-		} elseif( isset( $wp_query->query_vars['email'] ) ) {
-			$query = edd_get_payments( array( 'fields' => 'ids', 'meta_key' => '_edd_payment_user_email', 'meta_value' => $wp_query->query_vars['email'], 'number' => $this->per_page(), 'page' => $this->get_paged(), 'status' => 'complete' ) );
+			$query[] = edd_get_order_by( 'payment_key', $wp_query->query_vars['purchasekey'] );
+		} elseif ( isset( $wp_query->query_vars['email'] ) ) {
+			$query = edd_get_orders(
+				array(
+					'type'       => 'sale',
+					'email'      => $wp_query->query_vars['email'],
+					'number'     => $this->per_page(),
+					'offset'     => ( $this->get_paged() - 1 ) * $this->per_page(),
+					'status__in' => edd_get_net_order_statuses(),
+				)
+			);
 		} else {
-			$query = edd_get_payments( array( 'fields' => 'ids', 'number' => $this->per_page(), 'page' => $this->get_paged(), 'status' => 'complete' ) );
+			$query = edd_get_orders(
+				array(
+					'type'       => 'sale',
+					'number'     => $this->per_page(),
+					'offset'     => ( $this->get_paged() - 1 ) * $this->per_page(),
+					'status__in' => edd_get_net_order_statuses(),
+				)
+			);
 		}
 
 		if ( $query ) {
 			$i = 0;
-			foreach ( $query as $payment ) {
-				if ( is_numeric( $payment ) ) {
-					$payment = new EDD_Payment( $payment );
+			foreach ( $query as $order ) {
+				/** @var EDD\Orders\Order $order  An Order object. */
+
+				$localized_time = edd_get_edd_timezone_equivalent_date_from_utc( EDD()->utils->date( $order->date_created ) );
+
+				$sales['sales'][ $i ]['ID']             = $order->get_number();
+				$sales['sales'][ $i ]['mode']           = $order->mode;
+				$sales['sales'][ $i ]['status']         = $order->status;
+				$sales['sales'][ $i ]['transaction_id'] = $order->get_transaction_id();
+				$sales['sales'][ $i ]['key']            = $order->payment_key;
+				$sales['sales'][ $i ]['subtotal']       = $order->subtotal;
+				$sales['sales'][ $i ]['tax']            = $order->tax;
+				$sales['sales'][ $i ]['total']          = $order->total;
+				$sales['sales'][ $i ]['gateway']        = $order->gateway;
+				$sales['sales'][ $i ]['customer_id']    = $order->customer_id;
+				$sales['sales'][ $i ]['user_id']        = $order->user_id;
+				$sales['sales'][ $i ]['email']          = $order->email;
+				$sales['sales'][ $i ]['date']           = $localized_time->copy()->format( 'Y-m-d H:i:s' );
+				$sales['sales'][ $i ]['date_utc']       = $order->date_created;
+
+				$fees      = array();
+				$discounts = array();
+
+				foreach ( $order->adjustments as $adjustment ) {
+					switch ( $adjustment->type ) {
+						case 'fee':
+							$fees[] = array(
+								'amount'      => $adjustment->total,
+								'label'       => $adjustment->description,
+								'no_tax'      => empty( $adjustment->tax ),
+								'type'        => $adjustment->type,
+								'price_id'    => null,
+								'download_id' => null,
+								'id'          => $adjustment->type_key,
+							);
+							break;
+
+						case 'discount':
+							$discounts[ $adjustment->description ] = $adjustment->total;
+							break;
+					}
 				}
-
-				$payment_meta = $payment->get_meta();
-				$user_info    = $payment->user_info;
-
-				$sales['sales'][ $i ]['ID']             = $payment->number;
-				$sales['sales'][ $i ]['mode']           = $payment->mode;
-				$sales['sales'][ $i ]['status']         = $payment->status;
-				$sales['sales'][ $i ]['transaction_id'] = ( ! empty( $payment->transaction_id ) ) ? $payment->transaction_id : null;
-				$sales['sales'][ $i ]['key']            = $payment->key;
-				$sales['sales'][ $i ]['subtotal']       = $payment->subtotal;
-				$sales['sales'][ $i ]['tax']            = $payment->tax;
-				$sales['sales'][ $i ]['fees']           = ( ! empty( $payment->fees ) ? $payment->fees : null );
-				$sales['sales'][ $i ]['total']          = $payment->total;
-				$sales['sales'][ $i ]['gateway']        = $payment->gateway;
-				$sales['sales'][ $i ]['customer_id']    = $payment->customer_id;
-				$sales['sales'][ $i ]['user_id']        = $payment->user_id;
-				$sales['sales'][ $i ]['email']          = $payment->email;
-				$sales['sales'][ $i ]['date']           = $payment->date;
 
 				$c = 0;
-
-				$discounts       = ! empty( $payment->discounts ) ? explode( ',', $payment->discounts ) : array();
-				$discounts       = array_map( 'trim', $discounts );
-				$discount_values = array();
-
-				foreach ( $discounts as $discount ) {
-					if ( 'none' === $discount ) { continue; }
-
-					$discount_values[ $discount ] = 0;
-				}
-
 				$cart_items = array();
 
-				foreach ( $payment->cart_details as $key => $item ) {
+				foreach ( $order->items as $item ) {
+					$cart_items[ $c ]['object_id'] = $item->id;
+					$cart_items[ $c ]['id']        = $item->product_id;
+					$cart_items[ $c ]['quantity']  = $item->quantity;
+					$cart_items[ $c ]['name']      = $item->product_name;
+					$cart_items[ $c ]['price']     = $item->total;
 
-					$item_id    = isset( $item['id']    )      ? $item['id']         : $item;
-					$price      = isset( $item['price'] )      ? $item['price']      : false; // The final price for the item
-					$item_price = isset( $item['item_price'] ) ? $item['item_price'] : false; // The price before discounts
+					// Keeping this here for backwards compatibility.
+					$cart_items[ $c ]['price_name'] = null === $item->price_id
+						? ''
+						: edd_get_price_name( $item->product_id, array( 'price_id' => $item->price_id ) );
 
-					$price_id   = isset( $item['item_number']['options']['price_id'] ) ? $item['item_number']['options']['price_id'] : null;
-					$quantity   = isset( $item['quantity'] ) && $item['quantity'] > 0  ? $item['quantity']                           : 1;
-
-					if( ! $price ) {
-						// This function is only used on payments with near 1.0 cart data structure
-						$price = edd_get_download_final_price( $item_id, $user_info, null );
-					}
-
-					$price_name = '';
-					if ( isset( $item['item_number'] ) && isset( $item['item_number']['options'] ) ) {
-						$price_options  = $item['item_number']['options'];
-						if ( isset( $price_options['price_id'] ) ) {
-							$price_name = edd_get_price_option_name( $item_id, $price_options['price_id'], $payment->ID );
+					// Check for any item level fees to include in the fees array.
+					foreach ( $item->adjustments as $adjustment ) {
+						if ( 'fee' === $adjustment->type ) {
+							$fees[] = array(
+								'amount'      => $adjustment->total,
+								'label'       => $adjustment->description,
+								'no_tax'      => empty( $adjustment->tax ),
+								'type'        => $adjustment->type,
+								'price_id'    => $item->price_id,
+								'download_id' => $item->product_id,
+								'id'          => $adjustment->type_key,
+							);
 						}
-					}
-
-					$cart_items[ $c ]['id']         = $item_id;
-					$cart_items[ $c ]['quantity']   = $quantity;
-					$cart_items[ $c ]['name']       = get_the_title( $item_id );
-					$cart_items[ $c ]['price']      = $price;
-					$cart_items[ $c ]['price_name'] = $price_name;
-
-					// Determine the discount amount for the item, if there is one
-					foreach ( $discount_values as $discount => $amount ) {
-
-						$item_discount = edd_get_cart_item_discount_amount( $item, $discount );
-						$discount_values[ $discount ] += $item_discount;
-
 					}
 
 					$c++;
 				}
 
-				$sales['sales'][ $i ]['discounts'] = ( ! empty( $discount_values ) ? $discount_values : null );
 				$sales['sales'][ $i ]['products']  = $cart_items;
+				$sales['sales'][ $i ]['fees']      = ! empty( $fees ) ? $fees : null;
+				$sales['sales'][ $i ]['discounts'] = ! empty( $discounts ) ? $discounts : null;
 
 				$i++;
 			}

@@ -1,113 +1,12 @@
 <?php
 
 /**
- * Trigger preapproved payment charge
- *
- * @since 1.6
- * @return void
- */
-function edds_process_preapproved_charge() {
-
-	if( empty( $_GET['nonce'] ) )
-		return;
-
-	if( ! wp_verify_nonce( $_GET['nonce'], 'edds-process-preapproval' ) )
-		return;
-
-	$payment_id  = absint( $_GET['payment_id'] );
-	$charge      = edds_charge_preapproved( $payment_id );
-
-	if ( $charge ) {
-		wp_redirect( esc_url_raw( add_query_arg( array( 'edd-message' => 'preapproval-charged' ), admin_url( 'edit.php?post_type=download&page=edd-payment-history' ) ) ) ); exit;
-	} else {
-		wp_redirect( esc_url_raw( add_query_arg( array( 'edd-message' => 'preapproval-failed' ), admin_url( 'edit.php?post_type=download&page=edd-payment-history' ) ) ) ); exit;
-	}
-
-}
-add_action( 'edd_charge_stripe_preapproval', 'edds_process_preapproved_charge' );
-
-
-/**
- * Cancel a preapproved payment
- *
- * @since 1.6
- * @return void
- */
-function edds_process_preapproved_cancel() {
-	global $edd_options;
-
-	if( empty( $_GET['nonce'] ) )
-		return;
-
-	if( ! wp_verify_nonce( $_GET['nonce'], 'edds-process-preapproval' ) )
-		return;
-
-	$payment_id = absint( $_GET['payment_id'] );
-
-	if ( empty( $payment_id ) ) {
-		return;
-	}
-
-	$payment     = edd_get_payment( $payment_id );
-	$customer_id = $payment->get_meta( '_edds_stripe_customer_id', true );
-	$status      = $payment->status;
-
-	if ( empty( $customer_id ) ) {
-		return;
-	}
-
-	if ( 'preapproval' !== $status ) {
-		return;
-	}
-
-	edd_insert_payment_note( $payment_id, __( 'Preapproval cancelled', 'easy-digital-downloads' ) );
-	edd_update_payment_status( $payment_id, 'cancelled' );
-	$payment->delete_meta( '_edds_stripe_customer_id' );
-
-	wp_redirect( esc_url_raw( add_query_arg( array( 'edd-message' => 'preapproval-cancelled' ), admin_url( 'edit.php?post_type=download&page=edd-payment-history' ) ) ) ); exit;
-}
-add_action( 'edd_cancel_stripe_preapproval', 'edds_process_preapproved_cancel' );
-
-/**
- * Adds a JS confirmation to check whether a preapproved payment should really be cancelled.
- *
- * @since 2.8.10
- * @return void
- */
-add_action( 'admin_print_footer_scripts-download_page_edd-payment-history', function () {
-	?>
-	<script>
-		document.addEventListener( 'DOMContentLoaded', function() {
-			var cancelLinks = document.querySelectorAll( '.row-actions .cancel-preapproval a' );
-			cancelLinks.forEach( function( link ) {
-				link.addEventListener( 'click', function( e ) {
-					if ( ! confirm( '<?php esc_attr_e( 'Are you sure you want to cancel this order?', 'easy-digital-downloads' ); ?>' ) ) {
-						e.preventDefault();
-					}
-				} );
-			} );
-		} );
-	</script>
-	<?php
-} );
-
-/**
  * Admin Messages
  *
  * @since 1.6
  * @return void
  */
 function edds_admin_messages() {
-
-	if ( isset( $_GET['edd-message'] ) && 'preapproval-charged' == $_GET['edd-message'] ) {
-		 add_settings_error( 'edds-notices', 'edds-preapproval-charged', __( 'The preapproved payment was successfully charged.', 'easy-digital-downloads' ), 'updated' );
-	}
-	if ( isset( $_GET['edd-message'] ) && 'preapproval-failed' == $_GET['edd-message'] ) {
-		 add_settings_error( 'edds-notices', 'edds-preapproval-charged', __( 'The preapproved payment failed to be charged. View order details for further details.', 'easy-digital-downloads' ), 'error' );
-	}
-	if ( isset( $_GET['edd-message'] ) && 'preapproval-cancelled' == $_GET['edd-message'] ) {
-		 add_settings_error( 'edds-notices', 'edds-preapproval-cancelled', __( 'The preapproved payment was successfully cancelled.', 'easy-digital-downloads' ), 'updated' );
-	}
 
 	if( isset( $_GET['edd_gateway_connect_error'], $_GET['edd-message'] ) ) {
 		/* translators: %1$s Stripe Connect error message. %2$s Retry URL. */
@@ -123,8 +22,6 @@ function edds_admin_messages() {
 			return $ar;
 		});
 	}
-
-	settings_errors( 'edds-notices' );
 }
 add_action( 'admin_notices', 'edds_admin_messages' );
 
@@ -205,12 +102,85 @@ function edds_show_refund_checkbox( \EDD\Orders\Order $order ) {
 	?>
 	<div class="edd-form-group edd-stripe-refund-transaction">
 		<div class="edd-form-group__control">
-			<input type="checkbox" id="edd-stripe-refund" name="edd-stripe-refund" class="edd-form-group__input" value="1">
+			<input
+				type="checkbox"
+				id="edd-stripe-refund"
+				name="edd-stripe-refund"
+				class="edd-form-group__input"
+				value="1"
+				<?php echo esc_attr( 'on_hold' === $order->status ? 'disabled' : '' ); ?>
+			>
 			<label for="edd-stripe-refund" class="edd-form-group__label">
 				<?php esc_html_e( 'Refund Charge in Stripe', 'easy-digital-downloads' ); ?>
 			</label>
 		</div>
+		<?php if ( 'on_hold' === $order->status ) : ?>
+			<p class="edd-form-group__help description">
+				<?php esc_html_e( 'This order is currently on hold. You can create the refund transaction in EDD; Stripe may have already issued a refund.', 'easy-digital-downloads' ); ?>
+			</p>
+		<?php endif; ?>
 	</div>
 	<?php
 }
 add_action( 'edd_after_submit_refund_table', 'edds_show_refund_checkbox' );
+
+/**
+ * Allows processing flags for the EDD Stripe settings.
+ *
+ * As we transition settings like the Card Elements, we need a way to be able to toggle
+ * these things back on for some people. Enabling debug mode, setting flags, and then disabling
+ * debug mode allows us to handle this.
+ *
+ * @since 2.9.4
+ */
+function edds_process_settings_flags() {
+	// If we're not on the settings page, bail.
+	if ( ! edd_is_admin_page( 'settings', 'gateways' ) ) {
+		return;
+	}
+
+	// If it isn't the Stripe section, bail.
+	if ( ! isset( $_GET['section'] ) || 'edd-stripe' !== $_GET['section'] ) {
+		return;
+	}
+
+	// Gather the flag we're trying to set.
+	$flag = isset( $_GET['flag'] ) ? $_GET['flag'] : false;
+
+	if ( false === $flag ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'manage_shop_settings' ) ) {
+		return;
+	}
+
+	$nonce = isset( $_GET['_wpnonce'] ) ? $_GET['_wpnonce'] : false;
+	if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, $flag ) ) {
+		return;
+	}
+
+	switch( $flag ) {
+		case 'disable-card-elements':
+			delete_option( '_edds_legacy_elements_enabled' );
+			break;
+
+		case 'enable-card-elements':
+			add_option( '_edds_legacy_elements_enabled', 1, false );
+			break;
+	}
+
+	// Redirect to the settings page.
+	wp_safe_redirect(
+		edd_get_admin_url(
+			array(
+				'page'        => 'edd-settings',
+				'tab'         => 'gateways',
+				'section'     => 'edd-stripe',
+			)
+		)
+	);
+
+	exit;
+}
+add_action( 'admin_init', 'edds_process_settings_flags', 1 );

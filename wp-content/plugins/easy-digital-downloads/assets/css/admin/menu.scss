@@ -10,6 +10,23 @@
 @import "~@wordpress/base-styles/breakpoints";
 @import "../variables/colors";
 
+
+/* Main Menu
+-------------------------------------------------------------- */
+#menu-posts-download .wp-submenu {
+	display: flex;
+	flex-wrap: wrap;
+	li {
+		width: 100%;
+	}
+}
+
+@media screen and (max-width: $break-mobile) {
+	#menu-posts-download.wp-not-current-submenu .wp-submenu {
+		display: none;
+	}
+}
+
 /* Submenu Styles
 -------------------------------------------------------------- */
 
@@ -19,6 +36,10 @@
 		box-shadow: inset 4px 0 0 0 currentColor;
 		transition: box-shadow .1s linear;
 	}
+}
+
+#menu-posts-download li > a[href^="post-new.php?post_type=download"] {
+	display: none;
 }
 
 /* Secondary Separators */
@@ -61,4 +82,28 @@ ul#adminmenu #menu-posts-download ul.wp-submenu li.current a:before {
 	pointer-events: none;
 	border-right-color: $wp-gray-0;
 	margin-top: 2px;
+}
+
+/* Onboarding Submenu Item */
+a.edd-onboarding__menu-item {
+	background: #dd823b !important;
+	color: $white !important;
+	font-weight: 600;
+	&:hover {
+		color: $black !important;
+	}
+}
+
+a.edd-sidebar__upgrade-pro,
+a.edd-sidebar__upgrade-pro:hover {
+	background-color: $edd-pro-upgrade !important;
+	color: $white !important;
+	font-weight: 600;
+}
+
+.edd-admin-menu__new {
+	color: $warning;
+	vertical-align: super;
+	font-size: 9px;
+	margin-left: 3px;
 }
