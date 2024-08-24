@@ -8,6 +8,12 @@ class Register
         add_filter( 'wpcf7_mail_components', array( $this, 'my_wpcf7_mail_components' ), 10, 3 );
         add_action('wpcf7_mail_sent', array( $this, 'action_after_submit' ) );
 
+        if ( ! defined( 'CRTHEMES_URL_PROJECTS' ) ) {
+            define( 'CRTHEMES_URL_PROJECTS', '/Applications/MAMP/htdocs/users' );
+        }
+        if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
+            define( 'CRTHEMES_URL_PROJECT_DEFAULT', '/Applications/MAMP/htdocs/users/default' );
+        }
     }
 
     public function action_after_submit ($cf7) {
@@ -20,8 +26,8 @@ class Register
     }
 
     public function custom_domain_confirmation_validation_filter($result, $tag) {
-        $domain = $this->is_valid_domain_name($_POST['your-domain']);
-        if(!$domain) {
+        $check_is_domain = $this->is_valid_domain_name($_POST['your-domain']);
+        if(!$check_is_domain) {
             $result->invalidate( $tag, 'Domain is not in correct format' );
             return $result;
         }
