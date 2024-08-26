@@ -13,6 +13,17 @@ class CRT_Manage_Site_Base {
         add_action('plugins_loaded', array($this, 'crt_manage_update_db_check'));
         add_action('admin_menu', array($this, 'crt_manage_admin_menu'));
         add_action('init', array($this, 'crt_manage_languages'));
+
+        add_action('rest_api_init', function () {
+            register_rest_route('register-site', 'active', array(
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => array($this, 'active_site'),
+            ));
+        });
+    }
+
+    public function active_site() {
+        echo '1234';die;
     }
 
     public static function instance() {
