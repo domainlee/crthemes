@@ -15,15 +15,17 @@ class CRT_Manage_Site_Base {
         add_action('init', array($this, 'crt_manage_languages'));
 
         add_action('rest_api_init', function () {
-            register_rest_route('register-site', 'active', array(
-                'methods' => WP_REST_Server::CREATABLE,
+            register_rest_route('register', '/active/(?P<id>[a-zA-Z0-9-]+)', array(
+                'methods' => 'GET',
                 'callback' => array($this, 'active_site'),
+                'permission_callback' => '__return_true',
             ));
         });
     }
 
-    public function active_site() {
-        echo '1234';die;
+    public function active_site($request) {
+        print_r($request['id']);
+        die;
     }
 
     public static function instance() {
@@ -37,7 +39,9 @@ class CRT_Manage_Site_Base {
         if (!class_exists('WP_List_Table')) {
             require_once(ABSPATH . 'wp-admin/includes/class-wp-list-table.php');
         }
+        require_once dirname( __FILE__, 2 ) . '/inc/class-crt-manage-site-db.php';
         require_once dirname( __FILE__, 2 ) . '/inc/class-crt-manage-site-custom-wp-list.php';
+        require_once dirname( __FILE__, 2 ) . '/inc/class-crt-manage-site-register.php';
     }
 
     public function crt_manage_site_install()

@@ -882,4 +882,3 @@ function form_change_domain() {
 }
 
 
-require get_template_directory() . '/inc/register.php';
