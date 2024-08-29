@@ -5,8 +5,15 @@ class CRT_DB
         'id' => 0,
         'name' => '',
         'email' => '',
-        'age' => null,
+        'active_code' => '',
+        'active_code_link' => '',
+        'date' => '',
+        'theme_id' => '',
+        'status' => self::STATUS_DRAFT,
     );
+
+    const STATUS_DRAFT = 0;
+    const STATUS_ACTIVE = 1;
 
     public function __construct() {
         global $wpdb;
@@ -27,9 +34,15 @@ class CRT_DB
         return $result;
     }
 
-    public function delete() {
+    public function delete($item) {
 
     }
+
+    public function exist($item) {
+        global $wpdb;
+        $post = $wpdb->get_results($wpdb->prepare("SELECT * FROM " . $this->table_name . "  WHERE sku LIKE '".$sku."'"));
+    }
+
 }
 
 new CRT_DB();

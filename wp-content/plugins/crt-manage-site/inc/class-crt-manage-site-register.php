@@ -14,14 +14,63 @@ class CRT_Register
         if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
             define( 'CRTHEMES_URL_PROJECT_DEFAULT', '/Applications/MAMP/htdocs/users/default' );
         }
+
+        if ( ! defined( 'CRTHEMES_URL_PROJECT_ITEM' ) ) {
+            define( 'CRTHEMES_URL_PROJECT_ITEM', '/Applications/MAMP/htdocs/users/' );
+        }
+
+        add_action('rest_api_init', function () {
+            register_rest_route('register', '/active/(?P<code>[a-zA-Z0-9-]+)', array(
+                'methods' => 'GET',
+                'callback' => array($this, 'active_site'),
+                'permission_callback' => '__return_true',
+            ));
+        });
+    }
+
+    public function active_site($request) {
+        $code = $request['code'];
+        global $table_crtheme_manage_sites;
+        $theme_name = 'melissa-portfolio';
+        $theme_client = 'your-portfolio';
+
+        exec('cp -a '.CRTHEMES_URL_PROJECT_ITEM.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $result);
+        exec('/Applications/MAMP/Library/bin/mysql -uroot -proot -e "CREATE DATABASE user_user1234"', $db_user);
+        exec('/Applications/MAMP/Library/bin/mysql -uroot -proot -e "CREATE USER user_user1234@localhost IDENTIFIED by 123456"', $db_name);
+
+//        exec('chown -R www-data:www-data /var/www/your_domain', $result);
+//        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
+//        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
+        print_r($result);
+        print_r($db_user);
+        print_r($db_name);
+
     }
 
     public function action_after_submit ($cf7) {
         if($cf7->id == 576) {
-            $to = $_POST['your-email'];
+            global $table_crtheme_manage_sites;
+
+            $email_client = $_POST['your-email'];
+            $name_client = $_POST['your-domain'];
             $subject = 'Register site';
-            $message = 'Hi there! link active site https://crthemes.com';
-            wp_mail($to, $subject, $message);
+            $code = md5($email_client . $name_client);
+            $link_active = home_url( '/' ).'wp-json/register/active/'.$code;
+            $message = 'Hi there! link active site '. $link_active;
+            $data = array(
+                'id' => 0,
+                'name' => $name_client,
+                'email' => $email_client,
+                'active_code' => $code,
+                'active_code_link' => $link_active,
+                'date' => date("Y-m-d"),
+                'theme_id' => 'melissa-portfolio',
+                'status' => $table_crtheme_manage_sites::STATUS_DRAFT,
+            );
+            $result = $table_crtheme_manage_sites->create($data);
+            if($result) {
+                wp_mail($email_client, $subject, $message);
+            }
         }
     }
 

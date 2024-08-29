@@ -8,25 +8,20 @@ class CRT_Manage_Site_Base {
 
     public function __construct() {
         $this->includes();
+        global $table_crtheme_manage_sites;
+        $table_crtheme_manage_sites = new CRT_DB();
         register_activation_hook(CRTheme_Manage_Site_PLUGIN_FILE, array($this, 'crt_manage_site_install'));
         register_activation_hook(__FILE__, array($this, 'crt_manage_site_install_data'));
         add_action('plugins_loaded', array($this, 'crt_manage_update_db_check'));
         add_action('admin_menu', array($this, 'crt_manage_admin_menu'));
         add_action('init', array($this, 'crt_manage_languages'));
 
-        add_action('rest_api_init', function () {
-            register_rest_route('register', '/active/(?P<id>[a-zA-Z0-9-]+)', array(
-                'methods' => 'GET',
-                'callback' => array($this, 'active_site'),
-                'permission_callback' => '__return_true',
-            ));
-        });
+
+
+
     }
 
-    public function active_site($request) {
-        print_r($request['id']);
-        die;
-    }
+
 
     public static function instance() {
         if (empty(self::$_instance)) {
