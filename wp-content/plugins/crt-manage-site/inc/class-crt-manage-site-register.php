@@ -32,7 +32,7 @@ class CRT_Register
         $code = $request['code'];
         global $table_crtheme_manage_sites;
         $theme_name = 'melissa-portfolio';
-        $theme_client = 'your-portfolio';
+        $theme_client = 'minle';
         
         $site_theme = 'http://localhost/users/'.$theme_name;
         $site_client = 'http://localhost/users/'.$theme_client;
@@ -100,8 +100,8 @@ class CRT_Register
 //        exec('chown -R www-data:www-data /var/www/your_domain', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
-        print_r($output);
-        print_r($retval);
+        echo 'Your site: ';
+        print_r($site_client);
 
     }
 
