@@ -33,17 +33,75 @@ class CRT_Register
         global $table_crtheme_manage_sites;
         $theme_name = 'melissa-portfolio';
         $theme_client = 'your-portfolio';
+        
+        $site_theme = 'http://localhost/users/'.$theme_name;
+        $site_client = 'http://localhost/users/'.$theme_client;
+        
+        $db_name = "user_" . $this->crt_get_string($theme_client);
+        $db_password = md5($theme_client);
 
-        exec('cp -a '.CRTHEMES_URL_PROJECT_ITEM.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $result);
-        exec('/Applications/MAMP/Library/bin/mysql -uroot -proot -e "CREATE DATABASE user_user1234"', $db_user);
-        exec('/Applications/MAMP/Library/bin/mysql -uroot -proot -e "CREATE USER user_user1234@localhost IDENTIFIED by 123456"', $db_name);
+        $create_db_name = "CREATE DATABASE $db_name;";
+        $create_db_user = "CREATE USER '$db_name'@'localhost' IDENTIFIED by '$db_password';";
+        $db_grant = "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_name'@'localhost' WITH GRANT OPTION;";
+        $db_flush = "FLUSH PRIVILEGES;";
+        $db_exit = "exit;";
+        $db_import = "/Applications/MAMP/Library/bin/mysql -uroot -proot $db_name <".CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/user_melissa-portfolio.sql';
+
+        $db_update_option = "UPDATE wp_options SET option_value = REPLACE(option_value, '$site_theme', '$site_client') WHERE option_name = 'home' OR option_name = 'siteurl';";
+        $db_update_post_content = "UPDATE wp_posts SET post_content = REPLACE (post_content, '$site_theme', '$site_client');";
+        $db_update_post_excerpt = "UPDATE wp_posts SET post_excerpt = REPLACE (post_excerpt, '$site_theme', '$site_client');";
+        $db_update_post_value = "UPDATE wp_postmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
+        $db_update_term_meta = "UPDATE wp_termmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
+        $db_update_comment_content = "UPDATE wp_comments SET comment_content = REPLACE (comment_content, '$site_theme', '$site_client');";
+        $db_update_comment_author = "UPDATE wp_comments SET comment_author_url = REPLACE (comment_author_url, '$site_theme','$site_client');";
+        $db_update_guid = "UPDATE wp_posts SET guid = REPLACE (guid, '$site_theme', '$site_client') WHERE post_type = 'attachment';";
+
+        $output = null;
+        $retval = null;
+        // Copy Source
+        exec('cp -a '.CRTHEMES_URL_PROJECT_ITEM.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
+
+        // Updated file wp-config.php
+        $wp_config = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/wp-config.php";
+        $content = file($wp_config);
+        $content[23] = "define( 'DB_NAME', '$db_name' );\r\n";
+        unset($content[22]);
+        $content[26] = "define( 'DB_USER', '$db_name' );\r\n";
+        unset($content[25]);
+        $content[29] = "define( 'DB_PASSWORD', '$db_password' );\r\n\r\n";
+        unset($content[28]);
+
+        $content[30] = "define( 'WP_HOME', '$site_client' );\r\n";
+        $content[31] = "define( 'WP_SITEURL', '$site_client' );";
+
+        $allContent = implode("", $content);
+        file_put_contents($wp_config, $allContent);
+
+        // Create database
+        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$create_db_name\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$create_db_user\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_grant\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_flush\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_exit\" ", $output, $retval);
+
+        // Import demo database
+        exec($db_import, $output, $retval);
+
+        // Update for site
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_content\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_excerpt\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_value\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_term_meta\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_comment_content\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
+        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
 
 //        exec('chown -R www-data:www-data /var/www/your_domain', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
-        print_r($result);
-        print_r($db_user);
-        print_r($db_name);
+        print_r($output);
+        print_r($retval);
 
     }
 
@@ -111,5 +169,22 @@ class CRT_Register
             && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)   ); //length of each label
     }
 
+    public function crt_get_string($s) {
+        return preg_replace("/[^a-zA-Z0-9]+/", "", $s);
+    }
+
+    public function crt_replace_line($filePath, $searchString, $replacementLine) {
+        if (!file_exists($filePath)) {
+            echo "File not found.";
+            return;
+        }
+        $lines = file($filePath);
+        foreach ($lines as $key => $line) {
+            if (strpos($line, $searchString) !== false) {
+                $lines[$key] = $replacementLine . PHP_EOL; // Replace with new line
+            }
+        }
+        file_put_contents($filePath, implode("", $lines));
+    }
 }
 new CRT_Register();
