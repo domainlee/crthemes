@@ -32,8 +32,14 @@ class CRT_Register
         $code = $request['code'];
         global $table_crtheme_manage_sites;
         $theme_name = 'melissa-portfolio';
-        $theme_client = 'minle';
-        
+        $theme_client = 'your-domain';
+
+        $wp_hasher = $this->randomPassword();
+        echo $wp_hasher;
+        echo '<br/>';
+        $password = wp_hash_password($wp_hasher);
+        print_r($password);
+        die;
         $site_theme = 'http://localhost/users/'.$theme_name;
         $site_client = 'http://localhost/users/'.$theme_client;
         
@@ -100,9 +106,13 @@ class CRT_Register
 //        exec('chown -R www-data:www-data /var/www/your_domain', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
-        echo 'Your site: ';
-        print_r($site_client);
-
+        echo 'Your site: ' . $site_client;
+        echo '<br/>';
+        echo 'Your site wp-admin: '. $site_client .'/wp-admin';
+        echo '<br/>';
+        echo 'username: ';
+        echo '<br/>';
+        echo 'password: ';
     }
 
     public function action_after_submit ($cf7) {
@@ -173,18 +183,15 @@ class CRT_Register
         return preg_replace("/[^a-zA-Z0-9]+/", "", $s);
     }
 
-    public function crt_replace_line($filePath, $searchString, $replacementLine) {
-        if (!file_exists($filePath)) {
-            echo "File not found.";
-            return;
+    public function randomPassword() {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*';
+        $pass = array();
+        $alphaLength = strlen($alphabet) - 1;
+        for ($i = 0; $i < 16; $i++) {
+            $n = rand(0, $alphaLength);
+            $pass[] = $alphabet[$n];
         }
-        $lines = file($filePath);
-        foreach ($lines as $key => $line) {
-            if (strpos($line, $searchString) !== false) {
-                $lines[$key] = $replacementLine . PHP_EOL; // Replace with new line
-            }
-        }
-        file_put_contents($filePath, implode("", $lines));
+        return implode($pass);
     }
 }
 new CRT_Register();
