@@ -56,7 +56,7 @@ class CRT_Register
         $db_update_comment_content = "UPDATE wp_comments SET comment_content = REPLACE (comment_content, '$site_theme', '$site_client');";
         $db_update_comment_author = "UPDATE wp_comments SET comment_author_url = REPLACE (comment_author_url, '$site_theme','$site_client');";
         $db_update_guid = "UPDATE wp_posts SET guid = REPLACE (guid, '$site_theme', '$site_client') WHERE post_type = 'attachment';";
-        $db_update_password = "UPDATE wp_users SET user_pass = '$password' WHERE wp_users.user_login = 'admin';";
+        $db_update_password = "UPDATE wp_users SET user_pass = MD5('$wp_hasher') WHERE wp_users.user_login = 'admin';";
         $output = null;
         $retval = null;
         // Copy Source
