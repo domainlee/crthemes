@@ -38,7 +38,8 @@ class CRT_Register
         $password = wp_hash_password($wp_hasher);
         $site_theme = 'http://localhost/users/'.$theme_name;
         $site_client = 'http://localhost/users/'.$theme_client;
-        
+        $info_domain = parse_url($site_client);
+
         $db_name = "user_" . $this->crt_get_string($theme_client);
         $db_password = md5($theme_client);
 
@@ -56,7 +57,7 @@ class CRT_Register
         $db_update_comment_content = "UPDATE wp_comments SET comment_content = REPLACE (comment_content, '$site_theme', '$site_client');";
         $db_update_comment_author = "UPDATE wp_comments SET comment_author_url = REPLACE (comment_author_url, '$site_theme','$site_client');";
         $db_update_guid = "UPDATE wp_posts SET guid = REPLACE (guid, '$site_theme', '$site_client') WHERE post_type = 'attachment';";
-        $db_update_password = "UPDATE wp_users SET user_pass = MD5('$wp_hasher') WHERE wp_users.user_login = 'admin';";
+        $db_update_password = "UPDATE wp_users SET user_pass = MD5('$wp_hasher'), user_url = '$site_client' WHERE wp_users.user_login = 'admin';";
         $output = null;
         $retval = null;
         // Copy Source
@@ -80,8 +81,23 @@ class CRT_Register
         $content[30] = "define( 'WP_HOME', '$site_client' );\r\n";
         $content[31] = "define( 'WP_SITEURL', '$site_client' );";
 
+        $path = '/';
+        $path2 = '/index.php';
+        if(isset($info_domain['path'])) {
+            $path = $info_domain['path'] . '/';
+            $path2 = $info_domain['path'] . '/index.php';
+        }
+
         $allContent = implode("", $content);
         file_put_contents($wp_config, $allContent);
+
+        // Updated file .htaccess
+        $htaccess = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/.htaccess";
+        $htaccess_content = file($htaccess);
+        $htaccess_content[8] = "RewriteBase $path\r\n";
+        $htaccess_content[12] = "RewriteRule . $path2 [L]\r\n";
+        $htaccess_allContent = implode("", $htaccess_content);
+        file_put_contents($htaccess, $htaccess_allContent);
 
         // Create database
         exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$create_db_name\" ", $output, $retval);
