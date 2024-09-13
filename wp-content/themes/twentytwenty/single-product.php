@@ -35,7 +35,8 @@ get_header();
                                 ?>
                                 <strong><?php woocommerce_template_single_price(); ?></strong>
                             </div>
-                            <p class="single-download__left--noti">Pay securely with Paypal</p>
+                            <?php wc_display_product_attributes($product); ?>
+                            <p class="single-download__left--noti">Pay securely with Paypal 2</p>
                             <div class="single-download__left--noti">
                                 <p><strong>30-day money-back guarantee</strong></p>
                                 <p>
@@ -58,7 +59,8 @@ get_header();
                         ?>
                         <strong><?php woocommerce_template_single_price(); ?></strong>
                     </div>
-                    <p class="single-download__left--noti">Pay securely with Paypal</p>
+                    <?php do_action('woocommerce_variable_add_to_cart'); ?>
+                    <p class="single-download__left--noti">Pay securely with Paypal 3</p>
                     <div class="single-download__left--noti">
                         <p><strong>30-day money-back guarantee</strong></p>
                         <p>
