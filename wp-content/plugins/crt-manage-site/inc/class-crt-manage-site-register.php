@@ -14,9 +14,14 @@ class CRT_Register
         if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
             define( 'CRTHEMES_URL_PROJECT_DEFAULT', '/Applications/MAMP/htdocs/users/default' );
         }
-
         if ( ! defined( 'CRTHEMES_URL_PROJECT_ITEM' ) ) {
             define( 'CRTHEMES_URL_PROJECT_ITEM', '/Applications/MAMP/htdocs/users/' );
+        }
+        if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
+            define( 'CRTHEMES_VIRTUAL_HOST', '/Applications/MAMP/conf/apache/users' );
+        }
+        if ( ! defined( 'CRTHEMES_EXEC_MYSQL' ) ) {
+            define('CRTHEMES_EXEC_MYSQL', '/Applications/MAMP/Library/bin/mysql');
         }
 
         add_action('rest_api_init', function () {
@@ -36,8 +41,9 @@ class CRT_Register
 
         $wp_hasher = $this->randomPassword();
         $password = wp_hash_password($wp_hasher);
-        $site_theme = 'http://localhost/users/'.$theme_name;
-        $site_client = 'http://localhost/users/'.$theme_client;
+        $site_theme = 'http://'.$theme_name.'.domain';
+        $site_client_host = 'your-name.domain';
+        $site_client = 'http://'.$site_client_host;
         $info_domain = parse_url($site_client);
 
         $db_name = "user_" . $this->crt_get_string($theme_client);
@@ -63,9 +69,12 @@ class CRT_Register
         // Copy Source
         exec('cp -a '.CRTHEMES_URL_PROJECT_ITEM.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
 
+        // Virtual Host
+        exec('cp -a '.CRTHEMES_VIRTUAL_HOST.'/httpd-default.conf '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
+
         $curFile = glob(CRTHEMES_URL_PROJECTS.'/'.$theme_client."/*.sql");
         if(!empty($curFile)) {
-            $db_import = "/Applications/MAMP/Library/bin/mysql -uroot -proot $db_name <".$curFile[0];
+            $db_import = CRTHEMES_EXEC_MYSQL . " -uroot -proot $db_name <".$curFile[0];
         }
 
         // Updated file wp-config.php
@@ -99,27 +108,40 @@ class CRT_Register
         $htaccess_allContent = implode("", $htaccess_content);
         file_put_contents($htaccess, $htaccess_allContent);
 
+        // Create Virtual Host
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
+        $virtual_host_content = file($virtual_host);
+        $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+        $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+        $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
+        $virtual_host_content[3] = "ServerName $site_client_host\r\n";
+        $virtual_host_content[4] = "ServerAlias $site_client_host\r\n";
+        $virtual_host_content[5] = "</VirtualHost>\r\n";
+        $virtual_host_allContent = implode("", $virtual_host_content);
+        file_put_contents($virtual_host, $virtual_host_allContent);
+
         // Create database
-        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$create_db_name\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$create_db_user\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_grant\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_flush\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -uroot -proot -e \"$db_exit\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$create_db_name\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$create_db_user\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_grant\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_flush\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_exit\" ", $output, $retval);
 
         // Import demo database
         exec($db_import, $output, $retval);
 
         // Update for site
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_content\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_excerpt\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_post_value\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_term_meta\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_comment_content\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
-        exec("/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_password\" ", $output, $retval);
-//        echo "/Applications/MAMP/Library/bin/mysql -u$db_name -p$db_password $db_name -e \"$db_update_password\" ";die;
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_content\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_excerpt\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_value\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_term_meta\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_content\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ", $output, $retval);
+//        echo CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ";die;
 //        exec('chown -R www-data:www-data /var/www/your_domain', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
