@@ -33,6 +33,9 @@ function crt_manage_site_install()
               active_code_link VARCHAR(300) NOT NULL,
               date date NOT NULL,
               theme_id VARCHAR(100) NULL,
+              db_user VARCHAR(100) NULL,
+              db_name VARCHAR(100) NULL,
+              db_password VARCHAR(200) NULL,
               status int(3) NOT NULL,
               PRIMARY KEY  (id)
             );";
@@ -52,6 +55,9 @@ function crt_manage_site_install()
           active_code_link VARCHAR(300) NOT NULL,
           date date NOT NULL,
           theme_id VARCHAR(100) NULL,
+          db_user VARCHAR(100) NULL,
+          db_name VARCHAR(100) NULL,
+          db_password VARCHAR(200) NULL,
           status int(3) NOT NULL,
           PRIMARY KEY  (id)
         );";

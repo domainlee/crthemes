@@ -36,13 +36,21 @@ class CRT_Register
     public function active_site($request) {
         $code = $request['code'];
         global $table_crtheme_manage_sites;
-        $theme_name = 'melissa-portfolio';
-        $theme_client = 'your-domain';
+        $client_info_site = $table_crtheme_manage_sites->get($code);
+        if(empty($client_info_site)) {
+            header('Content-Type: text/html');
+            echo '<style>body {font-family: Arial, "Times New Roman", "Bitstream Charter", Times, serif; font-size: 14px;} p {margin: 0 0 5px;}</style>';
+            echo '<p>Code: ' . $code . ' not exists</p>';
+            return;
+        }
+        $theme_name = $client_info_site['theme_id'];
+        $theme_client = $client_info_site['name'];
+        $code = $client_info_site['active_code'];
 
         $wp_hasher = $this->randomPassword();
         $password = wp_hash_password($wp_hasher);
         $site_theme = 'http://'.$theme_name.'.domain';
-        $site_client_host = 'your-name.domain';
+        $site_client_host = $theme_client.'.domain';
         $site_client = 'http://'.$site_client_host;
         $info_domain = parse_url($site_client);
 
@@ -56,6 +64,7 @@ class CRT_Register
         $db_exit = "exit;";
 
         $db_update_option = "UPDATE wp_options SET option_value = REPLACE(option_value, '$site_theme', '$site_client') WHERE option_name = 'home' OR option_name = 'siteurl';";
+        $db_update_option_code = "INSERT INTO `wp_options` (`option_id`, `option_name`, `option_value`, `autoload`) VALUES (NULL, 'crt_manage_code', '$code', 'yes');";
         $db_update_post_content = "UPDATE wp_posts SET post_content = REPLACE (post_content, '$site_theme', '$site_client');";
         $db_update_post_excerpt = "UPDATE wp_posts SET post_excerpt = REPLACE (post_excerpt, '$site_theme', '$site_client');";
         $db_update_post_value = "UPDATE wp_postmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
@@ -114,9 +123,9 @@ class CRT_Register
         $virtual_host_content = file($virtual_host);
         $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
         $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-        $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
-        $virtual_host_content[3] = "ServerName $site_client_host\r\n";
-        $virtual_host_content[4] = "ServerAlias $site_client_host\r\n";
+        $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
+        $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
+        $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
         $virtual_host_content[5] = "</VirtualHost>\r\n";
         $virtual_host_allContent = implode("", $virtual_host_content);
         file_put_contents($virtual_host, $virtual_host_allContent);
@@ -133,6 +142,7 @@ class CRT_Register
 
         // Update for site
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_option_code\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_content\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_excerpt\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_value\" ", $output, $retval);
@@ -145,13 +155,18 @@ class CRT_Register
 //        exec('chown -R www-data:www-data /var/www/your_domain', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
 //        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
-        echo 'Your site: ' . $site_client;
-        echo '<br/>';
-        echo 'Your site wp-admin: '. $site_client .'/wp-admin';
-        echo '<br/>';
-        echo 'username: admin';
-        echo '<br/>';
-        echo 'password: '.$wp_hasher;
+
+        header('Content-Type: text/html');
+        $client_info_site['db_user'] = $db_name;
+        $client_info_site['db_name'] = $db_name;
+        $client_info_site['db_password'] = $db_password;
+        $table_crtheme_manage_sites->update($client_info_site);
+        echo '<style>body {font-family: Arial, "Times New Roman", "Bitstream Charter", Times, serif; font-size: 14px;} p {margin: 0 0 5px;}</style>';
+        echo '<p>Your site: ' . $site_client . '</p>';
+        echo '<p>Your site wp-admin: '. $site_client .'/wp-admin'. '</p>';
+        echo '<p>Username: admin'. '</p>';
+        echo '<p>Password: '.$wp_hasher. '</p>';
+        return;
     }
 
     public function action_after_submit ($cf7) {

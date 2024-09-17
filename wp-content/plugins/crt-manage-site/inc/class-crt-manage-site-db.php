@@ -9,6 +9,9 @@ class CRT_DB
         'active_code_link' => '',
         'date' => '',
         'theme_id' => '',
+        'db_user' => '',
+        'db_name' => '',
+        'db_password' => '',
         'status' => self::STATUS_DRAFT,
     );
 
@@ -38,9 +41,10 @@ class CRT_DB
 
     }
 
-    public function exist($item) {
+    public function get($code) {
         global $wpdb;
-        $post = $wpdb->get_results($wpdb->prepare("SELECT * FROM " . $this->table_name . "  WHERE sku LIKE '".$sku."'"));
+        $post = $wpdb->get_row($wpdb->prepare("SELECT * FROM " . $this->table_name . "  WHERE active_code LIKE '".$code."'"), ARRAY_A);
+        return $post;
     }
 
 }
