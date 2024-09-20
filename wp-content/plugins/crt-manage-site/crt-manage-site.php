@@ -36,6 +36,7 @@ function crt_manage_site_install()
               db_user VARCHAR(100) NULL,
               db_name VARCHAR(100) NULL,
               db_password VARCHAR(200) NULL,
+              domain_transfer VARCHAR(200) NULL,
               status int(3) NOT NULL,
               PRIMARY KEY  (id)
             );";
@@ -58,6 +59,7 @@ function crt_manage_site_install()
           db_user VARCHAR(100) NULL,
           db_name VARCHAR(100) NULL,
           db_password VARCHAR(200) NULL,
+          domain_transfer VARCHAR(200) NULL,
           status int(3) NOT NULL,
           PRIMARY KEY  (id)
         );";

@@ -179,6 +179,63 @@ class CRT_Register
     public function transfer($request) {
         $data = $request->get_body();
         $data_request = json_decode($data, true);
+        $code = $data_request['code'];
+        $domain = $data_request['domain'];
+
+        global $table_crtheme_manage_sites;
+        $client_info_site = $table_crtheme_manage_sites->get($code);
+        $domain_check = $this->is_valid_domain_name($domain);
+        if(empty($client_info_site) || !$domain_check) {
+            echo 'failure';
+            exit();
+        }
+
+        $site_theme = 'http://'.$client_info_site['name'].'.domain';
+        $site_client_host = $domain;
+        $site_client = 'http://'.$site_client_host;
+        $theme_client = $client_info_site['name'];
+
+        $db_name = $client_info_site['db_user'];
+        $db_password = $client_info_site['db_password'];
+
+
+        $db_update_option = "UPDATE wp_options SET option_value = REPLACE(option_value, '$site_theme', '$site_client') WHERE option_name = 'home' OR option_name = 'siteurl';";
+        $db_update_post_content = "UPDATE wp_posts SET post_content = REPLACE (post_content, '$site_theme', '$site_client');";
+        $db_update_post_excerpt = "UPDATE wp_posts SET post_excerpt = REPLACE (post_excerpt, '$site_theme', '$site_client');";
+        $db_update_post_value = "UPDATE wp_postmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
+        $db_update_term_meta = "UPDATE wp_termmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
+        $db_update_comment_content = "UPDATE wp_comments SET comment_content = REPLACE (comment_content, '$site_theme', '$site_client');";
+        $db_update_comment_author = "UPDATE wp_comments SET comment_author_url = REPLACE (comment_author_url, '$site_theme','$site_client');";
+        $db_update_guid = "UPDATE wp_posts SET guid = REPLACE (guid, '$site_theme', '$site_client') WHERE post_type = 'attachment';";
+
+        $output = null;
+        $retval = null;
+
+        // Update for site
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_content\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_excerpt\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_post_value\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_term_meta\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_content\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
+
+        // Update Virtual Host
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
+        $virtual_host_content = file($virtual_host);
+        $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+        $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+        $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
+        $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
+        $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
+        $virtual_host_content[5] = "</VirtualHost>\r\n";
+        $virtual_host_allContent = implode("", $virtual_host_content);
+        file_put_contents($virtual_host, $virtual_host_allContent);
+
+        $client_info_site['domain_transfer'] = $site_client_host;
+        $table_crtheme_manage_sites->update($client_info_site);
 
         echo 'done';
         exit();

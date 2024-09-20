@@ -12,6 +12,7 @@ class CRT_DB
         'db_user' => '',
         'db_name' => '',
         'db_password' => '',
+        'domain_transfer' => '',
         'status' => self::STATUS_DRAFT,
     );
 
