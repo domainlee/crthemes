@@ -48,6 +48,12 @@ class CRT_DB
         return $post;
     }
 
+    public function get_name($name) {
+        global $wpdb;
+        $post = $wpdb->get_row($wpdb->prepare("SELECT * FROM " . $this->table_name . "  WHERE name LIKE '".$name."'"), ARRAY_A);
+        return $post;
+    }
+
 }
 
 new CRT_DB();

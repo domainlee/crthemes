@@ -247,6 +247,7 @@ class CRT_Register
 
             $email_client = $_POST['your-email'];
             $name_client = $_POST['your-domain'];
+            $theme = $_POST['theme'];
             $subject = 'Register site';
             $code = md5($email_client . $name_client);
             $link_active = home_url( '/' ).'wp-json/register/active/'.$code;
@@ -258,7 +259,7 @@ class CRT_Register
                 'active_code' => $code,
                 'active_code_link' => $link_active,
                 'date' => date("Y-m-d"),
-                'theme_id' => 'melissa-portfolio',
+                'theme_id' => strtolower($theme),
                 'status' => $table_crtheme_manage_sites::STATUS_DRAFT,
             );
             $result = $table_crtheme_manage_sites->create($data);
@@ -274,7 +275,13 @@ class CRT_Register
             $result->invalidate( $tag, 'Domain is not in correct format' );
             return $result;
         }
-//        $result->invalidate( $tag, 'Domain already exists' );
+
+        $check_is_domain_exist = $this->is_valid_domain_exist($_POST['your-domain']);
+        if(!$check_is_domain_exist) {
+            $result->invalidate( $tag, 'Domain name already exists' );
+            return $result;
+        }
+
         return $result;
     }
 
@@ -303,6 +310,15 @@ class CRT_Register
         return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
             && preg_match("/^.{1,253}$/", $domain_name) //overall length check
             && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)   ); //length of each label
+    }
+
+    public function is_valid_domain_exist($name) {
+        global $table_crtheme_manage_sites;
+        $result = $table_crtheme_manage_sites->get_name($name);
+        if(!empty($result)) {
+            return false;
+        }
+        return true;
     }
 
     public function crt_get_string($s) {
