@@ -16,6 +16,8 @@ class CRT_DB
         'status' => self::STATUS_DRAFT,
     );
 
+    public $table_name = '';
+
     const STATUS_DRAFT = 0;
     const STATUS_ACTIVE = 1;
 

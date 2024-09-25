@@ -3,7 +3,7 @@ class CRT_Register
 {
     protected $data;
 
-    protected $product_env = 'dev'; // dev or production
+    protected $product_env = 'production'; // dev or production
 
     public function __construct() {
         add_filter( 'wpcf7_validate_text*', array( $this, 'custom_domain_confirmation_validation_filter' ), 20, 2 );
@@ -12,16 +12,25 @@ class CRT_Register
         add_action('wpcf7_mail_sent', array( $this, 'action_after_submit' ) );
 
         if ( ! defined( 'CRTHEMES_URL_PROJECTS' ) ) {
-            define( 'CRTHEMES_URL_PROJECTS', '/Applications/MAMP/htdocs/users' );
+            $url_project = $this->product_env == 'dev' ? '/Applications/MAMP/htdocs/users':'/var/www/html/users';
+            define( 'CRTHEMES_URL_PROJECTS', $url_project );
         }
         if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
-            define( 'CRTHEMES_URL_PROJECT_DEFAULT', '/Applications/MAMP/htdocs/users/default' );
+            $url_project_default = $this->product_env == 'dev' ? '/Applications/MAMP/htdocs/users/default':'/var/www/html/users/default';
+            define( 'CRTHEMES_URL_PROJECT_DEFAULT', $url_project_default );
         }
         if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
-            define( 'CRTHEMES_VIRTUAL_HOST', '/Applications/MAMP/conf/apache/users' );
+            $url_virtual_host = $this->product_env == 'dev' ? '/Applications/MAMP/conf/apache/users':'/etc/apache2/sites-enabled';
+            define( 'CRTHEMES_VIRTUAL_HOST', $url_virtual_host );
         }
         if ( ! defined( 'CRTHEMES_EXEC_MYSQL' ) ) {
-            define('CRTHEMES_EXEC_MYSQL', '/Applications/MAMP/Library/bin/mysql');
+            $url_exec_mysql = $this->product_env == 'dev' ? '/Applications/MAMP/Library/bin/mysql':'mysql';
+            define('CRTHEMES_EXEC_MYSQL', $url_exec_mysql);
+        }
+
+        if ( ! defined( 'CRTHEMES_EXEC_MYSQL_ROOT' ) ) {
+            $url_exec_mysql_root = $this->product_env == 'dev' ? '-uroot -proot':'-uroot -pNewPassword@1234';
+            define('CRTHEMES_EXEC_MYSQL_ROOT', $url_exec_mysql_root);
         }
 
         add_action('rest_api_init', function () {
@@ -56,9 +65,9 @@ class CRT_Register
 
         $wp_hasher = $this->randomPassword();
         $password = wp_hash_password($wp_hasher);
-        $site_theme = 'http://'.$theme_name.'.domain';
-        $site_client_host = $theme_client.'.domain';
-        $site_client = 'http://'.$site_client_host;
+        $site_theme = $this->product_env == 'dev' ? 'http://'.$theme_name.'.domain' : 'https://'.$theme_name.'.crthemes.com';
+        $site_client_host = $this->product_env == 'dev' ? $theme_client.'.domain' : $theme_client.'.crthemes.com';
+        $site_client = $this->product_env == 'dev' ? 'http://'.$site_client_host : 'https://'.$site_client_host;
         $info_domain = parse_url($site_client);
 
         $db_name = "user_" . $this->crt_get_string($theme_client);
@@ -89,9 +98,6 @@ class CRT_Register
         exec('cp -a '.CRTHEMES_VIRTUAL_HOST.'/httpd-default.conf '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
 
         $curFile = glob(CRTHEMES_URL_PROJECTS.'/'.$theme_client."/*.sql");
-        if(!empty($curFile)) {
-            $db_import = CRTHEMES_EXEC_MYSQL . " -uroot -proot $db_name <".$curFile[0];
-        }
 
         // Updated file wp-config.php
         $wp_config = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/wp-config.php";
@@ -128,24 +134,54 @@ class CRT_Register
         $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
         $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
         $virtual_host_content = file($virtual_host);
-        $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-        $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-        $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
-        $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
-        $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
-        $virtual_host_content[5] = "</VirtualHost>\r\n";
+        if($this->product_env == 'dev') {
+            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+            $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
+            $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
+            $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
+            $virtual_host_content[5] = "</VirtualHost>\r\n";
+        } elseif ($this->product_env == 'production') {
+            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+            $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
+            $virtual_host_content[3] = "ServerName $site_client_host\r\n";
+            $virtual_host_content[4] = "ServerAlias $site_client_host\r\n";
+            $virtual_host_content[5] = "<Directory $document_root>\r\n";
+            $virtual_host_content[6] = "Options Indexes FollowSymLinks\r\n";
+            $virtual_host_content[7] = "AllowOverride All\r\n";
+            $virtual_host_content[8] = "Require all granted\r\n";
+            $virtual_host_content[9] = "</Directory>\r\n";
+            $virtual_host_content[10] = "RewriteEngine on\r\n";
+            $virtual_host_content[11] = "RewriteCond %{SERVER_NAME} =$site_client_host\r\n";
+            $virtual_host_content[12] = "RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]\r\n";
+            $virtual_host_content[13] = "</VirtualHost>\r\n";
+            $virtual_host_content[14] = "<IfModule mod_ssl.c>\r\n";
+            $virtual_host_content[15] = "<VirtualHost $site_client_host:443>\r\n";
+            $virtual_host_content[16] = "DocumentRoot \"$document_root\" \r\n";
+            $virtual_host_content[17] = "ServerName $site_client_host\r\n";
+            $virtual_host_content[18] = "ServerAlias $site_client_host\r\n";
+            $virtual_host_content[19] = "SSLCertificateFile /etc/letsencrypt/live/crthemes.com/fullchain.pem\r\n";
+            $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com/privkey.pem\r\n";
+            $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
+            $virtual_host_content[22] = "</VirtualHost>\r\n";
+            $virtual_host_content[23] = "</IfModule>\r\n";
+        }
         $virtual_host_allContent = implode("", $virtual_host_content);
         file_put_contents($virtual_host, $virtual_host_allContent);
 
         // Create database
-        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$create_db_name\" ", $output, $retval);
-        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$create_db_user\" ", $output, $retval);
-        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_grant\" ", $output, $retval);
-        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_flush\" ", $output, $retval);
-        exec(CRTHEMES_EXEC_MYSQL . " -uroot -proot -e \"$db_exit\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$create_db_name\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$create_db_user\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$db_grant\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$db_flush\" ", $output, $retval);
+        exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$db_exit\" ", $output, $retval);
 
         // Import demo database
-        exec($db_import, $output, $retval);
+        if(!empty($curFile)) {
+            $db_import = CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." $db_name <".$curFile[0];
+            exec($db_import, $output, $retval);
+        }
 
         // Update for site
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_option\" ", $output, $retval);
@@ -158,10 +194,13 @@ class CRT_Register
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ", $output, $retval);
-//        echo CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ";die;
-//        exec('chown -R www-data:www-data /var/www/your_domain', $result);
-//        exec('chmod -R g+w /var/www/your_domain/wp-content/themes', $result);
-//        exec('chmod -R g+w /var/www/your_domain/wp-content/plugins', $result);
+        if($this->product_env == 'production') {
+            exec("sudo a2ensite httpd-".$theme_client.".conf", $output, $retval);
+            exec("systemctl reload apache2", $output, $retval);
+            exec("chown -R www-data:www-data ". $document_root, $output, $retval);
+            exec('chmod -R g+w '.$document_root.'/wp-content/themes', $output, $retval);
+            exec('chmod -R g+w '.$document_root.'/wp-content/plugins', $output, $retval);
+        }
 
         header('Content-Type: text/html');
         $client_info_site['db_user'] = $db_name;
