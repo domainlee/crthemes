@@ -2,6 +2,9 @@
 class CRT_Register
 {
     protected $data;
+
+    protected $product_env = 'dev'; // dev or production
+
     public function __construct() {
         add_filter( 'wpcf7_validate_text*', array( $this, 'custom_domain_confirmation_validation_filter' ), 20, 2 );
         add_filter( 'wpcf7_validate_email*', array( $this, 'custom_email_confirmation_validation_filter' ), 20, 2 );
@@ -13,9 +16,6 @@ class CRT_Register
         }
         if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
             define( 'CRTHEMES_URL_PROJECT_DEFAULT', '/Applications/MAMP/htdocs/users/default' );
-        }
-        if ( ! defined( 'CRTHEMES_URL_PROJECT_ITEM' ) ) {
-            define( 'CRTHEMES_URL_PROJECT_ITEM', '/Applications/MAMP/htdocs/users/' );
         }
         if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
             define( 'CRTHEMES_VIRTUAL_HOST', '/Applications/MAMP/conf/apache/users' );
@@ -83,7 +83,7 @@ class CRT_Register
         $output = null;
         $retval = null;
         // Copy Source
-        exec('cp -a '.CRTHEMES_URL_PROJECT_ITEM.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
+        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
 
         // Virtual Host
         exec('cp -a '.CRTHEMES_VIRTUAL_HOST.'/httpd-default.conf '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
