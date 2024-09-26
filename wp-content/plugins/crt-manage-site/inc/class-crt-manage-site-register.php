@@ -74,8 +74,8 @@ class CRT_Register
         $db_password = md5($theme_client);
 
         $create_db_name = "CREATE DATABASE $db_name;";
-        $create_db_user = "CREATE USER '$db_name'@'localhost' IDENTIFIED by '$db_password';";
-        $db_grant = "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_name'@'localhost' WITH GRANT OPTION;";
+        $create_db_user = "CREATE USER '$db_name'@'%' IDENTIFIED by '$db_password';";
+        $db_grant = "GRANT ALL PRIVILEGES ON $db_name.* to '$db_name'@'%'";
         $db_flush = "FLUSH PRIVILEGES;";
         $db_exit = "exit;";
 
@@ -165,7 +165,12 @@ class CRT_Register
             $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com/privkey.pem\r\n";
             $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
             $virtual_host_content[22] = "</VirtualHost>\r\n";
-            $virtual_host_content[23] = "</IfModule>\r\n";
+            $virtual_host_content[23] = "<Directory $document_root>\r\n";
+            $virtual_host_content[24] = "Options Indexes FollowSymLinks\r\n";
+            $virtual_host_content[25] = "AllowOverride All\r\n";
+            $virtual_host_content[26] = "Require all granted\r\n";
+            $virtual_host_content[27] = "</Directory>\r\n";
+            $virtual_host_content[28] = "</IfModule>\r\n";
         }
         $virtual_host_allContent = implode("", $virtual_host_content);
         file_put_contents($virtual_host, $virtual_host_allContent);
