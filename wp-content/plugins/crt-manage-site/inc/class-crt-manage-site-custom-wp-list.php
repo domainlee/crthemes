@@ -148,6 +148,28 @@ class Custom_Table_Example_List_Table extends WP_List_Table
             if (is_array($ids)) $ids = implode(',', $ids);
 
             if (!empty($ids)) {
+                if(CRTHEMES_PRODUCT_ENV == 'production') {
+                    $result = $wpdb->get_results("SELECT name, db_name FROM $table_name WHERE id IN($ids)", 'ARRAY_A');
+                    if(!empty($result)) {
+                        foreach ($result as $item_name) {
+                            $theme_client = $item_name['name'];
+                            $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
+                            $root_project = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+
+                            exec('rm -rf '.$virtual_host, $output, $retval);
+                            exec('rm -rf '.$root_project, $output, $retval);
+
+                            if(!empty($item_name['db_name'])) {
+                                $name = $item_name['db_name'];
+                                $drop_db_name = "DROP DATABASE ". $name . ";";
+                                $drop_db_user = "drop user '$name'@'%';";
+                                exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$drop_db_name\" ", $output, $retval);
+                                exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$drop_db_user\" ", $output, $retval);
+                            }
+                        }
+                        die;
+                    }
+                }
                 $wpdb->query("DELETE FROM $table_name WHERE id IN($ids)");
             }
         }
@@ -163,7 +185,7 @@ class Custom_Table_Example_List_Table extends WP_List_Table
         global $wpdb;
         $table_name = $wpdb->prefix . 'crtheme_manage_sites'; // do not forget about tables prefix
 
-        $per_page = 5; // constant, how much records will be shown per page
+        $per_page = 15; // constant, how much records will be shown per page
 
         $columns = $this->get_columns();
         $hidden = array();

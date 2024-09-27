@@ -3,36 +3,11 @@ class CRT_Register
 {
     protected $data;
 
-    protected $product_env = 'production'; // dev or production
-
     public function __construct() {
         add_filter( 'wpcf7_validate_text*', array( $this, 'custom_domain_confirmation_validation_filter' ), 20, 2 );
         add_filter( 'wpcf7_validate_email*', array( $this, 'custom_email_confirmation_validation_filter' ), 20, 2 );
         add_filter( 'wpcf7_mail_components', array( $this, 'my_wpcf7_mail_components' ), 10, 3 );
         add_action('wpcf7_mail_sent', array( $this, 'action_after_submit' ) );
-
-        if ( ! defined( 'CRTHEMES_URL_PROJECTS' ) ) {
-            $url_project = $this->product_env == 'dev' ? '/Applications/MAMP/htdocs/users':'/var/www/html/users';
-            define( 'CRTHEMES_URL_PROJECTS', $url_project );
-        }
-        if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
-            $url_project_default = $this->product_env == 'dev' ? '/Applications/MAMP/htdocs/users/default':'/var/www/html/users/default';
-            define( 'CRTHEMES_URL_PROJECT_DEFAULT', $url_project_default );
-        }
-        if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
-            $url_virtual_host = $this->product_env == 'dev' ? '/Applications/MAMP/conf/apache/users':'/etc/apache2/sites-enabled';
-            define( 'CRTHEMES_VIRTUAL_HOST', $url_virtual_host );
-        }
-        if ( ! defined( 'CRTHEMES_EXEC_MYSQL' ) ) {
-            $url_exec_mysql = $this->product_env == 'dev' ? '/Applications/MAMP/Library/bin/mysql':'mysql';
-            define('CRTHEMES_EXEC_MYSQL', $url_exec_mysql);
-        }
-
-        if ( ! defined( 'CRTHEMES_EXEC_MYSQL_ROOT' ) ) {
-            $url_exec_mysql_root = $this->product_env == 'dev' ? '-uroot -proot':'-uroot -pNewPassword@1234';
-            define('CRTHEMES_EXEC_MYSQL_ROOT', $url_exec_mysql_root);
-        }
-
         add_action('rest_api_init', function () {
             register_rest_route('register', '/active/(?P<code>[a-zA-Z0-9-]+)', array(
                 'methods' => 'GET',
@@ -65,9 +40,9 @@ class CRT_Register
 
         $wp_hasher = $this->randomPassword();
         $password = wp_hash_password($wp_hasher);
-        $site_theme = $this->product_env == 'dev' ? 'http://'.$theme_name.'.domain' : 'https://'.$theme_name.'.crthemes.com';
-        $site_client_host = $this->product_env == 'dev' ? $theme_client.'.domain' : $theme_client.'.crthemes.com';
-        $site_client = $this->product_env == 'dev' ? 'http://'.$site_client_host : 'https://'.$site_client_host;
+        $site_theme = CRTHEMES_PRODUCT_ENV == 'dev' ? 'http://'.$theme_name.'.domain' : 'https://'.$theme_name.'.crthemes.com';
+        $site_client_host = CRTHEMES_PRODUCT_ENV == 'dev' ? $theme_client.'.domain' : $theme_client.'.crthemes.com';
+        $site_client = CRTHEMES_PRODUCT_ENV == 'dev' ? 'http://'.$site_client_host : 'https://'.$site_client_host;
         $info_domain = parse_url($site_client);
 
         $db_name = "user_" . $this->crt_get_string($theme_client);
@@ -134,14 +109,14 @@ class CRT_Register
         $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
         $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
         $virtual_host_content = file($virtual_host);
-        if($this->product_env == 'dev') {
+        if(CRTHEMES_PRODUCT_ENV == 'dev') {
             $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
             $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
             $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
             $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
             $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
             $virtual_host_content[5] = "</VirtualHost>\r\n";
-        } elseif ($this->product_env == 'production') {
+        } elseif (CRTHEMES_PRODUCT_ENV == 'production') {
             $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
             $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
             $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
@@ -199,7 +174,7 @@ class CRT_Register
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ", $output, $retval);
-        if($this->product_env == 'production') {
+        if(CRTHEMES_PRODUCT_ENV == 'production') {
             exec("sudo a2ensite httpd-".$theme_client.".conf", $output, $retval);
             exec("systemctl reload apache2", $output, $retval);
             exec("chown -R www-data:www-data ". $document_root, $output, $retval);

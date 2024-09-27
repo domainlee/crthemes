@@ -7,6 +7,30 @@ class CRT_Manage_Site_Base {
     public static $_instance = '';
 
     public function __construct() {
+        if ( ! defined( 'CRTHEMES_PRODUCT_ENV' ) ) {
+            define( 'CRTHEMES_PRODUCT_ENV', 'production' ); // dev or production
+        }
+        if ( ! defined( 'CRTHEMES_URL_PROJECTS' ) ) {
+            $url_project = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/htdocs/users':'/var/www/html/users';
+            define( 'CRTHEMES_URL_PROJECTS', $url_project );
+        }
+        if ( ! defined( 'CRTHEMES_URL_PROJECT_DEFAULT' ) ) {
+            $url_project_default = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/htdocs/users/default':'/var/www/html/users/default';
+            define( 'CRTHEMES_URL_PROJECT_DEFAULT', $url_project_default );
+        }
+        if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
+            $url_virtual_host = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/conf/apache/users':'/etc/apache2/sites-enabled';
+            define( 'CRTHEMES_VIRTUAL_HOST', $url_virtual_host );
+        }
+        if ( ! defined( 'CRTHEMES_EXEC_MYSQL' ) ) {
+            $url_exec_mysql = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/Library/bin/mysql':'mysql';
+            define('CRTHEMES_EXEC_MYSQL', $url_exec_mysql);
+        }
+        if ( ! defined( 'CRTHEMES_EXEC_MYSQL_ROOT' ) ) {
+            $url_exec_mysql_root = CRTHEMES_PRODUCT_ENV == 'dev' ? '-uroot -proot':'-uroot -pNewPassword@1234';
+            define('CRTHEMES_EXEC_MYSQL_ROOT', $url_exec_mysql_root);
+        }
+
         $this->includes();
         global $table_crtheme_manage_sites;
         $table_crtheme_manage_sites = new CRT_DB();
@@ -46,7 +70,7 @@ class CRT_Manage_Site_Base {
 
         $message = '';
         if ('delete' === $table->current_action()) {
-            $message = '<div class="updated below-h2" id="message"><p>' . sprintf(__('Items deleted: %d', 'crt_manage'), count($_REQUEST['id'])) . '</p></div>';
+            $message = '<div class="updated below-h2" id="message"><p>' . sprintf(__('Items deleted: %d', 'crt_manage'), $_REQUEST['id']) . '</p></div>';
         }
         ?>
         <div class="wrap">
