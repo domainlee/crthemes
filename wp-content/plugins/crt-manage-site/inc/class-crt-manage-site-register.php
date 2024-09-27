@@ -95,7 +95,7 @@ class CRT_Register
         exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
 
         // Virtual Host
-        exec('cp -a '.CRTHEMES_VIRTUAL_HOST.'/httpd-default.conf '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
+        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
 
         $curFile = glob(CRTHEMES_URL_PROJECTS.'/'.$theme_client."/*.sql");
 
@@ -164,12 +164,12 @@ class CRT_Register
             $virtual_host_content[19] = "SSLCertificateFile /etc/letsencrypt/live/crthemes.com/fullchain.pem\r\n";
             $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com/privkey.pem\r\n";
             $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
-            $virtual_host_content[22] = "</VirtualHost>\r\n";
-            $virtual_host_content[23] = "<Directory $document_root>\r\n";
-            $virtual_host_content[24] = "Options Indexes FollowSymLinks\r\n";
-            $virtual_host_content[25] = "AllowOverride All\r\n";
-            $virtual_host_content[26] = "Require all granted\r\n";
-            $virtual_host_content[27] = "</Directory>\r\n";
+            $virtual_host_content[22] = "<Directory $document_root>\r\n";
+            $virtual_host_content[23] = "Options Indexes FollowSymLinks\r\n";
+            $virtual_host_content[24] = "AllowOverride All\r\n";
+            $virtual_host_content[25] = "Require all granted\r\n";
+            $virtual_host_content[26] = "</Directory>\r\n";
+            $virtual_host_content[27] = "</VirtualHost>\r\n";
             $virtual_host_content[28] = "</IfModule>\r\n";
         }
         $virtual_host_allContent = implode("", $virtual_host_content);
