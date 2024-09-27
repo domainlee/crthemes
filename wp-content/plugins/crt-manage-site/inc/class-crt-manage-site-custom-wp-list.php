@@ -34,9 +34,19 @@ class Custom_Table_Example_List_Table extends WP_List_Table
      * @param $item - row (key, value array)
      * @return HTML
      */
-    function column_age($item)
+    function column_status($item)
     {
-        return '<em>' . $item['age'] . '</em>';
+        return '<em>' . $item['status'] . '</em>';
+    }
+
+    function column_date($item)
+    {
+        return '<em>' . $item['date'] . '</em>';
+    }
+
+    function column_domain_transfer($item)
+    {
+        return '<em>' . $item['domain_transfer'] . '</em>';
     }
 
     /**
@@ -86,7 +96,9 @@ class Custom_Table_Example_List_Table extends WP_List_Table
             'cb' => '<input type="checkbox" />', //Render a checkbox instead of text
             'name' => __('Name', 'crt_manage'),
             'email' => __('E-Mail', 'crt_manage'),
-            'age' => __('Age', 'crt_manage'),
+            'status' => __('Status', 'crt_manage'),
+            'date' => __('Date', 'crt_manage'),
+            'domain_transfer' => __('Domain Transfer', 'crt_manage'),
         );
         return $columns;
     }
@@ -101,9 +113,7 @@ class Custom_Table_Example_List_Table extends WP_List_Table
     function get_sortable_columns()
     {
         $sortable_columns = array(
-            'name' => array('name', true),
-            'email' => array('email', false),
-            'age' => array('age', false),
+            'date' => array('date', true),
         );
         return $sortable_columns;
     }

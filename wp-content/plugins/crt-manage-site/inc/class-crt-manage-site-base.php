@@ -79,7 +79,6 @@ class CRT_Manage_Site_Base {
             'id' => 0,
             'name' => '',
             'email' => '',
-            'age' => null,
         );
 
         // here we are verifying does this request is post back and have correct nonce
@@ -183,15 +182,6 @@ class CRT_Manage_Site_Base {
                            size="50" class="code" placeholder="<?php _e('Your E-Mail', 'crt_manage')?>" required>
                 </td>
             </tr>
-            <tr class="form-field">
-                <th valign="top" scope="row">
-                    <label for="age"><?php _e('Age', 'crt_manage')?></label>
-                </th>
-                <td>
-                    <input id="age" name="age" type="number" style="width: 95%" value="<?php echo esc_attr($item['age'])?>"
-                           size="50" class="code" placeholder="<?php _e('Your age', 'crt_manage')?>" required>
-                </td>
-            </tr>
             </tbody>
         </table>
         <?php
@@ -200,13 +190,13 @@ class CRT_Manage_Site_Base {
     public function crt_manage_validate_person($item)
     {
         $messages = array();
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'crtheme_manage_sites'; // do not forget about tables prefix
+        $item_result = $wpdb->get_row($wpdb->prepare("SELECT id, name FROM " . $table_name . " WHERE name = '".$item['name']."' ORDER BY id ASC"), 'ARRAY_A');
 
         if (empty($item['name'])) $messages[] = __('Name is required', 'crt_manage');
         if (!empty($item['email']) && !is_email($item['email'])) $messages[] = __('E-Mail is in wrong format', 'crt_manage');
-        if (!ctype_digit($item['age'])) $messages[] = __('Age in wrong format', 'crt_manage');
-        //if(!empty($item['age']) && !absint(intval($item['age'])))  $messages[] = __('Age can not be less than zero');
-        //if(!empty($item['age']) && !preg_match('/[0-9]+/', $item['age'])) $messages[] = __('Age must be number');
-        //...
+        if(!empty($item_result) && $item_result['id'] != $item['id']) $messages[] = __('Domain is exist', 'crt_manage');
 
         if (empty($messages)) return true;
         return implode('<br />', $messages);
