@@ -165,9 +165,9 @@ class Custom_Table_Example_List_Table extends WP_List_Table
                                 $drop_db_user = "drop user '$name'@'%';";
                                 exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$drop_db_name\" ", $output, $retval);
                                 exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$drop_db_user\" ", $output, $retval);
+                                exec("sudo systemctl restart apache2", $output, $retval);
                             }
                         }
-                        die;
                     }
                 }
                 $wpdb->query("DELETE FROM $table_name WHERE id IN($ids)");

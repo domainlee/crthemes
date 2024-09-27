@@ -106,7 +106,7 @@ class CRT_Register
         file_put_contents($htaccess, $htaccess_allContent);
 
         // Create Virtual Host
-        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/';
         $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
         $virtual_host_content = file($virtual_host);
         if(CRTHEMES_PRODUCT_ENV == 'dev') {
@@ -174,13 +174,6 @@ class CRT_Register
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_password\" ", $output, $retval);
-        if(CRTHEMES_PRODUCT_ENV == 'production') {
-            exec("sudo a2ensite httpd-".$theme_client.".conf", $output, $retval);
-            exec("systemctl reload apache2", $output, $retval);
-            exec("chown -R www-data:www-data ". $document_root, $output, $retval);
-            exec('chmod -R g+w '.$document_root.'/wp-content/themes', $output, $retval);
-            exec('chmod -R g+w '.$document_root.'/wp-content/plugins', $output, $retval);
-        }
 
         header('Content-Type: text/html');
         $client_info_site['db_user'] = $db_name;
@@ -192,6 +185,15 @@ class CRT_Register
         echo '<p>Your site wp-admin: '. $site_client .'/wp-admin'. '</p>';
         echo '<p>Username: admin'. '</p>';
         echo '<p>Password: '.$wp_hasher. '</p>';
+
+        if(CRTHEMES_PRODUCT_ENV == 'production') {
+            exec("sudo a2ensite httpd-".$theme_client.".conf", $output, $retval);
+            exec("chown -R www-data:www-data ". $document_root, $output, $retval);
+            exec('chmod -R g+w '.$document_root.'/wp-content/themes', $output, $retval);
+            exec('chmod -R g+w '.$document_root.'/wp-content/plugins', $output, $retval);
+            exec("sudo resolvectl flush-caches", $output, $retval);
+            exec("sudo systemctl restart apache2", $output, $retval);
+        }
         return;
     }
 
@@ -261,7 +263,7 @@ class CRT_Register
     }
 
     public function action_after_submit ($cf7) {
-        if($cf7->id == 576) {
+        if($cf7->id == 596) {
             global $table_crtheme_manage_sites;
 
             $email_client = $_POST['your-email'];
