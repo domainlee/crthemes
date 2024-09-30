@@ -19,7 +19,7 @@ class CRT_Manage_Site_Base {
             define( 'CRTHEMES_URL_PROJECT_DEFAULT', $url_project_default );
         }
         if ( ! defined( 'CRTHEMES_VIRTUAL_HOST' ) ) {
-            $url_virtual_host = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/conf/apache/users':'/etc/apache2/sites-enabled';
+            $url_virtual_host = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/conf/apache/users':'/etc/apache2/users';
             define( 'CRTHEMES_VIRTUAL_HOST', $url_virtual_host );
         }
         if ( ! defined( 'CRTHEMES_EXEC_MYSQL' ) ) {

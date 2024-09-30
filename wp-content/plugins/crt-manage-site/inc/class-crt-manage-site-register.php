@@ -20,8 +20,19 @@ class CRT_Register
                 'callback' => array($this, 'transfer'),
                 'permission_callback' => '__return_true',
             ));
+
+            register_rest_route('refresh', 'apache', array(
+                'methods' => 'GET',
+                'callback' => array($this, 'active_apache'),
+                'permission_callback' => '__return_true',
+            ));
         });
 
+    }
+
+    public function active_apache($request) {
+        echo '1234';
+        exec("sudo systemctl restart apache2", $output, $retval);
     }
 
     public function active_site($request) {
@@ -106,49 +117,46 @@ class CRT_Register
         file_put_contents($htaccess, $htaccess_allContent);
 
         // Create Virtual Host
-        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/';
-        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
-        $virtual_host_content = file($virtual_host);
-        if(CRTHEMES_PRODUCT_ENV == 'dev') {
-            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-            $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
-            $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
-            $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
-            $virtual_host_content[5] = "</VirtualHost>\r\n";
-        } elseif (CRTHEMES_PRODUCT_ENV == 'production') {
-            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-            $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
-            $virtual_host_content[3] = "ServerName $site_client_host\r\n";
-            $virtual_host_content[4] = "ServerAlias $site_client_host\r\n";
-            $virtual_host_content[5] = "<Directory $document_root>\r\n";
-            $virtual_host_content[6] = "Options Indexes FollowSymLinks\r\n";
-            $virtual_host_content[7] = "AllowOverride All\r\n";
-            $virtual_host_content[8] = "Require all granted\r\n";
-            $virtual_host_content[9] = "</Directory>\r\n";
-            $virtual_host_content[10] = "RewriteEngine on\r\n";
-            $virtual_host_content[11] = "RewriteCond %{SERVER_NAME} =$site_client_host\r\n";
-            $virtual_host_content[12] = "RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]\r\n";
-            $virtual_host_content[13] = "</VirtualHost>\r\n";
-            $virtual_host_content[14] = "<IfModule mod_ssl.c>\r\n";
-            $virtual_host_content[15] = "<VirtualHost $site_client_host:443>\r\n";
-            $virtual_host_content[16] = "DocumentRoot \"$document_root\" \r\n";
-            $virtual_host_content[17] = "ServerName $site_client_host\r\n";
-            $virtual_host_content[18] = "ServerAlias $site_client_host\r\n";
-            $virtual_host_content[19] = "SSLCertificateFile /etc/letsencrypt/live/crthemes.com/fullchain.pem\r\n";
-            $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com/privkey.pem\r\n";
-            $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
-            $virtual_host_content[22] = "<Directory $document_root>\r\n";
-            $virtual_host_content[23] = "Options Indexes FollowSymLinks\r\n";
-            $virtual_host_content[24] = "AllowOverride All\r\n";
-            $virtual_host_content[25] = "Require all granted\r\n";
-            $virtual_host_content[26] = "</Directory>\r\n";
-            $virtual_host_content[27] = "</VirtualHost>\r\n";
-            $virtual_host_content[28] = "</IfModule>\r\n";
-        }
-        $virtual_host_allContent = implode("", $virtual_host_content);
-        file_put_contents($virtual_host, $virtual_host_allContent);
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+//        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
+//        $virtual_host_content = file($virtual_host);
+//        if(CRTHEMES_PRODUCT_ENV == 'dev') {
+//            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+//            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+//            $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
+//            $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
+//            $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
+//            $virtual_host_content[5] = "</VirtualHost>\r\n";
+//        } elseif (CRTHEMES_PRODUCT_ENV == 'production') {
+//            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
+//            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
+//            $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
+//            $virtual_host_content[3] = "#ServerName $site_client_host \r\n";
+//            $virtual_host_content[4] = "ServerAlias $site_client_host \r\n";
+//            $virtual_host_content[5] = "<Directory $document_root/>\r\n";
+//            $virtual_host_content[6] = "Options Includes Indexes FollowSymLinks\r\n";
+//            $virtual_host_content[7] = "AllowOverride All\r\n";
+//            $virtual_host_content[8] = "Require all granted\r\n";
+//            $virtual_host_content[9] = "</Directory>\r\n";
+//            $virtual_host_content[13] = "</VirtualHost>\r\n";
+//            $virtual_host_content[14] = "<IfModule mod_ssl.c>\r\n";
+//            $virtual_host_content[15] = "<VirtualHost $site_client_host:443>\r\n";
+//            $virtual_host_content[16] = "DocumentRoot \"$document_root\" \r\n";
+//            $virtual_host_content[17] = "#ServerName $site_client_host \r\n";
+//            $virtual_host_content[18] = "ServerAlias $site_client_host \r\n";
+//            $virtual_host_content[19] = "SSLCertificateFile /etc/letsencrypt/live/crthemes.com-0001/fullchain.pem\r\n";
+//            $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com-0001/privkey.pem\r\n";
+//            $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
+//            $virtual_host_content[22] = "<Directory $document_root/>\r\n";
+//            $virtual_host_content[23] = "Options Includes Indexes FollowSymLinks\r\n";
+//            $virtual_host_content[24] = "AllowOverride All\r\n";
+//            $virtual_host_content[25] = "Require all granted\r\n";
+//            $virtual_host_content[26] = "</Directory>\r\n";
+//            $virtual_host_content[27] = "</VirtualHost>\r\n";
+//            $virtual_host_content[28] = "</IfModule>\r\n";
+//        }
+//        $virtual_host_allContent = implode("", $virtual_host_content);
+//        file_put_contents($virtual_host, $virtual_host_allContent);
 
         // Create database
         exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$create_db_name\" ", $output, $retval);
@@ -187,12 +195,9 @@ class CRT_Register
         echo '<p>Password: '.$wp_hasher. '</p>';
 
         if(CRTHEMES_PRODUCT_ENV == 'production') {
-            exec("sudo a2ensite httpd-".$theme_client.".conf", $output, $retval);
             exec("chown -R www-data:www-data ". $document_root, $output, $retval);
             exec('chmod -R g+w '.$document_root.'/wp-content/themes', $output, $retval);
             exec('chmod -R g+w '.$document_root.'/wp-content/plugins', $output, $retval);
-            exec("sudo resolvectl flush-caches", $output, $retval);
-            exec("sudo systemctl restart apache2", $output, $retval);
         }
         return;
     }
