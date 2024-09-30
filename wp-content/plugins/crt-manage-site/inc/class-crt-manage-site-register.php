@@ -52,6 +52,7 @@ class CRT_Register
         $wp_hasher = $this->randomPassword();
         $password = wp_hash_password($wp_hasher);
         $site_theme = CRTHEMES_PRODUCT_ENV == 'dev' ? 'http://'.$theme_name.'.domain' : 'https://'.$theme_name.'.crthemes.com';
+        $site_folder_demo = CRTHEMES_PRODUCT_ENV == 'dev' ? $theme_name.'.domain' : $theme_name.'.crthemes.com';
         $site_client_host = CRTHEMES_PRODUCT_ENV == 'dev' ? $theme_client.'.domain' : $theme_client.'.crthemes.com';
         $site_client = CRTHEMES_PRODUCT_ENV == 'dev' ? 'http://'.$site_client_host : 'https://'.$site_client_host;
         $info_domain = parse_url($site_client);
@@ -78,15 +79,15 @@ class CRT_Register
         $output = null;
         $retval = null;
         // Copy Source
-        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_name.'/ '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
+        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$site_folder_demo.'/ '.CRTHEMES_URL_PROJECTS.'/'.$site_client_host, $output, $retval);
 
         // Virtual Host
-        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
+//        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf', $output, $retval);
 
-        $curFile = glob(CRTHEMES_URL_PROJECTS.'/'.$theme_client."/*.sql");
+        $curFile = glob(CRTHEMES_URL_PROJECTS.'/'.$site_client_host."/*.sql");
 
         // Updated file wp-config.php
-        $wp_config = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/wp-config.php";
+        $wp_config = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/wp-config.php";
         $content = file($wp_config);
         $content[23] = "define( 'DB_NAME', '$db_name' );\r\n";
         unset($content[22]);
@@ -109,7 +110,7 @@ class CRT_Register
         file_put_contents($wp_config, $allContent);
 
         // Updated file .htaccess
-        $htaccess = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/.htaccess";
+        $htaccess = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/.htaccess";
         $htaccess_content = file($htaccess);
         $htaccess_content[8] = "RewriteBase $path\r\n";
         $htaccess_content[12] = "RewriteRule . $path2 [L]\r\n";
@@ -117,7 +118,7 @@ class CRT_Register
         file_put_contents($htaccess, $htaccess_allContent);
 
         // Create Virtual Host
-        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
 //        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
 //        $virtual_host_content = file($virtual_host);
 //        if(CRTHEMES_PRODUCT_ENV == 'dev') {
@@ -216,14 +217,13 @@ class CRT_Register
             exit();
         }
 
-        $site_theme = 'http://'.$client_info_site['name'].'.domain';
+        $site_theme = 'https://'.$client_info_site['name'].'.crthemes.com';
         $site_client_host = $domain;
-        $site_client = 'http://'.$site_client_host;
-        $theme_client = $client_info_site['name'];
+        $site_client = 'https://'.$site_client_host;
+        $theme_client = $client_info_site['name'].'.crthemes.com';
 
         $db_name = $client_info_site['db_user'];
         $db_password = $client_info_site['db_password'];
-
 
         $db_update_option = "UPDATE wp_options SET option_value = REPLACE(option_value, '$site_theme', '$site_client') WHERE option_name = 'home' OR option_name = 'siteurl';";
         $db_update_post_content = "UPDATE wp_posts SET post_content = REPLACE (post_content, '$site_theme', '$site_client');";
@@ -247,19 +247,20 @@ class CRT_Register
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
 
-        // Update Virtual Host
-        $document_root = CRTHEMES_URL_PROJECTS.'/'.$theme_client;
-        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
-        $virtual_host_content = file($virtual_host);
-        $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-        $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-        $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
-        $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
-        $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
-        $virtual_host_content[5] = "</VirtualHost>\r\n";
-        $virtual_host_allContent = implode("", $virtual_host_content);
-        file_put_contents($virtual_host, $virtual_host_allContent);
+//        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/ '.CRTHEMES_URL_PROJECTS.'/'.$site_client_host, $output, $retval);
+//        exec('rm -rf '.CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/', $output, $retval);
 
+        $from = CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/';
+        $to = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
+
+        exec("mv " . escapeshellarg($from) . " " . escapeshellarg($to));
+
+        $document_root = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
+        exec("chown -R www-data:www-data ". $document_root, $output, $retval);
+        exec('chmod -R g+w '.$document_root.'/wp-content/themes', $output, $retval);
+        exec('chmod -R g+w '.$document_root.'/wp-content/plugins', $output, $retval);
+
+        // Update Virtual Host
         $client_info_site['domain_transfer'] = $site_client_host;
         $table_crtheme_manage_sites->update($client_info_site);
 
