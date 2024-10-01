@@ -35,6 +35,23 @@ class CRT_Register
         exec("sudo systemctl restart apache2", $output, $retval);
     }
 
+    public function replace_string_in_file($filename, $string_to_replace, $replace_with){
+        $content = file($filename);
+        $key = '';
+        foreach ($content as $k => $c){
+            if (strpos($c, $string_to_replace) === 0){
+                $key = $k;
+            } else if (strcmp($string_to_replace, $c) < 0){
+                break;
+            }
+        }
+        if(!empty($key)) {
+            $content[$key] = $replace_with;
+        }
+        $allContent = implode("", $content);
+        file_put_contents($filename, $allContent);
+    }
+
     public function active_site($request) {
         $code = $request['code'];
         global $table_crtheme_manage_sites;
@@ -88,16 +105,12 @@ class CRT_Register
 
         // Updated file wp-config.php
         $wp_config = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/wp-config.php";
-        $content = file($wp_config);
-        $content[23] = "define( 'DB_NAME', '$db_name' );\r\n";
-        unset($content[22]);
-        $content[26] = "define( 'DB_USER', '$db_name' );\r\n";
-        unset($content[25]);
-        $content[29] = "define( 'DB_PASSWORD', '$db_password' );\r\n\r\n";
-        unset($content[28]);
 
-        $content[30] = "define( 'WP_HOME', '$site_client' );\r\n";
-        $content[31] = "define( 'WP_SITEURL', '$site_client' );";
+        $this->replace_string_in_file($wp_config, "define( 'DB_NAME'", "define( 'DB_NAME', '$db_name' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'DB_USER'", "define( 'DB_USER', '$db_name' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'DB_PASSWORD'", "define( 'DB_USER', '$db_password' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'WP_HOME'", "define( 'WP_HOME', '$site_client' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'WP_SITEURL'", "define( 'WP_SITEURL', '$site_client' );\r\n");
 
         $path = '/';
         $path2 = '/index.php';
@@ -105,9 +118,6 @@ class CRT_Register
             $path = $info_domain['path'] . '/';
             $path2 = $info_domain['path'] . '/index.php';
         }
-
-        $allContent = implode("", $content);
-        file_put_contents($wp_config, $allContent);
 
         // Updated file .htaccess
         $htaccess = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/.htaccess";
@@ -119,45 +129,6 @@ class CRT_Register
 
         // Create Virtual Host
         $document_root = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
-//        $virtual_host = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$theme_client.'.conf';
-//        $virtual_host_content = file($virtual_host);
-//        if(CRTHEMES_PRODUCT_ENV == 'dev') {
-//            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-//            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-//            $virtual_host_content[2] = "    DocumentRoot \"$document_root\" \r\n";
-//            $virtual_host_content[3] = "    ServerName $site_client_host\r\n";
-//            $virtual_host_content[4] = "    ServerAlias $site_client_host\r\n";
-//            $virtual_host_content[5] = "</VirtualHost>\r\n";
-//        } elseif (CRTHEMES_PRODUCT_ENV == 'production') {
-//            $virtual_host_content[0] = "ServerName $site_client_host:80\r\n";
-//            $virtual_host_content[1] = "<VirtualHost $site_client_host:80>\r\n";
-//            $virtual_host_content[2] = "DocumentRoot \"$document_root\" \r\n";
-//            $virtual_host_content[3] = "#ServerName $site_client_host \r\n";
-//            $virtual_host_content[4] = "ServerAlias $site_client_host \r\n";
-//            $virtual_host_content[5] = "<Directory $document_root/>\r\n";
-//            $virtual_host_content[6] = "Options Includes Indexes FollowSymLinks\r\n";
-//            $virtual_host_content[7] = "AllowOverride All\r\n";
-//            $virtual_host_content[8] = "Require all granted\r\n";
-//            $virtual_host_content[9] = "</Directory>\r\n";
-//            $virtual_host_content[13] = "</VirtualHost>\r\n";
-//            $virtual_host_content[14] = "<IfModule mod_ssl.c>\r\n";
-//            $virtual_host_content[15] = "<VirtualHost $site_client_host:443>\r\n";
-//            $virtual_host_content[16] = "DocumentRoot \"$document_root\" \r\n";
-//            $virtual_host_content[17] = "#ServerName $site_client_host \r\n";
-//            $virtual_host_content[18] = "ServerAlias $site_client_host \r\n";
-//            $virtual_host_content[19] = "SSLCertificateFile /etc/letsencrypt/live/crthemes.com-0001/fullchain.pem\r\n";
-//            $virtual_host_content[20] = "SSLCertificateKeyFile /etc/letsencrypt/live/crthemes.com-0001/privkey.pem\r\n";
-//            $virtual_host_content[21] = "Include /etc/letsencrypt/options-ssl-apache.conf\r\n";
-//            $virtual_host_content[22] = "<Directory $document_root/>\r\n";
-//            $virtual_host_content[23] = "Options Includes Indexes FollowSymLinks\r\n";
-//            $virtual_host_content[24] = "AllowOverride All\r\n";
-//            $virtual_host_content[25] = "Require all granted\r\n";
-//            $virtual_host_content[26] = "</Directory>\r\n";
-//            $virtual_host_content[27] = "</VirtualHost>\r\n";
-//            $virtual_host_content[28] = "</IfModule>\r\n";
-//        }
-//        $virtual_host_allContent = implode("", $virtual_host_content);
-//        file_put_contents($virtual_host, $virtual_host_allContent);
 
         // Create database
         exec(CRTHEMES_EXEC_MYSQL . " ".CRTHEMES_EXEC_MYSQL_ROOT." -e \"$create_db_name\" ", $output, $retval);
@@ -247,13 +218,35 @@ class CRT_Register
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_comment_author\" ", $output, $retval);
         exec(CRTHEMES_EXEC_MYSQL . " -u$db_name -p$db_password $db_name -e \"$db_update_guid\" ", $output, $retval);
 
-//        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/ '.CRTHEMES_URL_PROJECTS.'/'.$site_client_host, $output, $retval);
-//        exec('rm -rf '.CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/', $output, $retval);
+        exec('cp -a '.CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/ '.CRTHEMES_URL_PROJECTS.'/'.$site_client_host, $output, $retval);
+        exec('certbot -d '.$domain.' certonly --manual --no-eff-email --email domainlee.niit@gmail.com');
 
-        $from = CRTHEMES_URL_PROJECTS.'/'.$theme_client.'/';
-        $to = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
+        //Create SSL
+        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf', $output, $retval);
+        $virtual_host_ssl_file = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf';
+        $virtual_host_ssl = file($virtual_host_ssl_file);
+        $virtual_host_ssl[0] =  "<IfModule mod_ssl.c> \r\n";
+        $virtual_host_ssl[1] =  "<VirtualHost *:443> \r\n";
+        $virtual_host_ssl[2] =  "VirtualDocumentRoot \"/var/www/html/users/%0\" \r\n";
+        $virtual_host_ssl[3] =  "ServerAlias * \r\n";
+        $virtual_host_ssl[4] =  "SSLCertificateFile /etc/letsencrypt/live/$domain/fullchain.pem \r\n";
+        $virtual_host_ssl[5] =  "SSLCertificateKeyFile /etc/letsencrypt/live/$domain/privkey.pem \r\n";
+        $virtual_host_ssl[6] =  "Include /etc/letsencrypt/options-ssl-apache.conf \r\n";
+        $virtual_host_ssl[7] =  "<Directory /var/www/html/users/*/> \r\n";
+        $virtual_host_ssl[8] =  "Options Includes Indexes FollowSymLinks \r\n";
+        $virtual_host_ssl[9] =  "AllowOverride All \r\n";
+        $virtual_host_ssl[10] =  "Require all granted \r\n";
+        $virtual_host_ssl[12] =  "</Directory> \r\n";
+        $virtual_host_ssl[13] =  "</VirtualHost> \r\n";
+        $virtual_host_ssl[14] =  "</IfModule> \r\n";
+        $virtual_host_ssl_content = implode("", $virtual_host_ssl);
+        file_put_contents($virtual_host_ssl_file, $virtual_host_ssl_content);
 
-        exec("mv " . escapeshellarg($from) . " " . escapeshellarg($to));
+        // Updated file wp-config.php
+        $wp_config = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/wp-config.php";
+        $this->replace_string_in_file($wp_config, "define( 'WP_HOME'", "define( 'WP_HOME', '$site_client' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'WP_SITEURL'", "define( 'WP_SITEURL', '$site_client' );\r\n");
+
 
         $document_root = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
         exec("chown -R www-data:www-data ". $document_root, $output, $retval);
