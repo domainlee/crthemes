@@ -8,7 +8,7 @@ class CRT_Manage_Site_Base {
 
     public function __construct() {
         if ( ! defined( 'CRTHEMES_PRODUCT_ENV' ) ) {
-            define( 'CRTHEMES_PRODUCT_ENV', 'dev' ); // dev or production
+            define( 'CRTHEMES_PRODUCT_ENV', 'production' ); // dev or production
         }
         if ( ! defined( 'CRTHEMES_URL_PROJECTS' ) ) {
             $url_project = CRTHEMES_PRODUCT_ENV == 'dev' ? '/Applications/MAMP/htdocs/users':'/var/www/html/users';
