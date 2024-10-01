@@ -35,11 +35,11 @@ class CRT_Register
         exec("sudo systemctl restart apache2", $output, $retval);
     }
 
-    public function replace_string_in_file($filename, $string_to_replace, $replace_with){
+    public function replace_string_in_file($filename, $find_row, $replace_with){
         $content = file($filename);
         $key = '';
         foreach ($content as $k => $c){
-            if (strpos($c, $string_to_replace) === 0){
+            if (strpos($c, $find_row) === 0){
                 $key = $k;
             }
         }
