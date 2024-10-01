@@ -41,8 +41,6 @@ class CRT_Register
         foreach ($content as $k => $c){
             if (strpos($c, $string_to_replace) === 0){
                 $key = $k;
-            } else if (strcmp($string_to_replace, $c) < 0){
-                break;
             }
         }
         if(!empty($key)) {
@@ -243,9 +241,13 @@ class CRT_Register
         file_put_contents($virtual_host_ssl_file, $virtual_host_ssl_content);
 
         // Updated file wp-config.php
+        $main_wp_config = CRTHEMES_URL_PROJECTS.'/'.$theme_client ."/wp-config.php";
         $wp_config = CRTHEMES_URL_PROJECTS.'/'.$site_client_host ."/wp-config.php";
         $this->replace_string_in_file($wp_config, "define( 'WP_HOME'", "define( 'WP_HOME', '$site_client' );\r\n");
         $this->replace_string_in_file($wp_config, "define( 'WP_SITEURL'", "define( 'WP_SITEURL', '$site_client' );\r\n");
+
+        $this->replace_string_in_file($main_wp_config, "define( 'WP_HOME'", "define( 'WP_HOME', '$site_client' );\r\n");
+        $this->replace_string_in_file($main_wp_config, "define( 'WP_SITEURL'", "define( 'WP_SITEURL', '$site_client' );\r\n");
 
 
         $document_root = CRTHEMES_URL_PROJECTS.'/'.$site_client_host;
