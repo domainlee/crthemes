@@ -108,7 +108,7 @@ class CRT_Register
 
         $this->replace_string_in_file($wp_config, "define( 'DB_NAME'", "define( 'DB_NAME', '$db_name' );\r\n");
         $this->replace_string_in_file($wp_config, "define( 'DB_USER'", "define( 'DB_USER', '$db_name' );\r\n");
-        $this->replace_string_in_file($wp_config, "define( 'DB_PASSWORD'", "define( 'DB_USER', '$db_password' );\r\n");
+        $this->replace_string_in_file($wp_config, "define( 'DB_PASSWORD'", "define( 'DB_PASSWORD', '$db_password' );\r\n");
         $this->replace_string_in_file($wp_config, "define( 'WP_HOME'", "define( 'WP_HOME', '$site_client' );\r\n");
         $this->replace_string_in_file($wp_config, "define( 'WP_SITEURL'", "define( 'WP_SITEURL', '$site_client' );\r\n");
 
