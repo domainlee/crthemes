@@ -60,6 +60,13 @@ class CRT_Register
             echo '<p>Code: ' . $code . ' not exists</p>';
             return;
         }
+        if($client_info_site['status'] == 1) {
+            header('Content-Type: text/html');
+            echo '<style>body {font-family: Arial, "Times New Roman", "Bitstream Charter", Times, serif; font-size: 14px;} p {margin: 0 0 5px;}</style>';
+            echo '<p>Code: ' . $code . ' Actived</p>';
+            return;
+        }
+
         $theme_name = $client_info_site['theme_id'];
         $theme_client = $client_info_site['name'];
         $code = $client_info_site['active_code'];
@@ -157,6 +164,7 @@ class CRT_Register
         $client_info_site['db_user'] = $db_name;
         $client_info_site['db_name'] = $db_name;
         $client_info_site['db_password'] = $db_password;
+        $client_info_site['status'] = $table_crtheme_manage_sites::STATUS_ACTIVE;
         $table_crtheme_manage_sites->update($client_info_site);
         echo '<style>body {font-family: Arial, "Times New Roman", "Bitstream Charter", Times, serif; font-size: 14px;} p {margin: 0 0 5px;}</style>';
         echo '<p>Your site: ' . $site_client . '</p>';
@@ -330,6 +338,10 @@ class CRT_Register
 
     public function is_valid_domain_name($domain_name)
     {
+        $domain = strpos($domain_name, '.');
+        if ($domain !== false) {
+            return false;
+        }
         return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
             && preg_match("/^.{1,253}$/", $domain_name) //overall length check
             && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)   ); //length of each label
