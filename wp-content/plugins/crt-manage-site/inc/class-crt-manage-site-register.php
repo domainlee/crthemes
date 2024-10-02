@@ -188,7 +188,7 @@ class CRT_Register
 
         $site_theme = 'https://'.$client_info_site['name'].'.crthemes.com';
         $site_client_host = $domain;
-        $site_client = 'https://'.$site_client_host;
+        $site_client = 'http://'.$site_client_host;
         $theme_client = $client_info_site['name'].'.crthemes.com';
 
         $db_name = $client_info_site['db_user'];
@@ -220,8 +220,8 @@ class CRT_Register
         exec('certbot -d '.$domain.' certonly --manual --no-eff-email --email domainlee.niit@gmail.com');
 
         //Create SSL
-        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf', $output, $retval);
-        $virtual_host_ssl_file = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf';
+        exec('touch '.CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf.bak', $output, $retval);
+        $virtual_host_ssl_file = CRTHEMES_VIRTUAL_HOST.'/httpd-'.$domain.'-ssl.conf.bak';
         $virtual_host_ssl = file($virtual_host_ssl_file);
         $virtual_host_ssl[0] =  "<IfModule mod_ssl.c> \r\n";
         $virtual_host_ssl[1] =  "<VirtualHost *:443> \r\n";
@@ -260,6 +260,7 @@ class CRT_Register
         $table_crtheme_manage_sites->update($client_info_site);
 
         echo 'done';
+//        exec('rm -rf '.CRTHEMES_URL_PROJECTS.'/'.$theme_client, $output, $retval);
         exit();
     }
 
