@@ -51,7 +51,12 @@ class Custom_Table_Code_List_Table extends WP_List_Table
 
     function column_active_date($item)
     {
-        return '<em>' . $item['active_date'] . '</em>';
+        return '<em>' . $item['active_date'] . '</em><p>'.$item['site'].'</p>';
+    }
+
+    function column_site($item)
+    {
+        return '<p>'.$item['site'].'</p>';
     }
 
     /**
@@ -104,6 +109,7 @@ class Custom_Table_Code_List_Table extends WP_List_Table
             'status' => __('Status', 'crt_manage_code'),
             'date' => __('Date', 'crt_manage_code'),
             'active_date' => __('Date Active', 'crt_manage_code'),
+            'site' => __('Site Active', 'crt_manage_code'),
         );
         return $columns;
     }

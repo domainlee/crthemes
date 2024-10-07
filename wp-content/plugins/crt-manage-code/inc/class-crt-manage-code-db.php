@@ -9,6 +9,7 @@ class CRT_DB_CODE
         'date' => '',
         'active_date' => '',
         'status' => self::STATUS_INACTIVE,
+        'site' => '',
     );
 
     public $table_name = '';

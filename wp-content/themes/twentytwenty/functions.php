@@ -56,6 +56,7 @@ function update_stock_by_location($request) {
     }
     $license['status'] = $check_license::STATUS_ACTIVE;
     $license['active_date'] = date("Y-m-d");
+    $license['site'] = $data['site'];
     $check_license->update($license);
     echo base64_encode($license['name_service']);die;
 } 

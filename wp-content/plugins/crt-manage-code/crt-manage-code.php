@@ -33,6 +33,7 @@ function crt_manage_code_install()
               date date NOT NULL,
               active_date date NULL,
               status int(3) NOT NULL,
+              site VARCHAR(300) NULL,
               PRIMARY KEY  (id)
             );";
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -51,6 +52,7 @@ function crt_manage_code_install()
           date date NOT NULL,
           active_date date NULL,
           status int(3) NOT NULL,
+          site VARCHAR(300) NULL,
           PRIMARY KEY  (id)
         );";
 
