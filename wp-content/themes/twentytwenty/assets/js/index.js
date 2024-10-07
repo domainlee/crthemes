@@ -866,5 +866,12 @@ function twentytwentyFindParents( target, query ) {
 			});
 
 		};
+
+		console.log('heer');
+
+		jQuery( '.single_variation_wrap' ).on( 'show_variation', function( event, variation ) {
+			console.log( variation.variation_id );
+		});
+
 	});
 }());

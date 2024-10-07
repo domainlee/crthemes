@@ -38,20 +38,26 @@
 add_action('rest_api_init', function () {
             register_rest_route('wc/v3', 'purchase', array(
                 'methods' => WP_REST_Server::EDITABLE,
-                'callback' => 'update_stock_by_location'
+                'callback' => 'update_stock_by_location',
+                'permission_callback' => '__return_true',
             ));
         });
 
 function update_stock_by_location($request) {
-	
 	$data = $request->get_body();
-        $data = json_decode($data, true);
-	$code = get_field('theme_code', $data['theme_id']);
-
-	if($code !== $data['code']) {
-		return false;
-	}
-	echo 'valid';die;
+    $data = json_decode($data, true);
+    $check_license = new CRT_DB_CODE();
+    $license = $check_license->get_code($data['code']);
+    if(!$license) {
+        echo base64_encode('NOT_EXIST');die;
+    }
+    if($license['status'] == 1) {
+        echo base64_encode('CODE_ACTIVED');die;
+    }
+    $license['status'] = $check_license::STATUS_ACTIVE;
+    $license['active_date'] = date("Y-m-d");
+    $check_license->update($license);
+    echo base64_encode($license['name_service']);die;
 } 
 function twentytwenty_theme_support() {
 
@@ -759,6 +765,16 @@ function twentytwenty_get_customizer_color_vars() {
 	return $colors;
 }
 
+add_action('woocommerce_before_add_to_cart_form', 'add_html_before');
+add_action('woocommerce_after_add_to_cart_form', 'add_html_after');
+
+function add_html_before() {
+    echo '<div class="virtual-host-inner">';
+}
+function add_html_after() {
+    echo '</div>';
+}
+
 /**
  * Get an array of elements.
  *
@@ -835,10 +851,7 @@ function twentytwenty_get_elements_array() {
 
 
 add_action('rest_api_init', function () {
-    register_rest_route('create/v1', 'test', array(
-        'methods' => 'GET',
-        'callback' => 'create_coin_specifications',
-    ));
+
 });
 
 function create_coin_specifications() {
