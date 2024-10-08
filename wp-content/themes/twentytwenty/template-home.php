@@ -33,7 +33,8 @@ get_header();
                             $term = get_the_terms(get_the_ID(), 'category');
                             $status = get_post_status(get_the_ID());
 				            $url_free_version = get_field('free_version_url', get_the_ID());
-                    ?>
+                            $theme_name = get_field('theme_name', get_the_ID());
+                        ?>
                             <div class="theme__item">
                                 <div class="theme__item--inner">
                                     <div class="themes__image">
@@ -43,13 +44,16 @@ get_header();
                                     </div>
                                     <div class="theme__content">
                                         <h3 class="theme__title"><a href="<?php echo esc_attr($link) ?>"><?php echo esc_html($title) ?></a></h3>
+                                        <span><?php woocommerce_template_single_price(); ?></span>
                                         <div class="theme__control">
-                                            <span><?php woocommerce_template_single_price(); ?></span>
                                             <div class="theme__action">
                                                 <?php
                                                     echo '<a href="?add-to-cart=' . get_the_ID() . '&quantity=1" data-quantity="1" data-product_id="' . get_the_ID() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
                                                 ?>
                                                 <a class="theme__live-view" target="_blank" href="<?php echo esc_attr($url_demo ? $url_demo:'#'); ?>">Live Preview</a>
+                                                <?php if(!empty($theme_name)): ?>
+                                                    <a class="theme__action--create-site" href="https://create.crthemes.com/?theme=<?php echo $theme_name; ?>" target="_blank"><span>Or create site with this theme</span>Create Site</a>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>

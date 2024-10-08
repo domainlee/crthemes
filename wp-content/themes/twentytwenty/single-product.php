@@ -27,6 +27,7 @@ get_header();
                                 $product = wc_get_product( get_the_ID() );
                                 $url_demo = get_field('demo_url', get_the_ID());
                                 $url_free_version = get_field('free_version_url', get_the_ID());
+                                $theme_name = get_field('theme_name', get_the_ID());
                                 the_post_thumbnail();
                                 $caption = get_the_post_thumbnail_caption();
                                 if ( $caption ) {
@@ -41,6 +42,14 @@ get_header();
                                         <a class="theme__free" target="_blank" href="<?= $url_free_version ? $url_free_version:'#' ?>">Free Version</a>
                                     <?php endif; ?>
                                 </div>
+                                <?php if(!empty($theme_name)): ?>
+                                <div class="theme-action__site">
+                                    <div class="theme-action__hr-line"><span>Or create site with this theme</span></div>
+                                    <div class="theme-action__create-site">
+                                        <a href="https://create.crthemes.com/?theme=<?php echo $theme_name; ?>" target="_blank">Create Site</a>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             <div class="single-download__right--content">
                                 <div class="single-download__left--inner">

@@ -6726,8 +6726,49 @@ a.to-the-top > * {
 	font-weight: 700;
 }
 .theme__action {
-	display: inline-flex;
+	display: flex;
 	align-items: center;
+	width: 100%;
+}
+.single-download .theme__action {
+	justify-content: center;
+}
+.theme__action--create-site {
+	position: relative;
+	margin: 0 0 0 auto;
+	text-decoration: none;
+	font-weight: 600;
+	color: #000;
+}
+.theme__action--create-site span {
+	position: absolute;
+	background-color: #000;
+	color: #FFF;
+	top: -50px;
+	width: 200px;
+	text-align: center;
+	padding: 7px;
+	font-size: 14px;
+	border-radius: 5px;
+	right: 0;
+	opacity: 0;
+	visibility: hidden;
+}
+.theme__action--create-site:hover span {
+	opacity: 1;
+	visibility: visible;
+}
+.theme__action--create-site span:after {
+	content: '';
+	width: 0px;
+	height: 0px;
+	border-style: solid;
+	border-width: 8px 6px 0 6px;
+	border-color: #000000 transparent transparent transparent;
+	transform: rotate(0deg);
+	position: absolute;
+	bottom: -8px;
+	right: 20px;
 }
 .theme__cart, .added_to_cart {
 	padding: 10px 20px;
@@ -6947,4 +6988,40 @@ button.wc-block-components-button.wp-element-button.wc-block-components-totals-c
 .form-register-domain__note p {
 	margin: 0 0 5px;
 	font-size: 15px;
+}
+.theme-action__site {
+	text-align: center;
+}
+.theme-action__hr-line {
+	position: relative;
+	margin: 30px 0 15px;
+	display: block;
+}
+.theme-action__hr-line:after {
+	content: '';
+	height: 1px;
+	width: auto;
+	background-color: #DDD;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 13px;
+}
+.theme-action__hr-line span {
+	background-color: #FFF;
+	z-index: 6;
+	position: relative;
+	padding: 0 20px;
+	font-size: 17px;
+	color: #333;
+}
+.theme-action__create-site {
+	display: inline-block;
+	margin: 15px 0 30px;
+}
+.theme-action__create-site a {
+	padding: 10px 20px;
+	border: 1px solid;
+	border-radius: 5px;
+	text-decoration: none;
 }
