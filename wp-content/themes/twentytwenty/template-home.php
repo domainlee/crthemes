@@ -19,7 +19,7 @@ get_header();
                     global $wp_query;
                     $original_query = $wp_query;
                     $wp_query = null;
-                    $args = array('post_type' => 'product', 'posts_per_page'   => -1,);
+                    $args = array('post_type' => 'product', 'posts_per_page'   => -1, 'post__not_in' => array(617));
                     $wp_query = new WP_Query( $args );
                     if ( have_posts() ) :
                         while ( have_posts() ) : the_post();
