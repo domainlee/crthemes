@@ -89,7 +89,7 @@ class CRT_Register
         $db_exit = "exit;";
 
         $db_update_option = "UPDATE wp_options SET option_value = REPLACE(option_value, '$site_theme', '$site_client') WHERE option_name = 'home' OR option_name = 'siteurl';";
-        $db_update_option_code = "UPDATE wp_options SET option_value = '$code' WHERE wp_options.option_name = 'crt_manage_code';";
+        $db_update_option_code = "INSERT INTO wp_options (option_id, option_name, option_value, autoload) VALUES (NULL, 'crt_manage_code', '$code', 'yes') ON DUPLICATE KEY UPDATE option_value=VALUES(option_value);";
         $db_update_post_content = "UPDATE wp_posts SET post_content = REPLACE (post_content, '$site_theme', '$site_client');";
         $db_update_post_excerpt = "UPDATE wp_posts SET post_excerpt = REPLACE (post_excerpt, '$site_theme', '$site_client');";
         $db_update_post_value = "UPDATE wp_postmeta SET meta_value = REPLACE (meta_value, '$site_theme','$site_client');";
