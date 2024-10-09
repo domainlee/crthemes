@@ -188,8 +188,8 @@ class CRT_Register
 
         global $table_crtheme_manage_sites;
         $client_info_site = $table_crtheme_manage_sites->get($code);
-        $domain_check = $this->is_valid_domain_name($domain);
-        if(empty($client_info_site) || !$domain_check) {
+        $domain_check = $this->is_valid_domain_name_api($domain);
+        if(empty($client_info_site)) {
             echo 'failure';
             exit();
         }
@@ -334,6 +334,13 @@ class CRT_Register
         // Append the custom message to the email body.
         $components['body'] = str_replace("[your-message]", $custom_message, $components['body']);
         return $components;
+    }
+
+    public function is_valid_domain_name_api($domain_name)
+    {
+        return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
+            && preg_match("/^.{1,253}$/", $domain_name) //overall length check
+            && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)   ); //length of each label
     }
 
     public function is_valid_domain_name($domain_name)
