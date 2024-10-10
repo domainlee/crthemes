@@ -1,7 +1,7 @@
 /*
 Theme Name: Twenty Twenty
 Text Domain: twentytwenty
-Version: 2.0
+Version: 2.2
 Tested up to: 6.0
 Requires at least: 4.7
 Requires PHP: 5.2.4
@@ -6660,6 +6660,7 @@ a.to-the-top > * {
 	border-bottom: 1px solid;
 }
 .my-project {
+	border-top: 1px solid;
 	border-bottom: 1px solid;
 }
 .hero__content {
@@ -7024,4 +7025,13 @@ button.wc-block-components-button.wp-element-button.wc-block-components-totals-c
 	border: 1px solid;
 	border-radius: 5px;
 	text-decoration: none;
+}
+.video-guide__intro {
+	text-align: center;
+	font-size: 22px;
+	margin: 0 auto;
+	max-width: 800px;
+}
+.video-player {
+	margin: 30px 0 0;
 }
