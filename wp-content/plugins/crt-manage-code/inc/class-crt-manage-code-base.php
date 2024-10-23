@@ -247,7 +247,8 @@ class CRT_Manage_Code_Base {
                 $product = wc_get_product($product_id);
                 $sku = $product->get_sku();
                 $sku_str_int = $this->crt_manage_code_random_string(mb_strlen($sku));
-                $code = base64_encode($sku_str_int . '_' . $sku);
+                $date = date("Y-m-d H:i:s");
+                $code = base64_encode($sku_str_int . '_' . $sku . '_' . $date);
                 global $table_crtheme_manage_codes;
                 $data = array(
                     'code' => $code,
