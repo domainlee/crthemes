@@ -36,12 +36,18 @@
 
 
 add_action('rest_api_init', function () {
-            register_rest_route('wc/v3', 'purchase', array(
-                'methods' => WP_REST_Server::EDITABLE,
-                'callback' => 'update_stock_by_location',
-                'permission_callback' => '__return_true',
-            ));
-        });
+    register_rest_route('wc/v3', 'purchase', array(
+        'methods' => WP_REST_Server::EDITABLE,
+        'callback' => 'update_stock_by_location',
+        'permission_callback' => '__return_true',
+    ));
+
+    register_rest_route('wc/v3', 'purchase_theme', array(
+        'methods' => WP_REST_Server::EDITABLE,
+        'callback' => 'get_code_theme',
+        'permission_callback' => '__return_true',
+    ));
+});
 
 function update_stock_by_location($request) {
 	$data = $request->get_body();
@@ -59,7 +65,26 @@ function update_stock_by_location($request) {
     $license['site'] = $data['site'];
     $check_license->update($license);
     echo base64_encode($license['name_service']);die;
-} 
+}
+
+function get_code_theme($request) {
+    $data = $request->get_body();
+    $data = json_decode($data, true);
+    $check_license = new CRT_DB_CODE();
+    $license = $check_license->get_code($data['code']);
+    if(!$license) {
+        echo base64_encode('NOT_EXIST');die;
+    }
+//    if($license['status'] == 1) {
+//        echo base64_encode('CODE_ACTIVED');die;
+//    }
+    $license['status'] = $check_license::STATUS_ACTIVE;
+    $license['active_date'] = date("Y-m-d");
+    $license['site'] = $data['site'];
+    $check_license->update($license);
+    echo base64_encode($data['code']);die;
+}
+
 function twentytwenty_theme_support() {
 
 	// Add default posts and comments RSS feed links to head.

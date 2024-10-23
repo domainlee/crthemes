@@ -223,12 +223,31 @@ class CRT_Manage_Code_Base {
         $items = $order->get_items();
         foreach ( $items as $item ) {
             $product_id = $item->get_variation_id();
+
             if($product_id) {
                 $product = wc_get_product($product_id);
                 $sku = $product->get_sku();
                 $date = date("Y-m-d");
                 $code = md5($sku . $order_email . $date);
 
+                global $table_crtheme_manage_codes;
+                $data = array(
+                    'code' => $code,
+                    'name_service' => $sku,
+                    'date' => date("Y-m-d"),
+                    'order_id' => $order_id,
+                    'status' => $table_crtheme_manage_codes::STATUS_INACTIVE,
+                );
+                $table_crtheme_manage_codes->create($data);
+            }
+
+            $theme_virtual = get_field('theme_virtual', $item->get_product_id());
+            if($theme_virtual) {
+                $product_id = $item->get_product_id();
+                $product = wc_get_product($product_id);
+                $sku = $product->get_sku();
+                $sku_str_int = $this->crt_manage_code_random_string(mb_strlen($sku));
+                $code = base64_encode($sku_str_int . '_' . $sku);
                 global $table_crtheme_manage_codes;
                 $data = array(
                     'code' => $code,
@@ -273,6 +292,17 @@ class CRT_Manage_Code_Base {
         }
 
         return sizeof($new_total_rows) > 0 ? $new_total_rows : $total_rows;
+    }
+
+    public function crt_manage_code_random_string($str_int = 10) {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*';
+        $strings = array();
+        $alphaLength = strlen($alphabet) - 1;
+        for ($i = 0; $i < $str_int; $i++) {
+            $n = rand(0, $alphaLength);
+            $strings[] = $alphabet[$n];
+        }
+        return implode($strings);
     }
 
 
