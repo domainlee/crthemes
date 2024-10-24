@@ -75,9 +75,9 @@ function get_code_theme($request) {
     if(!$license) {
         echo base64_encode('NOT_EXIST');die;
     }
-//    if($license['status'] == 1) {
-//        echo base64_encode('CODE_ACTIVED');die;
-//    }
+    if($license['status'] == 1) {
+        echo base64_encode('CODE_ACTIVED');die;
+    }
     $license['status'] = $check_license::STATUS_ACTIVE;
     $license['active_date'] = date("Y-m-d");
     $license['site'] = $data['site'];
