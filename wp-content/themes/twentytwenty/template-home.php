@@ -11,8 +11,9 @@ get_header();
     </section>
     <section id="video-guide" class="section-inner">
         <div class="theme">
-            <h2 class="heading-default" data-viewport="custom">Quick setup<br/>Wordpress & Import demo</h2>
+            <h2 class="heading-default" data-viewport="custom">Make a WordPress Website in 3 Minutes<br/>Start Here</h2>
             <p class="video-guide__intro">If you don't want to manage complicated hosting, or install Wordpress which takes a lot of time, you can create a website right away following the instructions below.</p>
+            <div style="text-align: center;margin: 30px 0;"><a class="theme__cart color-accent" href="https://create.crthemes.com/" target="_blank">Create Site</a></div>
             <div class="video-player">
                 <iframe width="560" height="315" src="https://www.youtube.com/embed/ISM_wpruqNk?si=TPKTt44ML3Hk0prn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
             </div>
@@ -77,6 +78,54 @@ get_header();
                 wp_reset_postdata();
                 ?>
 
+            </div>
+        </div>
+    </section>
+
+<section class="client-say section-inner">
+        <h2 class="heading-default">Clients Say</h2>
+        <div class="client-say__list">
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>Tenzin Pelsang</h4>
+                    <div>You helped us set up and import the theme quickly. I am very satisfied with the theme.</div>
+                    <p>Site: <a href="https://pelsang.com/" target="_blank">https://pelsang.com/</a></p>
+                </div>
+            </div>
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>Kennedy Fulton</h4>
+                    <div>The theme is very easy to install and customize.</div>
+                    <p>Site: <a href="https://kennedymfulton.com/" target="_blank">https://kennedymfulton.com/</a></p>
+                </div>
+            </div>
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>Canada Navdeep</h4>
+                    <div>CRThemes theme loads quickly, and is supported very quickly, when I sent an email, it was replied within 24 hours</div>
+                    <p>Site: <a href="https://navdeepkaurtiwana.com/" target="_blank">https://navdeepkaurtiwana.com/</a></p>
+                </div>
+            </div>
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>Adinda Rahayu</h4>
+                    <div>You guys really have beautiful wordpress portfolio designs, fast loading themes and great support.</div>
+                    <p>Site: <a href="https://adinda.site/" target="_blank">https://adinda.site/</a></p>
+                </div>
+            </div>
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>James Ferris</h4>
+                    <div>The minimalist portfolio theme design really got me, and I bought it.</div>
+                    <p>Site: <a href="https://ashdakota.com/" target="_blank">https://ashdakota.com/</a></p>
+                </div>
+            </div>
+            <div class="client-say__item">
+                <div class="client-say__item-inner">
+                    <h4>Paulina Morning</h4>
+                    <div>I think investing in a personal portfolio to become more professional will help customers and partners trust you more. So I bought them, it helps me a lot.</div>
+                    <p>Site: <a href="https://paulinamorning.com/" target="_blank">https://paulinamorning.com/</a></p>
+                </div>
             </div>
         </div>
     </section>
