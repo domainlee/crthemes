@@ -55,13 +55,7 @@ function wpcf7_stripe_enqueue_scripts() {
 		null
 	);
 
-	$assets = array();
-
-	$asset_file = wpcf7_plugin_path( 'modules/stripe/index.asset.php' );
-
-	if ( file_exists( $asset_file ) ) {
-		$assets = include( $asset_file );
-	}
+	$assets = include wpcf7_plugin_path( 'modules/stripe/index.asset.php' );
 
 	$assets = wp_parse_args( $assets, array(
 		'dependencies' => array(),
@@ -86,9 +80,15 @@ function wpcf7_stripe_enqueue_scripts() {
 	$api_keys = $service->get_api_keys();
 
 	if ( $api_keys['publishable'] ) {
-		wp_localize_script( 'wpcf7-stripe', 'wpcf7_stripe', array(
-			'publishable_key' => $api_keys['publishable'],
-		) );
+		wp_add_inline_script( 'wpcf7-stripe',
+			sprintf(
+				'var wpcf7_stripe = %s;',
+				wp_json_encode( array(
+					'publishable_key' => $api_keys['publishable'],
+				), JSON_PRETTY_PRINT )
+			),
+			'before'
+		);
 	}
 }
 
@@ -115,18 +115,75 @@ function wpcf7_stripe_skip_spam_check( $skip_spam_check, $submission ) {
 		$pi_id = trim( $_POST['_wpcf7_stripe_payment_intent'] );
 		$payment_intent = $service->api()->retrieve_payment_intent( $pi_id );
 
-		if ( isset( $payment_intent['status'] )
-		and ( 'succeeded' === $payment_intent['status'] ) ) {
+		if (
+			isset( $payment_intent['metadata']['wpcf7_submission_timestamp'] )
+		) {
+			// This PI has already been used. Ignore.
+			return $skip_spam_check;
+		}
+
+		if (
+			isset( $payment_intent['status'] ) and
+			'succeeded' === $payment_intent['status']
+		) {
 			$submission->push( 'payment_intent', $pi_id );
+
+			$service->api()->update_payment_intent( $pi_id, array(
+				'metadata' => array(
+					'wpcf7_submission_timestamp' => $submission->get_meta( 'timestamp' ),
+				),
+			) );
 		}
 	}
 
-	if ( ! empty( $submission->pull( 'payment_intent' ) )
-	and $submission->verify_posted_data_hash() ) {
+	if (
+		! empty( $submission->pull( 'payment_intent' ) ) and
+		$submission->verify_posted_data_hash()
+	) {
 		$skip_spam_check = true;
 	}
 
 	return $skip_spam_check;
+}
+
+
+add_filter(
+	'wpcf7_spam',
+	'wpcf7_stripe_verify_payment_intent',
+	6, 2
+);
+
+/**
+ * Verifies submitted Stripe Payment Intent ID.
+ */
+function wpcf7_stripe_verify_payment_intent( $spam, $submission ) {
+	$service = WPCF7_Stripe::get_instance();
+
+	if ( ! $service->is_active() ) {
+		return $spam;
+	}
+
+	if ( ! empty( $_POST['_wpcf7_stripe_payment_intent'] ) ) {
+		$pi_id = trim( $_POST['_wpcf7_stripe_payment_intent'] );
+		$payment_intent = $service->api()->retrieve_payment_intent( $pi_id );
+
+		if (
+			! $payment_intent or
+			isset( $payment_intent['metadata']['wpcf7_submission_timestamp'] )
+		) {
+			$spam = true;
+
+			$submission->add_spam_log( array(
+				'agent' => 'stripe',
+				'reason' => __(
+					'Invalid Stripe Payment Intent ID detected.',
+					'contact-form-7'
+				),
+			) );
+		}
+	}
+
+	return $spam;
 }
 
 

@@ -50,10 +50,6 @@ defined( 'ABSPATH' ) || exit;
 					<strong><?php echo $order->get_order_number(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></strong>
 				</li>
 
-                <?php
-                    do_action( 'crt_manage_woocommerce_thankyou', $order->get_id() );
-                ?>
-
 				<li class="woocommerce-order-overview__date date">
 					<?php esc_html_e( 'Date:', 'woocommerce' ); ?>
 					<strong><?php echo wc_format_datetime( $order->get_date_created() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></strong>

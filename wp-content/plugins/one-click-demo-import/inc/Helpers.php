@@ -55,7 +55,10 @@ class Helpers {
 	/**
 	 * Download import files. Content .xml and widgets .wie|.json files.
 	 *
+	 * @since 3.3.0 Add WPForms support.
+	 *
 	 * @param  array  $import_file_info array with import file details.
+	 *
 	 * @return array|WP_Error array of paths to the downloaded files or WP_Error object with error message.
 	 */
 	public static function download_import_files( $import_file_info ) {
@@ -64,6 +67,7 @@ class Helpers {
 			'widgets'    => '',
 			'customizer' => '',
 			'redux'      => '',
+			'wpforms'    => '',
 		);
 		$downloader = new Downloader();
 
@@ -72,7 +76,7 @@ class Helpers {
 		// ----- Set content file path -----
 		// Check if 'import_file_url' is not defined. That would mean a local file.
 		if ( empty( $import_file_info['import_file_url'] ) ) {
-			if ( file_exists( $import_file_info['local_import_file'] ) ) {
+			if ( ! empty( $import_file_info['local_import_file'] ) && file_exists( $import_file_info['local_import_file'] ) ) {
 				$downloaded_files['content'] = $import_file_info['local_import_file'];
 			}
 		}
@@ -168,6 +172,25 @@ class Helpers {
 
 			// Download the Redux import file.
 			$downloaded_files['redux'] = $redux_items;
+		}
+
+		// ----- Set WPForms file paths -----
+		// Get WPForms import file as well. If defined!
+		if ( ! empty( $import_file_info['import_wpforms_file_url'] ) ) {
+			// Setup filename path to save the WPForms content.
+			$wpforms_filename = self::apply_filters( 'ocdi/downloaded_wpforms_file_prefix', 'demo-wpforms-import-file_' ) . self::$demo_import_start_time . self::apply_filters( 'ocdi/downloaded_wpforms_file_suffix_and_file_extension', '.json' );
+
+			// Download the customizer import file.
+			$downloaded_files['wpforms'] = $downloader->download_file( $import_file_info['import_wpforms_file_url'], $wpforms_filename );
+
+			// Return from this function if there was an error.
+			if ( is_wp_error( $downloaded_files['wpforms'] ) ) {
+				return $downloaded_files['wpforms'];
+			}
+		} else if ( ! empty( $import_file_info['local_import_wpforms_file'] ) ) {
+			if ( file_exists( $import_file_info['local_import_wpforms_file'] ) ) {
+				$downloaded_files['wpforms'] = $import_file_info['local_import_wpforms_file'];
+			}
 		}
 
 		return $downloaded_files;
@@ -704,16 +727,21 @@ class Helpers {
 	 * but we needed to make sure backwards compatibility is in place.
 	 * This method should be used for all do_action calls.
 	 *
+	 * @since 3.2.0 Run both `$hook` and `pt-$hook` actions.
+	 *
 	 * @param string $hook   The action hook name.
 	 * @param mixed  ...$arg Optional. Additional arguments which are passed on to the
 	 *                       functions hooked to the action. Default empty.
 	 */
 	public static function do_action( $hook, ...$arg ) {
-		if ( has_action( $hook ) ) {
-			do_action( $hook, ...$arg );
-		} else if ( has_action( "pt-$hook" ) ) {
-			do_action( "pt-$hook", ...$arg );
+		do_action( $hook, ...$arg );
+
+		$args = [];
+		foreach ( $arg as $argument ) {
+			$args[] = $argument;
 		}
+
+		do_action_deprecated( "pt-$hook", $args, '3.0.0', $hook );
 	}
 
 	/**
@@ -755,5 +783,40 @@ class Helpers {
 			'capability'  => 'import',
 			'menu_slug'   => 'one-click-demo-import',
 		) );
+	}
+
+	/**
+	 * Get the failed attachment imports.
+	 *
+	 * @since 3.2.0
+	 *
+	 * @return mixed
+	 */
+	public static function get_failed_attachment_imports() {
+
+		return get_transient( 'ocdi_importer_data_failed_attachment_imports' );
+	}
+
+	/**
+	 * Set the failed attachment imports.
+	 *
+	 * @since 3.2.0
+	 *
+	 * @param string $attachment_url The attachment URL that was not imported.
+	 *
+	 * @return void
+	 */
+	public static function set_failed_attachment_import( $attachment_url ) {
+
+		// Get current importer transient.
+		$failed_media_imports = self::get_failed_attachment_imports();
+
+		if ( empty( $failed_media_imports ) || ! is_array( $failed_media_imports ) ) {
+			$failed_media_imports = [];
+		}
+
+		$failed_media_imports[] = $attachment_url;
+
+		set_transient( 'ocdi_importer_data_failed_attachment_imports', $failed_media_imports, HOUR_IN_SECONDS );
 	}
 }

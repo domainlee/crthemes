@@ -47,7 +47,39 @@ add_action('rest_api_init', function () {
         'callback' => 'get_code_theme',
         'permission_callback' => '__return_true',
     ));
+
+    //Hook when new order from Lemon
+    register_rest_route( 'lemonsqueezy', 'order', array(
+        'methods' => 'POST',
+        'callback' => 'my_awesome_func',
+    ) );
+
+
 });
+
+function my_awesome_func($request) {
+    $data = $request->get_body();
+    $data2 = $_POST;
+    print_r($data);
+    echo '=======';
+    print_r($data2);
+
+    $secret    = 'mienle!@';
+    $payload   = file_get_contents('php://input');
+    $hash      = hash_hmac('sha256', $payload, $secret);
+    $signature = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
+    $signature_result = '';
+
+    if (!hash_equals($hash, $signature)) {
+        $signature_result = 'signature_false';
+    } else {
+        $signature_result = 'signature_true';
+    }
+
+    update_option('crt_manage_custom', wp_json_encode($data, $signature, $signature_result));
+}
+//$custom_option = get_option('crt_manage_custom');
+//print_r(json_decode($custom_option));die;
 
 function update_stock_by_location($request) {
 	$data = $request->get_body();
@@ -75,9 +107,9 @@ function get_code_theme($request) {
     if(!$license) {
         echo base64_encode('NOT_EXIST');die;
     }
-    if($license['status'] == 1) {
-        echo base64_encode('CODE_ACTIVED');die;
-    }
+//    if($license['status'] == 1) {
+//        echo base64_encode('CODE_ACTIVED');die;
+//    }
     $license['status'] = $check_license::STATUS_ACTIVE;
     $license['active_date'] = date("Y-m-d");
     $license['site'] = $data['site'];

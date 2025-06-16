@@ -1,0 +1,85 @@
+.hidden {
+	display: none;
+}
+#yeepdf-product-settings-tab-inner .hidden {
+	display: none !important;
+}
+#yeepdf-product-settings-tab-inner{
+	margin-top: 0;
+}
+#yeepdf-product-settings-tab-inner li{
+    border-bottom: 1px solid #eeeeef;
+    margin: 0;
+    padding: 10px 20px;
+    border-right: 1px solid #eeeeef;
+    display: inline-block;
+    cursor: pointer;
+    margin-left: -3px;
+}
+#yeepdf-product-settings-tab-inner li.active{
+	background: #f2f2f2;
+}
+#yeepdf-product-settings-tab-inner li a {
+	text-decoration: none;
+}
+#yeepdf-product-voucher .description {
+	display: block;
+	clear: both;
+}
+._yeepdf_product_vouchers-codes textarea {
+	width: 100% !important;
+	height: 150px !important;
+}
+.post-type-yeepdf_vc_order .wrap a.page-title-action{
+    display: none;
+}
+.uppercase {
+	text-transform: uppercase;
+}
+.check_voucher_codes {
+	height: 30px;
+}
+.post-type-yeepdf_vc_order .row-actions .editinline{
+	 display: none;
+}
+.type-yeepdf_vc_order .column-actions {
+	text-align: center;
+}
+.yeepdf-order-status {
+    display: inline-flex;
+    line-height: 2.5em;
+    color: #454545;
+    background: #e5e5e5;
+    border-radius: 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, .05);
+    margin: -.25em 0;
+    cursor: inherit !important;
+    white-space: nowrap;
+    max-width: 100%;
+    padding: 0px 15px;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+.yeepdf-status-hold {
+	background: #f8dda7;
+    color: #573b00;
+}
+.yeepdf-status-completed {
+	background: #c8d7e1;
+    color: #003d66;
+}
+.yeepdf-ajax-done-message {
+	color: blue;
+}
+.yeepdf-ajax-done-error, .yeepdf-ajax-done-error .yeepdf-ajax-done-message {
+	color: red;
+}
+#yeepdf_add_order_note {
+    width: 100%;
+}
+.yee_order_notes li {
+    border-bottom: 1px solid #e7e7e7;
+}
+#woocommerce_yeepdf_gift_notification_custom_content,#woocommerce_yeepdf_redeem_notification_custom_content {
+  min-height: 200px;
+}

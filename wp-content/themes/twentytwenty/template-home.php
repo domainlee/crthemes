@@ -9,16 +9,7 @@ get_header();
                 </p>
             </div>
     </section>
-    <section id="video-guide" class="section-inner">
-        <div class="theme">
-            <h2 class="heading-default" data-viewport="custom">Make a WordPress Website in 3 Minutes<br/>Start Here</h2>
-            <p class="video-guide__intro">If you don't want to manage complicated hosting, or install Wordpress which takes a lot of time, you can create a website right away following the instructions below.</p>
-            <div style="text-align: center;margin: 30px 0;"><a class="theme__cart color-accent" href="https://create.crthemes.com/" target="_blank">Create Site</a></div>
-            <div class="video-player">
-                <iframe width="560" height="315" src="https://www.youtube.com/embed/ISM_wpruqNk?si=TPKTt44ML3Hk0prn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-            </div>
-        </div>
-    </section>
+    
     <section id="my-project" class="section-inner my-project ">
         <div class="theme">
             <h2 class="heading-default" data-viewport="custom">Latest Themes</h2>
@@ -179,6 +170,17 @@ get_header();
             </div>
         </div>
 
+    </section>
+
+<section id="video-guide" class="section-inner" style="display: none;">
+        <div class="theme">
+            <h2 class="heading-default" data-viewport="custom">Make a WordPress Website in 3 Minutes<br/>Start Here</h2>
+            <p class="video-guide__intro">If you don't want to manage complicated hosting, or install Wordpress which takes a lot of time, you can create a website right away following the instructions below.</p>
+            <div style="text-align: center;margin: 30px 0;"><a class="theme__cart color-accent" href="https://create.crthemes.com/" target="_blank">Create Site</a></div>
+            <div class="video-player">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/ISM_wpruqNk?si=TPKTt44ML3Hk0prn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+        </div>
     </section>
 </main>
 <?php

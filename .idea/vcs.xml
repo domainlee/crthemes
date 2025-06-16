@@ -2,6 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/wp-content/plugins/crt-manage" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/wp-content/themes/jason-portfolio-resume" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/wp-content/themes/melissa-portfolio" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/wp-content/themes/tamal-portfolio" vcs="Git" />
   </component>
 </project>
