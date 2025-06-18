@@ -34,6 +34,13 @@
  * @since Twenty Twenty 1.0
  */
 
+if ( ! defined( 'CRT_API_KEY_LEMON' ) ) {
+    define( 'CRT_API_KEY_LEMON', 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJiOTdmMzA1MTc5MDg0ZTQ3YTQ4OTY0ZTRhY2NjMDg5Y2U5MTcxYzZiZmMwMTQ1ZmU5M2QxNzEwOGRiZTViNDQwYzc0ZDVmNTQyMmU3NTkxYSIsImlhdCI6MTc0OTYxNTgyNy4zNDY4NTksIm5iZiI6MTc0OTYxNTgyNy4zNDY4NjIsImV4cCI6MjA2NTE0ODYyNy4yOTI2NDMsInN1YiI6IjUwMDk3NjMiLCJzY29wZXMiOltdfQ.B4i9suDnTUQc1nh5nzPkEq67AHx5vnkvJEJJvRc5FXFkDB_LCNrSNEsU_wE3xdZYuJIqsRHdmlHw6MQoVS0_i6zSLbxI-h8MK1pIpP-U1ZvEsRTJzw_AfqP80xVfoJzanc8VyOERBD-eq9znU-5lJa80eElD-3AwmvXXFWTMIGOJUY5NpVHIfvkFvdrPuU-S9UFyad7s7OIHtKDXIy6qeB4W8GWRatRzHXyPQM94__OCgGkyrxsytUBQi_ahScS8JAYyLCorieYXOphJBw0brlJY1uRK5g7ApdwCExJQu8OKEZybGrdLiq9JHmOcuLHJLnqRpYfOal1kqPD2CrIWEys_jp-1rexk7tnp9K5Mskx2e6T2ECgNTotRBZ6zAA_m1nZwPuQTjtdGbKapWhpaMXY9fJfPDHZZNPMtck7KKc80V6LbXiZcf-16_w9SZO78Ta-xkX2PVwEZ0SRp9GsiUs6mqj-hPvrK7kIMQaeC54OHY-gh3pGKVNZncbSW8TPh' );
+}
+
+if ( ! defined( 'CRT_API_LEMON_URL' ) ) {
+    define( 'CRT_API_LEMON_URL', 'https://api.lemonsqueezy.com/' );
+}
 
 add_action('rest_api_init', function () {
     register_rest_route('wc/v3', 'purchase', array(
@@ -53,6 +60,12 @@ add_action('rest_api_init', function () {
         'methods' => 'POST',
         'callback' => 'my_awesome_func',
     ) );
+
+    register_rest_route('wc/v3', 'purchase_theme_lemon', array(
+        'methods' => WP_REST_Server::EDITABLE,
+        'callback' => 'active_code_with_lemon',
+        'permission_callback' => '__return_true',
+    ));
 
 
 });
@@ -116,6 +129,32 @@ function get_code_theme($request) {
     $check_license->update($license);
     echo base64_encode($data['code']);die;
 }
+
+function active_code_with_lemon($request) {
+    $data = $request->get_body();
+    $data = json_decode($data, true);
+
+    $personalToken = 'Bearer ' . CRT_API_KEY_LEMON;
+    $url = CRT_API_LEMON_URL . 'v1/licenses/activate';
+    $headers = array(
+        'Accept' => 'application/vnd.api+json',
+        'Content-Type' => 'application/vnd.api+json',
+        'Authorization' => $personalToken,
+    );
+    $body_data = array(
+        'license_key' => $data['code'],
+        'instance_name' => $data['theme']
+    );
+    $result = wp_remote_post(
+        $url,
+        array(
+            'body'    => json_encode($body_data),
+            'headers' => $headers
+        )
+    );
+    echo $result['body'];die;
+}
+
 
 function twentytwenty_theme_support() {
 
