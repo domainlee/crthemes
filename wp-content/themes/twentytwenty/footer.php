@@ -62,6 +62,10 @@
 			</footer><!-- #site-footer -->
 
 		<?php wp_footer(); ?>
-        
+
+        <?php if(CRT_API_LEMON_IS_ENABLE): ?>
+            <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
+        <?php endif; ?>
+
 	</body>
 </html>

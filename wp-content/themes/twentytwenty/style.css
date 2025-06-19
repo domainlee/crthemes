@@ -1,7 +1,7 @@
 /*
 Theme Name: Twenty Twenty
 Text Domain: twentytwenty
-Version: 2.2
+Version: 2.3
 Tested up to: 6.0
 Requires at least: 4.7
 Requires PHP: 5.2.4
@@ -6782,6 +6782,19 @@ a.to-the-top > * {
 	text-decoration: none;
 	    display: inline-flex;
     align-items: center;
+}
+.lemonsqueezy-button {
+	padding: 10px 20px;
+	border: 1px solid #e20842;
+	border-radius: 5px;
+	margin: 0 5px 0 0;
+	text-align: center;
+	font-weight: 700;
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	background-color: #e20842;
+	color: #FFF;
 }
 .theme__cart.added {
 	display: none;

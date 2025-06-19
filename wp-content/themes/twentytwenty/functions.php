@@ -43,6 +43,10 @@ if ( ! defined( 'CRT_API_LEMON_URL' ) ) {
     define( 'CRT_API_LEMON_URL', 'https://api.lemonsqueezy.com/' );
 }
 
+if ( ! defined( 'CRT_API_LEMON_IS_ENABLE' ) ) {
+    define( 'CRT_API_LEMON_IS_ENABLE', true );
+}
+
 add_action('rest_api_init', function () {
     register_rest_route('wc/v3', 'purchase', array(
         'methods' => WP_REST_Server::EDITABLE,

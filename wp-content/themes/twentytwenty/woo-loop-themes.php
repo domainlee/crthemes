@@ -54,7 +54,12 @@
                                 <div class="theme__control">
                                     <div class="theme__action">
                                         <?php
-                                            echo '<a href="?add-to-cart=' . get_the_ID() . '&quantity=1" data-quantity="1" data-product_id="' . get_the_ID() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                            $buy_with_lemon = get_field('buy_with_lemon', get_the_ID());
+                                            if(CRT_API_LEMON_IS_ENABLE && $buy_with_lemon) {
+                                                echo $buy_with_lemon;
+                                            } else {
+                                                echo '<a href="?add-to-cart=' . get_the_ID() . '&quantity=1" data-quantity="1" data-product_id="' . get_the_ID() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                            }
                                         ?>
                                         <a class="theme__live-view" target="_blank" href="<?php echo esc_attr($url_demo ? $url_demo:'#'); ?>">Live Preview</a>
                                         <?php if(!empty($theme_name)): ?>

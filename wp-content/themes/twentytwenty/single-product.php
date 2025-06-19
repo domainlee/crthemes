@@ -55,7 +55,12 @@ get_header();
                                 <div class="single-download__left--inner">
                                     <div class="single-download__left--price">
                                         <?php
-                                        echo '<a href="?add-to-cart=' . $product->get_id() . '&quantity=1" data-quantity="1" data-product_id="' . $product->get_id() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                            $buy_with_lemon = get_field('buy_with_lemon', $product->get_id());
+                                            if(CRT_API_LEMON_IS_ENABLE && $buy_with_lemon) {
+                                                echo $buy_with_lemon;
+                                            } else {
+                                                echo '<a href="?add-to-cart=' . $product->get_id() . '&quantity=1" data-quantity="1" data-product_id="' . $product->get_id() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                            }
                                         ?>
                                         <strong><?php woocommerce_template_single_price(); ?></strong>
                                     </div>
@@ -78,7 +83,12 @@ get_header();
                     <div class="single-download__left--inner">
                         <div class="single-download__left--price">
                             <?php
-                            echo '<a href="?add-to-cart=' . $product->get_id() . '&quantity=1" data-quantity="1" data-product_id="' . $product->get_id() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                $buy_with_lemon = get_field('buy_with_lemon', $product->get_id());
+                                if(CRT_API_LEMON_IS_ENABLE && $buy_with_lemon) {
+                                    echo $buy_with_lemon;
+                                } else {
+                                    echo '<a href="?add-to-cart=' . $product->get_id() . '&quantity=1" data-quantity="1" data-product_id="' . $product->get_id() . '" class="theme__cart color-accent add_to_cart_button ajax_add_to_cart">Purchase</a>';
+                                }
                             ?>
                             <strong><?php woocommerce_template_single_price(); ?></strong>
                         </div>
